@@ -352,9 +352,15 @@
   text-align:center; border-radius:9px; padding:0 4px; box-shadow:0 1px 4px rgba(0,0,0,.4);
 }
 .notif-panel{
-  position:absolute; right:0; top:calc(100% + 8px); width:320px; max-width:90vw;
+  position:absolute; right:0; top:calc(100% + 8px); width:320px; max-width:92vw;
   background:var(--card); border:1px solid var(--accent-l); border-radius:14px;
   box-shadow:0 12px 40px rgba(0,0,0,.55); z-index:10000; overflow:hidden;
+}
+@media (max-width:600px){
+  .notif-panel{
+    position:fixed; top:auto; right:12px; left:12px; width:auto; max-width:none;
+    margin:0 auto;
+  }
 }
 .notif-head{ padding:12px 16px; font-weight:800; color:var(--accent-l); border-bottom:1px solid var(--line); font-size:14px; }
 .notif-list{ max-height:340px; overflow-y:auto; }
@@ -1675,7 +1681,13 @@ document.addEventListener('click', function(e){
   if(!panel) return;
   if(bell && (e.target===bell || (bell.contains&&bell.contains(e.target)))){
     e.stopPropagation();
-    panel.style.display = (panel.style.display==='block') ? 'none' : 'block';
+    var willShow = (panel.style.display!=='block');
+    panel.style.display = willShow ? 'block' : 'none';
+    // Sur mobile : caler le panneau juste sous la cloche (position fixe)
+    if(willShow && window.innerWidth<=600){
+      var r = bell.getBoundingClientRect();
+      panel.style.top = (r.bottom + 8) + 'px';
+    }
   } else if(!panel.contains(e.target)){
     panel.style.display='none';
   }
