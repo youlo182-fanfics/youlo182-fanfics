@@ -273,9 +273,37 @@
 #passagePopup .pp-send{background:var(--accent);color:#fff;border:none;border-radius:18px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;}
 #passagePopup .pp-send:hover{background:var(--accent-l);}
 #ppOverlay{position:fixed;inset:0;z-index:9999;display:none;background:transparent;}
+
+/* ===== Décompte + bouton bannière + confettis ===== */
+.teaser-countdown{ display:flex; gap:10px; margin:12px 0 6px; }
+.teaser-countdown .cd-box{
+  background:rgba(176,61,94,.15); border:1px solid var(--accent-l); border-radius:10px;
+  min-width:52px; padding:8px 6px; text-align:center; display:flex; flex-direction:column; align-items:center;
+}
+.teaser-countdown .cd-box span{ font-size:24px; font-weight:800; color:var(--accent-l); line-height:1; font-variant-numeric:tabular-nums; }
+.teaser-countdown .cd-box small{ font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-top:3px; }
+.teaser-btn{
+  align-self:flex-start; margin-top:12px; background:var(--accent); color:#fff; border:none;
+  padding:11px 22px; border-radius:24px; font-weight:800; font-size:15px; cursor:pointer;
+  box-shadow:0 4px 16px rgba(176,61,94,.5); transition:transform .15s, background .2s;
+}
+.teaser-btn:hover{ background:var(--accent-l); transform:translateY(-2px); }
+@keyframes cdPulse{ 0%{transform:scale(1);} 50%{transform:scale(1.12);} 100%{transform:scale(1);} }
+.cd-box.pulse span{ animation:cdPulse .5s ease; }
+/* Confettis */
+#confettiCanvas{ position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:100000; display:none; }
+
+/* ===== Couverture en haut du 1er chapitre ===== */
+.chapter-cover{ text-align:center; margin:0 0 24px; }
+.chapter-cover img{
+  max-width:280px; width:100%; height:auto; border-radius:14px;
+  box-shadow:0 8px 28px rgba(0,0,0,.45); display:inline-block;
+}
+@media (max-width:600px){ .chapter-cover img{ max-width:200px; } }
 </style>
 </head>
 <body>
+<canvas id="confettiCanvas"></canvas>
 <div id="readProgress"></div>
 <div class="topbar">
   <div class="topbar-inner">
@@ -332,14 +360,21 @@
       <p id="libSubtitle">Bienvenue dans mon univers ✦ Carina & Maya ✦ — reprends où tu t'es arrêté·e 💫</p>
     </div>
 
-    <!-- Bannière teaser : prochaine histoire -->
+    <!-- Bannière teaser : prochaine histoire (avec décompte + bouton) -->
     <div id="teaser" class="teaser">
-      <img class="teaser-img" src="assets/tainted-love-banner.jpeg" alt="Tainted Love — à venir">
+      <img class="teaser-img" src="assets/tainted-love-banner.jpeg" alt="Tainted Love" id="teaserImg">
       <div class="teaser-text">
         <div class="teaser-badge" id="teaserBadge">✨ Bientôt</div>
-        <h3 id="teaserTitle">Nouvelle histoire à venir !</h3>
-        <p id="teaserText">Pensez à revenir vérifier les mises à jour, ou suivez-moi sur X / Instagram pour savoir dès qu'elle est disponible. 💛</p>
-        <p class="teaser-small" id="teaserSmall">Cette histoire sortira en avant-première ici, avant Wattpad et AO3. 🌟</p>
+        <h3 id="teaserTitle">Tainted Love</h3>
+        <p id="teaserText">Une nouvelle histoire arrive très bientôt. Reste dans les parages, elle se dévoile ici en avant-première. 💛</p>
+        <div id="teaserCountdown" class="teaser-countdown">
+          <div class="cd-box"><span id="cdD">0</span><small id="cdDL">j</small></div>
+          <div class="cd-box"><span id="cdH">0</span><small>h</small></div>
+          <div class="cd-box"><span id="cdM">0</span><small>min</small></div>
+          <div class="cd-box"><span id="cdS">0</span><small>s</small></div>
+        </div>
+        <button id="teaserBtn" class="teaser-btn" style="display:none;">📖 Lire maintenant</button>
+        <p class="teaser-small" id="teaserSmall">En avant-première ici, avant Wattpad et AO3. 🌟</p>
       </div>
     </div>
 
@@ -693,7 +728,7 @@ fontSize=parseInt(safeGet('fanfic_fs','19')); document.documentElement.style.set
 // ---- LANG + TYPE FILTERS ----
 document.querySelectorAll('#langChips .chip').forEach(function(c){
   c.classList.toggle('active', c.dataset.lang===lang);
-  c.onclick=function(){ lang=c.dataset.lang; safeSet('fanfic_lang',lang); document.querySelectorAll('#langChips .chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); applyUILang(); if(document.getElementById('about').style.display!=='none'){ renderAbout(); } else if(currentSaga && document.getElementById('reader').style.display==='none'){ openSaga(currentSaga); } else { renderLibrary(); } if(document.getElementById('reader').style.display!=='none'){ renderChapter(); } };
+  c.onclick=function(){ lang=c.dataset.lang; safeSet('fanfic_lang',lang); document.querySelectorAll('#langChips .chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); applyUILang(); if(document.getElementById('about').style.display!=='none'){ renderAbout(); } else if(currentSaga && document.getElementById('reader').style.display==='none'){ openSaga(currentSaga); } else { renderLibrary(); } if(document.getElementById('reader').style.display!=='none'){ renderChapter(); } try{ initTeaser(); }catch(e){} };
 });
 document.querySelectorAll('#typeChips .chip').forEach(function(c){
   c.onclick=function(){
@@ -814,6 +849,8 @@ function renderLibrary(){
   if(unsubLikes){ unsubLikes(); unsubLikes=null; }
   currentSaga=null;
   const books = BOOKS.filter(function(b){
+    // Histoire programmee : masquee tant que la date de sortie n'est pas atteinte
+    if(b.releaseAt && Date.now() < new Date(b.releaseAt).getTime()) return false;
     if(typeFilter!=='all' && b.type!==typeFilter) return false;
     if(b.onlyLang && b.onlyLang!==lang) return false;   // one-shot d'une seule langue
     // Sous-catégorie one-shot (Marina / Stefanielle / Station 19)
@@ -999,6 +1036,13 @@ async function fetchChapterHTML(book, langCode, chIndex){
   __chapterCache[url] = txt;
   return txt;
 }
+function chapterCoverHTML(){
+  // Affiche la couverture en haut, uniquement au 1er chapitre, si l'histoire a une cover
+  if(currentCh!==0) return '';
+  if(!currentBook || !currentBook.cover) return '';
+  var t = (currentBook[lang]&&currentBook[lang].title) || (currentBook.fr&&currentBook.fr.title) || '';
+  return '<div class="chapter-cover"><img src="'+currentBook.cover+'" alt="'+t.replace(/"/g,'')+'"></div>';
+}
 async function renderChapter(){
   const d=currentBook[lang];
   const ch=d.chapters[currentCh];
@@ -1007,18 +1051,18 @@ async function renderChapter(){
     // Vraie histoire : on charge le fichier du chapitre à la demande.
     // Un one-shot n'existe que dans sa langue d'origine (onlyLang).
     const fetchLang = currentBook.onlyLang || lang;
-    body.innerHTML='<h2>'+ch.title+'</h2><p style="opacity:.6">…</p>';
+    body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2><p style="opacity:.6">…</p>';
     try{
       const html = await fetchChapterHTML(currentBook, fetchLang, currentCh);
-      body.innerHTML='<h2>'+ch.title+'</h2>'+html;
+      body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2>'+html;
     }catch(e){
-      body.innerHTML='<h2>'+ch.title+'</h2><p style="opacity:.7">⚠️ '+
+      body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2><p style="opacity:.7">⚠️ '+
         (lang==='fr'?'Chapitre indisponible pour le moment.':'Chapter unavailable right now.')+'</p>';
       console.error('Chargement chapitre', e);
     }
   } else {
     // Démo : texte en dur.
-    body.innerHTML='<h2>'+ch.title+'</h2>'+(ch.text||[]).map(p=>'<p>'+p+'</p>').join('');
+    body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2>'+(ch.text||[]).map(p=>'<p>'+p+'</p>').join('');
   }
   renderChapterNav();
   setProgress(currentBook.id+'_'+lang,currentCh);
@@ -1417,10 +1461,125 @@ async function loadRealStories(){
     console.warn('stories.json non chargé (démos conservées):', e.message);
   }
 }
+
+// ==================== BANNIÈRE LANCEMENT : décompte + confettis ====================
+// Histoire mise en avant dans la bannière (doit avoir un "releaseAt" dans stories.json)
+var TEASER_STORY_ID = "os-tainted-love";
+
+// ---- Confettis (léger, sans dépendance) ----
+function launchConfetti(duration){
+  var canvas=document.getElementById('confettiCanvas'); if(!canvas) return;
+  var ctx=canvas.getContext('2d');
+  function resize(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+  canvas.style.display='block';
+  var colors=['#b03d5e','#8B1E3F','#FED20D','#ffffff','#ff9ebb','#ffd1dc'];
+  var pieces=[];
+  for(var i=0;i<160;i++){
+    pieces.push({
+      x:Math.random()*canvas.width, y:Math.random()*-canvas.height,
+      w:6+Math.random()*8, h:8+Math.random()*10,
+      color:colors[Math.floor(Math.random()*colors.length)],
+      vy:2+Math.random()*4, vx:-2+Math.random()*4,
+      rot:Math.random()*Math.PI, vrot:-0.2+Math.random()*0.4
+    });
+  }
+  var start=Date.now(); var dur=duration||4500;
+  function frame(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    var now=Date.now();
+    pieces.forEach(function(p){
+      p.y+=p.vy; p.x+=p.vx; p.rot+=p.vrot;
+      if(p.y>canvas.height+20){ p.y=-20; p.x=Math.random()*canvas.width; }
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+      ctx.fillStyle=p.color; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore();
+    });
+    if(now-start<dur){ requestAnimationFrame(frame); }
+    else { ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display='none'; }
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---- Bannière : décompte, bascule bientôt/lire, confettis ----
+var __teaserTimer=null;
+function initTeaser(){
+  var story = (typeof BOOKS!=='undefined') ? BOOKS.find(function(b){return b.id===TEASER_STORY_ID;}) : null;
+  var teaser=document.getElementById('teaser');
+  if(!story || !story.releaseAt || !teaser){ return; }
+  var releaseTs = new Date(story.releaseAt).getTime();
+  var badge=document.getElementById('teaserBadge');
+  var title=document.getElementById('teaserTitle');
+  var txt=document.getElementById('teaserText');
+  var cd=document.getElementById('teaserCountdown');
+  var btn=document.getElementById('teaserBtn');
+  var small=document.getElementById('teaserSmall');
+  var isEN = (lang==='en');
+
+  // Titre = titre de l'histoire
+  var t = (story[lang]&&story[lang].title) || story.fr.title;
+  if(title) title.textContent = t;
+
+  function showLive(){
+    if(badge) badge.textContent = isEN ? '🔥 New' : '🔥 Nouveau';
+    if(txt) txt.textContent = isEN
+      ? 'It’s here! The new story is now available. Dive in 💛'
+      : 'Ça y est ! La nouvelle histoire est disponible. Bonne lecture 💛';
+    if(cd) cd.style.display='none';
+    if(btn){ btn.style.display='inline-block'; btn.textContent = isEN ? '📖 Read now' : '📖 Lire maintenant'; }
+    if(small) small.style.display='none';
+  }
+  function showSoon(){
+    if(badge) badge.textContent = isEN ? '✨ Coming soon' : '✨ Bientôt';
+    if(cd) cd.style.display='flex';
+    if(btn) btn.style.display='none';
+  }
+
+  // Bouton -> ouvre l'histoire
+  if(btn){
+    btn.onclick=function(){ if(typeof openBook==='function'){ openBook(TEASER_STORY_ID); } };
+  }
+
+  function tick(){
+    var now=Date.now();
+    var diff=releaseTs-now;
+    if(diff<=0){
+      showLive();
+      if(__teaserTimer){ clearInterval(__teaserTimer); __teaserTimer=null; }
+      // Confettis : au moment du passage à 0 (session en cours) OU pour tout nouveau visiteur après le lancement
+      maybeCelebrate(releaseTs);
+      return;
+    }
+    showSoon();
+    var d=Math.floor(diff/86400000);
+    var h=Math.floor((diff%86400000)/3600000);
+    var m=Math.floor((diff%3600000)/60000);
+    var s=Math.floor((diff%60000)/1000);
+    function set(id,v){ var el=document.getElementById(id); if(el && el.textContent!=String(v)){ el.textContent=v; var box=el.closest('.cd-box'); if(box){ box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse'); } } }
+    set('cdD',d); set('cdH',h); set('cdM',m); set('cdS',s);
+    var dl=document.getElementById('cdDL'); if(dl) dl.textContent = isEN ? 'd' : 'j';
+  }
+
+  tick();
+  if(!__teaserTimer && releaseTs>Date.now()){ __teaserTimer=setInterval(tick,1000); }
+}
+
+// Confettis une seule fois par personne après le lancement
+function maybeCelebrate(releaseTs){
+  try{
+    var key='celebrated_'+TEASER_STORY_ID;
+    if(localStorage.getItem(key)) return;      // déjà fêté pour cette personne
+    if(Date.now() >= releaseTs){
+      localStorage.setItem(key,'1');
+      launchConfetti(5000);
+    }
+  }catch(e){ launchConfetti(5000); }
+}
+
 async function __init(){
   try{ applyUILang(); }catch(e){ console.error('applyUILang',e); }
   await loadRealStories();
   try{ renderLibrary(); }catch(e){ console.error('renderLibrary',e); }
+  try{ initTeaser(); }catch(e){ console.error('initTeaser',e); }
 }
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',__init); } else { __init(); }
 initFirebase();
