@@ -245,6 +245,18 @@
     .teaser-text{ padding:18px 16px; }
     .teaser h3{ font-size:22px; }
   }
+
+/* ---- Commentaires par passage (Wattpad-style) ---- */
+#passageBtn{position:absolute;z-index:9999;display:none;background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);white-space:nowrap;}
+#passageBtn:hover{background:var(--accent-l);}
+#readerBody .cmarked{background:rgba(176,61,94,.22);border-bottom:2px dotted var(--accent-l);cursor:pointer;border-radius:3px;padding:0 1px;}
+#quoteBadge{display:none;background:rgba(176,61,94,.14);border:1px solid var(--accent-l);border-left:3px solid var(--accent-l);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;color:var(--ink);position:relative;}
+#quoteBadge .qtxt{font-style:italic;opacity:.9;}
+#quoteBadge .qclose{position:absolute;top:6px;right:10px;cursor:pointer;color:var(--accent-l);font-weight:700;border:none;background:none;font-size:15px;}
+.cquote{font-style:italic;font-size:12.5px;color:var(--accent-l);border-left:2px solid var(--accent-l);padding-left:8px;margin-bottom:6px;opacity:.9;}
+.areply-form{display:flex;gap:6px;margin-top:8px;margin-left:16px;}
+.areply-form input{flex:1;background:#0d1c30;border:1px solid var(--line);color:var(--ink);padding:7px 10px;border-radius:8px;font-size:13px;}
+.areply-form button{background:var(--accent);color:#fff;border:none;padding:7px 14px;border-radius:14px;font-weight:700;cursor:pointer;font-size:12px;}
 </style>
 </head>
 <body>
@@ -346,7 +358,8 @@
   </div>
 
   <!-- READER -->
-  <div id="reader">
+  <div id="reader" style="position:relative;">
+    <button id="passageBtn">\ud83d\udcac Commenter ce passage</button>
     <button class="back-btn" id="backBtn">← Retour à la bibliothèque</button>
     <div class="chapter-nav" id="chapterNav"></div>
     <div class="reader-body" id="readerBody"></div>
@@ -361,6 +374,7 @@
       <h3>💬 Commentaires</h3>
       <div class="comment-form">
         <div id="commentAs" style="display:none;font-size:13px;color:var(--muted);margin-bottom:2px;"></div>
+        <div id="quoteBadge"><button class="qclose" onclick="clearQuote()">\u00d7</button>\ud83d\udcac Passage cit\u00e9\u00a0: <span class="qtxt" id="quoteText"></span></div>
         <input type="text" id="cName" placeholder="Ton prénom (ou pseudo)">
         <textarea id="cText" placeholder="Laisse un petit mot à l'autrice…"></textarea>
         <button id="cSend">Envoyer</button>
@@ -432,6 +446,8 @@ const firebaseConfig = {
   appId: "1:254835522518:web:c309ed0c14ff24a19c0277"
 };
 
+const AUTHOR_EMAIL = "julie.cacciola@gmail.com";  // compte autrice (Youlo182)
+let isAuthor = false;
 async function initFirebase(){
   try{
     const appMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
@@ -446,7 +462,7 @@ async function initFirebase(){
     firebaseReady=true;
     // Wire auth state now that Firebase is up
     onAuthStateChanged(auth, async function(user){
-      currentUser=user; updateAccountLabel(); updateCommentForm(); renderLibrary();
+      currentUser=user; isAuthor = !!(user && user.email===AUTHOR_EMAIL); updateAccountLabel(); updateCommentForm(); renderLibrary();
       if(currentBook && document.getElementById('reader').style.display!=='none'){ renderChapter(); }
     });
   }catch(e){
@@ -1046,7 +1062,9 @@ function subscribeComments(){
     clearReplyUnsubs();
     let out='';
     snap.forEach(function(d){ const c=d.data(); const cid=d.id;
-      out+='<div class="comment"><div class="who">'+escapeHtml(c.name||'Anonyme')+'</div><div class="txt">'+escapeHtml(c.text||'')+'</div><div id="ar_'+cid+'"></div></div>';
+      var quote = c.quote ? '<div class="cquote">\u201c'+escapeHtml(c.quote)+'\u201d</div>' : '';
+      var authorBox = isAuthor ? '<div class="areply-form"><input type="text" id="arin_'+cid+'" placeholder="R\u00e9pondre en tant qu\'autrice\u2026"><button onclick="authorReply(\''+cid+'\')">R\u00e9pondre</button></div>' : '';
+      out+='<div class="comment">'+quote+'<div class="who">'+escapeHtml(c.name||'Anonyme')+'</div><div class="txt">'+escapeHtml(c.text||'')+'</div><div id="ar_'+cid+'"></div>'+authorBox+'</div>';
     });
     list.innerHTML=out;
     // Subscribe to each comment's replies (author answers)
@@ -1064,6 +1082,76 @@ function subscribeComments(){
   }, function(){});
 }
 function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// ==================== COMMENTAIRES PAR PASSAGE (Wattpad-style) ====================
+window.__pendingQuote = '';
+window.clearQuote = function(){
+  window.__pendingQuote='';
+  var qb=document.getElementById('quoteBadge'); if(qb) qb.style.display='none';
+  var pb=document.getElementById('passageBtn'); if(pb) pb.style.display='none';
+};
+
+// Affiche le bouton "Commenter ce passage" quand du texte est selectionne dans le chapitre
+function handleSelection(){
+  var pb=document.getElementById('passageBtn');
+  var body=document.getElementById('readerBody');
+  var reader=document.getElementById('reader');
+  if(!pb||!body||!reader) return;
+  var sel=window.getSelection();
+  if(!sel || sel.isCollapsed || !sel.toString().trim()){ pb.style.display='none'; return; }
+  // La selection doit etre DANS le texte du chapitre
+  var anchorNode = sel.anchorNode;
+  if(!anchorNode || !body.contains(anchorNode)){ pb.style.display='none'; return; }
+  var txt = sel.toString().trim();
+  if(txt.length < 3){ pb.style.display='none'; return; }
+  if(txt.length > 300){ txt = txt.slice(0,300); }
+  window.__selectedQuote = txt;
+  // Positionner le bouton au-dessus de la selection
+  try{
+    var range=sel.getRangeAt(0);
+    var rect=range.getBoundingClientRect();
+    var rrect=reader.getBoundingClientRect();
+    pb.style.display='block';
+    var top = rect.top - rrect.top - 44; if(top<0) top = rect.bottom - rrect.top + 8;
+    var left = rect.left - rrect.left + (rect.width/2) - 90;
+    if(left<8) left=8;
+    pb.style.top = top + 'px';
+    pb.style.left = left + 'px';
+  }catch(e){ pb.style.display='none'; }
+}
+
+document.addEventListener('mouseup', function(){ setTimeout(handleSelection, 10); });
+document.addEventListener('touchend', function(){ setTimeout(handleSelection, 10); });
+
+// Clic sur le bouton : on memorise le passage et on ouvre la zone commentaire
+(function(){
+  var pb=document.getElementById('passageBtn');
+  if(pb){
+    pb.addEventListener('click', function(){
+      var q=window.__selectedQuote||'';
+      if(!q) return;
+      window.__pendingQuote = q;
+      var qb=document.getElementById('quoteBadge'); var qt=document.getElementById('quoteText');
+      if(qt) qt.textContent = q.length>140 ? q.slice(0,140)+'\u2026' : q;
+      if(qb) qb.style.display='block';
+      pb.style.display='none';
+      // scroll doux vers la zone commentaire + focus
+      var ct=document.getElementById('cText');
+      if(ct){ ct.scrollIntoView({behavior:'smooth', block:'center'}); setTimeout(function(){ ct.focus(); }, 400); }
+      var s=window.getSelection(); if(s) s.removeAllRanges();
+    });
+  }
+})();
+
+window.authorReply=async function(cid){
+  if(!isAuthor){ return; }
+  const inp=document.getElementById('arin_'+cid); if(!inp)return;
+  const text=inp.value.trim(); if(!text)return;
+  const key=chapterKey();
+  try{
+    await addDoc(collection(db,'comments',key,'items',cid,'replies'),{ name:'Youlo182', text:text, admin:true, ts:serverTimestamp() });
+    inp.value='';
+  }catch(e){ alert('Oops: '+e.message); }
+};
 document.getElementById('cSend').onclick=async function(){
   if(!currentUser){ alert(UI[lang].mustLogin); openAuth(); return; }
   const text=document.getElementById('cText').value.trim();
@@ -1074,9 +1162,11 @@ document.getElementById('cSend').onclick=async function(){
       name: currentUser.displayName||'Anonyme',
       uid: currentUser.uid,
       text: text,
+      quote: (window.__pendingQuote||''),
       ts: serverTimestamp()
     });
     document.getElementById('cText').value='';
+    window.__pendingQuote=''; var qb=document.getElementById('quoteBadge'); if(qb) qb.style.display='none';
     if(currentBook){ bumpTotals('comments', 1, currentBook.id); }
   }catch(e){ alert('Oops: '+e.message); }
 };

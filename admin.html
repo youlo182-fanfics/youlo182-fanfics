@@ -214,7 +214,7 @@ async function loadCommentsAsync(){
 
   allComments.sort((a,b)=>{ const ta=a.ts&&a.ts.seconds?a.ts.seconds:0; const tb=b.ts&&b.ts.seconds?b.ts.seconds:0; return tb-ta; });
   box.innerHTML = allComments.length? allComments.map(c=>
-    '<div class="cmt"><div class="head"><span class="who">'+esc(c.name)+'</span><span class="where">📖 '+esc(c.storyName)+(c.lang?(' · '+(c.lang==='fr'?'FR':'EN')):'')+' · '+esc(c.chTitle||('ch.'+(c.ch+1)))+'</span></div>'+
+    '<div class="cmt">'+(c.quote?('<div style="font-style:italic;font-size:12.5px;color:#b03d5e;border-left:2px solid #b03d5e;padding-left:8px;margin-bottom:8px;opacity:.9;">\u201c'+esc(c.quote)+'\u201d</div>'):'')+'<div class="head"><span class="who">'+esc(c.name)+'</span><span class="where">📖 '+esc(c.storyName)+(c.lang?(' · '+(c.lang==='fr'?'FR':'EN')):'')+' · '+esc(c.chTitle||('ch.'+(c.ch+1)))+'</span></div>'+
     '<div class="txt">'+esc(c.text)+'</div><div id="reply_'+c.id+'"></div>'+
     '<div class="reply-form"><input type="text" id="rin_'+c.id+'" placeholder="Répondre en tant qu\'autrice…"><button onclick="sendReply(\''+c.key+'\',\''+c.id+'\')">Répondre</button></div></div>'
   ).join('') : '<div class="empty">Aucun commentaire pour l\'instant 💌</div>';
