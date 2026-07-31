@@ -136,6 +136,8 @@
   .auth-error.show{display:block;}
   .guest-note{font-size:11px;color:var(--muted);text-align:center;margin-top:12px;font-style:italic;}
   .author-reply{margin-left:16px;margin-top:8px;padding:10px 14px;background:rgba(176,61,94,.12);border-left:3px solid var(--accent-l);border-radius:8px;font-size:13.5px;line-height:1.5;}
+.reader-reply{margin-left:16px;margin-top:8px;padding:10px 14px;background:rgba(255,255,255,.04);border-left:3px solid var(--line);border-radius:8px;font-size:13.5px;line-height:1.5;}
+.reader-reply .who{color:var(--muted);}
   .author-reply .who{font-weight:700;color:var(--accent-l);font-size:12.5px;margin-bottom:2px;}
 
   /* ===== MOBILE : grille de couvertures façon Wattpad (≤ 600px) ===== */
@@ -250,6 +252,10 @@
 #passageBtn{position:absolute;z-index:9999;display:none;background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);white-space:nowrap;}
 #passageBtn:hover{background:var(--accent-l);}
 #readerBody .cmarked{background:rgba(176,61,94,.22);border-bottom:2px dotted var(--accent-l);cursor:pointer;border-radius:3px;padding:0 1px;}
+#readerBody .cmarked:hover{background:rgba(176,61,94,.34);}
+.cbubble{display:inline-flex;align-items:center;gap:2px;vertical-align:super;font-size:10px;background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;margin-left:3px;cursor:pointer;font-weight:700;user-select:none;line-height:1.4;}
+.cbubble:hover{background:var(--accent-l);}
+.comment.hl{outline:2px solid var(--accent-l);outline-offset:2px;transition:outline .3s;}
 #quoteBadge{display:none;background:rgba(176,61,94,.14);border:1px solid var(--accent-l);border-left:3px solid var(--accent-l);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;color:var(--ink);position:relative;}
 #quoteBadge .qtxt{font-style:italic;opacity:.9;}
 #quoteBadge .qclose{position:absolute;top:6px;right:10px;cursor:pointer;color:var(--accent-l);font-weight:700;border:none;background:none;font-size:15px;}
@@ -257,6 +263,16 @@
 .areply-form{display:flex;gap:6px;margin-top:8px;margin-left:16px;}
 .areply-form input{flex:1;background:#0d1c30;border:1px solid var(--line);color:var(--ink);padding:7px 10px;border-radius:8px;font-size:13px;}
 .areply-form button{background:var(--accent);color:#fff;border:none;padding:7px 14px;border-radius:14px;font-weight:700;cursor:pointer;font-size:12px;}
+
+/* ---- Popup commentaire sur place (Wattpad-style) ---- */
+#passagePopup{position:fixed;z-index:10000;display:none;width:300px;max-width:92vw;background:var(--card);border:1px solid var(--accent-l);border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.55);padding:14px;}
+#passagePopup .pp-quote{font-style:italic;font-size:12px;color:var(--accent-l);border-left:2px solid var(--accent-l);padding-left:8px;margin-bottom:10px;max-height:60px;overflow:auto;line-height:1.4;}
+#passagePopup textarea{width:100%;min-height:64px;background:#0d1c30;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px;font-size:14px;font-family:inherit;resize:vertical;box-sizing:border-box;}
+#passagePopup .pp-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;}
+#passagePopup .pp-cancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;font-weight:700;padding:8px 10px;}
+#passagePopup .pp-send{background:var(--accent);color:#fff;border:none;border-radius:18px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;}
+#passagePopup .pp-send:hover{background:var(--accent-l);}
+#ppOverlay{position:fixed;inset:0;z-index:9999;display:none;background:transparent;}
 </style>
 </head>
 <body>
@@ -360,6 +376,15 @@
   <!-- READER -->
   <div id="reader" style="position:relative;">
     <button id="passageBtn">\ud83d\udcac Commenter ce passage</button>
+    <div id="ppOverlay"></div>
+    <div id="passagePopup">
+      <div class="pp-quote" id="ppQuote"></div>
+      <textarea id="ppText" placeholder="Ton commentaire sur ce passage\u2026"></textarea>
+      <div class="pp-actions">
+        <button class="pp-cancel" id="ppCancel">Annuler</button>
+        <button class="pp-send" id="ppSend">Envoyer</button>
+      </div>
+    </div>
     <button class="back-btn" id="backBtn">← Retour à la bibliothèque</button>
     <div class="chapter-nav" id="chapterNav"></div>
     <div class="reader-body" id="readerBody"></div>
@@ -1061,9 +1086,12 @@ function subscribeComments(){
     if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois le premier à laisser un mot 💌':'Be the first to leave a note 💌')+'</div>'; return; }
     clearReplyUnsubs();
     let out='';
+    var __allC=[];
+    snap.forEach(function(d){ __allC.push({id:d.id, data:d.data()}); });
     snap.forEach(function(d){ const c=d.data(); const cid=d.id;
       var quote = c.quote ? '<div class="cquote">\u201c'+escapeHtml(c.quote)+'\u201d</div>' : '';
-      var authorBox = isAuthor ? '<div class="areply-form"><input type="text" id="arin_'+cid+'" placeholder="R\u00e9pondre en tant qu\'autrice\u2026"><button onclick="authorReply(\''+cid+'\')">R\u00e9pondre</button></div>' : '';
+      var ph = isAuthor ? 'R\u00e9pondre en tant qu\'autrice\u2026' : 'R\u00e9pondre\u2026';
+      var authorBox = currentUser ? '<div class="areply-form"><input type="text" id="arin_'+cid+'" placeholder="'+ph+'"><button onclick="postReply(\''+cid+'\')">R\u00e9pondre</button></div>' : '';
       out+='<div class="comment">'+quote+'<div class="who">'+escapeHtml(c.name||'Anonyme')+'</div><div class="txt">'+escapeHtml(c.text||'')+'</div><div id="ar_'+cid+'"></div>'+authorBox+'</div>';
     });
     list.innerHTML=out;
@@ -1074,46 +1102,162 @@ function subscribeComments(){
       const u=onSnapshot(rq,function(rsnap){
         const el=document.getElementById('ar_'+cid); if(!el)return;
         let rout='';
-        rsnap.forEach(function(rd){ const r=rd.data(); rout+='<div class="author-reply"><div class="who">✍️ '+escapeHtml(r.name||'Youlo182')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
+        rsnap.forEach(function(rd){ const r=rd.data(); var isA = r.admin===true || r.name==='Youlo182';
+          rout+='<div class="'+(isA?'author-reply':'reader-reply')+'"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(r.name||'Anonyme')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
         el.innerHTML=rout;
       }, function(){});
       replyUnsubs.push(u);
     });
+    // Surligner les passages commentes dans le texte du chapitre
+    try{ highlightQuotedPassages(__allC); }catch(e){ console.warn('highlight:', e.message); }
   }, function(){});
 }
-function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-// ==================== COMMENTAIRES PAR PASSAGE (Wattpad-style) ====================
-window.__pendingQuote = '';
-window.__selectedQuote = '';
-window.clearQuote = function(){
-  window.__pendingQuote='';
-  var qb=document.getElementById('quoteBadge'); if(qb) qb.style.display='none';
-  var pb=document.getElementById('passageBtn'); if(pb) pb.style.display='none';
-};
 
-// Confirme le passage : memorise + ouvre la zone commentaire
-function confirmPassage(){
+// Regroupe les commentaires par passage cite et surligne le texte + pastille cliquable
+function highlightQuotedPassages(all){
+  var body=document.getElementById('readerBody');
+  if(!body) return;
+  // Nettoyer d'anciens surlignages (recharger le texte propre n'est pas possible ici,
+  // donc on retire seulement nos spans en gardant leur contenu)
+  body.querySelectorAll('.cbubble').forEach(function(b){ b.remove(); });
+  body.querySelectorAll('span.cmarked').forEach(function(s){
+    var t=document.createTextNode(s.textContent); s.parentNode.replaceChild(t, s);
+  });
+  body.normalize();
+
+  // Regrouper par quote (compter les commentaires par passage)
+  var groups={};
+  all.forEach(function(o){
+    var q=(o.data&&o.data.quote)?String(o.data.quote).trim():'';
+    if(!q) return;
+    if(!groups[q]) groups[q]={count:0, ids:[]};
+    groups[q].count++; groups[q].ids.push(o.id);
+  });
+  var quotes=Object.keys(groups);
+  if(quotes.length===0) return;
+  // Traiter les passages les plus longs d'abord (evite les chevauchements)
+  quotes.sort(function(a,b){ return b.length - a.length; });
+
+  quotes.forEach(function(q){
+    markPassage(body, q, groups[q]);
+  });
+}
+
+// Trouve le texte 'q' dans un noeud texte et l'entoure d'un span surligne + pastille
+function markPassage(root, q, grp){
+  if(q.length<3) return;
+  var walker=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  var node;
+  while((node=walker.nextNode())){
+    // Ne pas re-traiter l'interieur d'un span deja marque
+    if(node.parentNode && node.parentNode.classList && node.parentNode.classList.contains('cmarked')) continue;
+    var idx=node.nodeValue.indexOf(q);
+    if(idx===-1) continue;
+    var range=document.createRange();
+    range.setStart(node, idx);
+    range.setEnd(node, idx+q.length);
+    var span=document.createElement('span');
+    span.className='cmarked';
+    try{ range.surroundContents(span); }catch(e){ continue; }
+    // Pastille apres le passage
+    var bubble=document.createElement('span');
+    bubble.className='cbubble';
+    bubble.innerHTML='\ud83d\udcac '+grp.count;
+    bubble.title=(grp.count>1?grp.count+' commentaires':'1 commentaire')+' sur ce passage';
+    bubble.addEventListener('click', function(ev){ ev.stopPropagation(); focusComments(grp.ids); });
+    span.addEventListener('click', function(ev){ ev.stopPropagation(); focusComments(grp.ids); });
+    if(span.parentNode){ span.parentNode.insertBefore(bubble, span.nextSibling); }
+    return; // un seul surlignage par passage (le premier trouve)
+  }
+}
+
+// Fait defiler vers la zone commentaires et met en evidence les commentaires du passage
+function focusComments(ids){
+  var list=document.getElementById('commentList');
+  if(list){ list.scrollIntoView({behavior:'smooth', block:'start'}); }
+  setTimeout(function(){
+    (ids||[]).forEach(function(cid){
+      var el=document.getElementById('ar_'+cid);
+      var card = el && el.closest ? el.closest('.comment') : null;
+      if(card){ card.classList.add('hl'); setTimeout(function(){ card.classList.remove('hl'); }, 2500); }
+    });
+  }, 400);
+}
+
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// ==================== COMMENTAIRES PAR PASSAGE (Wattpad-style, popup sur place) ====================
+window.__selectedQuote = '';
+
+function closePassagePopup(){
+  var pp=document.getElementById('passagePopup'); var ov=document.getElementById('ppOverlay');
+  if(pp) pp.style.display='none';
+  if(ov) ov.style.display='none';
+  var ta=document.getElementById('ppText'); if(ta) ta.value='';
+}
+window.closePassagePopup = closePassagePopup;
+
+// Ouvre le popup de commentaire JUSTE a l'endroit de la selection (pas de scroll)
+function openPassagePopup(){
   var q=window.__selectedQuote||'';
   if(!q) return;
-  window.__pendingQuote = q;
-  var qb=document.getElementById('quoteBadge'); var qt=document.getElementById('quoteText');
-  if(qt) qt.textContent = q.length>140 ? q.slice(0,140)+'\u2026' : q;
-  if(qb) qb.style.display='block';
-  var pb=document.getElementById('passageBtn'); if(pb) pb.style.display='none';
-  var ct=document.getElementById('cText');
-  if(ct){ ct.scrollIntoView({behavior:'smooth', block:'center'}); setTimeout(function(){ ct.focus(); }, 400); }
-  var s=window.getSelection(); if(s) s.removeAllRanges();
-}
-window.confirmPassage = confirmPassage;
+  var pp=document.getElementById('passagePopup'); var ov=document.getElementById('ppOverlay');
+  var pq=document.getElementById('ppQuote'); var pb=document.getElementById('passageBtn');
+  if(!pp||!ov) return;
+  if(pq) pq.textContent = '\u201c' + (q.length>160 ? q.slice(0,160)+'\u2026' : q) + '\u201d';
+  if(pb) pb.style.display='none';
 
-// Affiche le bouton "Commenter ce passage" quand du texte est selectionne dans le chapitre
+  // Position pres de la selection
+  var top=100, left=100;
+  try{
+    var sel=window.getSelection();
+    if(sel && sel.rangeCount){
+      var rect=sel.getRangeAt(0).getBoundingClientRect();
+      top = rect.bottom + 8;
+      left = rect.left + (rect.width/2) - 150;
+    }
+  }catch(e){}
+  var W=300, H=200;
+  if(left < 8) left = 8;
+  var maxLeft = window.innerWidth - W - 8; if(left > maxLeft) left = Math.max(8, maxLeft);
+  if(top + H > window.innerHeight - 8){ top = Math.max(8, window.innerHeight - H - 8); }
+  pp.style.top = top + 'px';
+  pp.style.left = left + 'px';
+
+  ov.style.display='block';
+  pp.style.display='block';
+  var ta=document.getElementById('ppText'); if(ta){ setTimeout(function(){ ta.focus(); }, 50); }
+}
+window.openPassagePopup = openPassagePopup;
+
+// Envoi du commentaire depuis le popup
+async function sendPassageComment(){
+  var ta=document.getElementById('ppText'); if(!ta) return;
+  var text=ta.value.trim(); if(!text) return;
+  if(!currentUser){ alert(UI[lang].mustLogin); closePassagePopup(); openAuth(); return; }
+  var key=chapterKey();
+  try{
+    await addDoc(collection(db,'comments',key,'items'),{
+      name: currentUser.displayName||'Anonyme',
+      uid: currentUser.uid,
+      text: text,
+      quote: (window.__selectedQuote||''),
+      ts: serverTimestamp()
+    });
+    if(currentBook){ bumpTotals('comments', 1, currentBook.id); }
+    closePassagePopup();
+    var s=window.getSelection(); if(s) s.removeAllRanges();
+  }catch(e){ alert('Oops: '+e.message); }
+}
+
+// Affiche le petit bouton "Commenter ce passage" quand du texte est selectionne dans le chapitre
 function handleSelection(e){
   var pb=document.getElementById('passageBtn');
   var body=document.getElementById('readerBody');
-  var reader=document.getElementById('reader');
-  if(!pb||!body||!reader) return;
-  // Ne pas recalculer si on vient de cliquer SUR le bouton lui-meme
+  if(!pb||!body) return;
   if(e && e.target && (e.target===pb || (pb.contains && pb.contains(e.target)))) return;
+  // Ne pas reagir si le popup est ouvert
+  var pp=document.getElementById('passagePopup');
+  if(pp && pp.style.display==='block') return;
   var sel=window.getSelection();
   if(!sel || sel.isCollapsed || !sel.toString().trim()){ pb.style.display='none'; return; }
   var anchorNode = sel.anchorNode;
@@ -1123,14 +1267,12 @@ function handleSelection(e){
   if(txt.length > 300){ txt = txt.slice(0,300); }
   window.__selectedQuote = txt;
   try{
-    var range=sel.getRangeAt(0);
-    var rect=range.getBoundingClientRect();
-    // Position fixe par rapport au viewport (fiable au scroll + mobile)
+    var rect=sel.getRangeAt(0).getBoundingClientRect();
     pb.style.position='fixed';
-    var top = rect.top - 48; if(top < 8) top = rect.bottom + 8;
-    var left = rect.left + (rect.width/2) - 90;
+    var top = rect.top - 46; if(top < 8) top = rect.bottom + 8;
+    var left = rect.left + (rect.width/2) - 95;
     if(left < 8) left = 8;
-    var maxLeft = window.innerWidth - 190; if(left > maxLeft) left = maxLeft;
+    var maxLeft = window.innerWidth - 195; if(left > maxLeft) left = maxLeft;
     pb.style.top = top + 'px';
     pb.style.left = left + 'px';
     pb.style.display='block';
@@ -1140,30 +1282,34 @@ function handleSelection(e){
 document.addEventListener('mouseup', function(e){ setTimeout(function(){ handleSelection(e); }, 10); });
 document.addEventListener('touchend', function(e){ setTimeout(function(){ handleSelection(e); }, 10); });
 
-// Le clic sur le bouton est attache via delegation (robuste au timing de chargement).
-// On utilise mousedown/touchstart AVANT que la selection ne soit perdue.
-document.addEventListener('mousedown', function(e){
-  var pb=document.getElementById('passageBtn');
-  if(pb && (e.target===pb || (pb.contains && pb.contains(e.target)))){
-    e.preventDefault(); // empeche la perte de selection
-    confirmPassage();
-  }
-});
-document.addEventListener('touchstart', function(e){
+// Bouton "Commenter ce passage" : mousedown/touchstart pour ne pas perdre la selection
+function onPassageBtnPress(e){
   var pb=document.getElementById('passageBtn');
   if(pb && (e.target===pb || (pb.contains && pb.contains(e.target)))){
     e.preventDefault();
-    confirmPassage();
+    openPassagePopup();
   }
-}, {passive:false});
+}
+document.addEventListener('mousedown', onPassageBtnPress);
+document.addEventListener('touchstart', onPassageBtnPress, {passive:false});
 
-window.authorReply=async function(cid){
-  if(!isAuthor){ return; }
+// Boutons du popup (delegation, robuste au timing)
+document.addEventListener('click', function(e){
+  if(!e.target) return;
+  if(e.target.id==='ppSend'){ e.preventDefault(); sendPassageComment(); }
+  else if(e.target.id==='ppCancel' || e.target.id==='ppOverlay'){ e.preventDefault(); closePassagePopup(); }
+});
+
+window.postReply=async function(cid){
+  if(!currentUser){ alert(UI[lang].mustLogin); openAuth(); return; }
   const inp=document.getElementById('arin_'+cid); if(!inp)return;
   const text=inp.value.trim(); if(!text)return;
   const key=chapterKey();
+  const payload = isAuthor
+    ? { name:'Youlo182', text:text, admin:true, ts:serverTimestamp() }
+    : { name:(currentUser.displayName||'Anonyme'), uid:currentUser.uid, text:text, ts:serverTimestamp() };
   try{
-    await addDoc(collection(db,'comments',key,'items',cid,'replies'),{ name:'Youlo182', text:text, admin:true, ts:serverTimestamp() });
+    await addDoc(collection(db,'comments',key,'items',cid,'replies'), payload);
     inp.value='';
   }catch(e){ alert('Oops: '+e.message); }
 };
