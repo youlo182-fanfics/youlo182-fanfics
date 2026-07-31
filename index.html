@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Julie Cacciola — Youlo182 · Fanfictions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Nunito+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* DARK (default): navy background + bordeaux header/buttons */
+    --bg:#0a1628; --card:#122138; --ink:#e8eef6; --muted:#9fb0c6;
+    --accent:#8B1E3F; --accent-d:#6d1730; --accent-l:#b03d5e;
+    --line:#1e3050; --reader-bg:#0d1c30; --reader-text:#dce7f2;
+  }
+  body.light{
+    /* LIGHT: light background + navy header/buttons */
+    --bg:#eef2f8; --card:#ffffff; --ink:#1a2b42; --muted:#5f7085;
+    --accent:#1a3a5c; --accent-d:#12293f; --accent-l:#2e5a86;
+    --line:#d6e0ee; --reader-bg:#f7faff; --reader-text:#22374f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Nunito Sans',sans-serif;background:var(--bg);color:var(--ink);transition:.3s;min-height:100vh;}
+  .topbar{position:sticky;top:0;z-index:50;background:linear-gradient(90deg,var(--accent-d),var(--accent));padding:12px 22px;box-shadow:0 2px 14px rgba(0,0,0,.3);}
+  .topbar-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+  .brand{display:flex;flex-direction:column;}
+  .brand h1{font-family:'Cormorant Garamond',serif;font-size:24px;color:#fff;font-weight:600;letter-spacing:.5px;line-height:1.1;}
+  .brand .handle{font-size:12px;color:rgba(255,255,255,.8);letter-spacing:1px;}
+  .top-right{display:flex;align-items:center;gap:14px;}
+  .socials{display:flex;gap:9px;}
+  .socials a{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;font-size:13px;transition:.15s;font-weight:700;}
+  .socials a:hover{background:rgba(255,255,255,.4);transform:translateY(-2px);}
+  .controls{display:flex;gap:7px;}
+  .ctrl{background:rgba(255,255,255,.16);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;font-weight:700;transition:.15s;}
+  .ctrl:hover{background:rgba(255,255,255,.4);}
+  .wrap{max-width:900px;margin:0 auto;padding:24px 20px 80px;}
+
+  /* Filters */
+  .filters{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0 24px;align-items:flex-end;justify-content:center;}
+  .filter-group{display:flex;flex-direction:column;gap:6px;align-items:center;}
+  .filter-group .flabel{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;}
+  .chip{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:7px 14px;border-radius:20px;cursor:pointer;font-size:13px;transition:.15s;font-weight:600;}
+  .chip:hover{border-color:var(--accent-l);}
+  .chip.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  .lib-head{text-align:center;margin:6px 0 20px;}
+  .lib-head h2{font-family:'Cormorant Garamond',serif;font-size:30px;margin-bottom:4px;font-weight:600;}
+  .lib-head p{color:var(--muted);font-size:14px;}
+  .book{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px;display:flex;gap:16px;cursor:pointer;transition:.18s;}
+  .book:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.28);border-color:var(--accent-l);}
+  .cover{width:82px;height:118px;border-radius:10px;background:linear-gradient(150deg,var(--accent),var(--accent-l));flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:34px;box-shadow:0 4px 12px rgba(0,0,0,.35);}
+  .book-info h3{font-family:'Cormorant Garamond',serif;font-size:22px;margin-bottom:4px;font-weight:600;}
+  .book-info .meta{font-size:12px;color:var(--muted);margin-bottom:8px;}
+  .book-info .summary{font-size:14px;line-height:1.55;opacity:.9;}
+  .book-info .tags{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;}
+  .tag{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(176,61,94,.16);color:var(--accent-l);border:1px solid rgba(176,61,94,.3);font-weight:600;}
+  .type-badge{font-size:10px;padding:2px 9px;border-radius:6px;background:var(--accent);color:#fff;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+  .progress-mini{margin-top:10px;}
+  .progress-mini .bar{height:5px;background:var(--line);border-radius:3px;overflow:hidden;}
+  .progress-mini .fill{height:100%;background:var(--accent-l);width:0;}
+  .progress-mini .lbl{font-size:11px;color:var(--muted);margin-top:4px;}
+  .no-books{text-align:center;color:var(--muted);padding:40px;font-style:italic;}
+
+  /* Reader */
+  #reader{display:none;}
+  .back-btn{background:none;border:none;color:var(--accent-l);cursor:pointer;font-size:14px;margin-bottom:14px;display:inline-flex;align-items:center;gap:6px;font-weight:700;}
+  .chapter-nav{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px;}
+  .chapter-nav button{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:6px 13px;border-radius:18px;cursor:pointer;font-size:13px;transition:.15s;font-weight:600;}
+  .chapter-nav button:hover{border-color:var(--accent-l);}
+  .chapter-nav button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .reader-body{background:var(--reader-bg);color:var(--reader-text);border-radius:16px;padding:38px 42px;line-height:1.95;font-size:var(--fs,19px);border:1px solid var(--line);font-family:'Nunito Sans',sans-serif;}
+  .reader-body h2{font-family:'Cormorant Garamond',serif;font-size:28px;margin-bottom:20px;color:var(--accent-l);text-align:center;font-weight:600;}
+  .reader-body p{margin-bottom:18px;text-align:justify;}
+  .reader-body em{color:var(--accent-l);font-style:italic;}
+
+  .chapter-actions{display:flex;align-items:center;justify-content:space-between;margin-top:24px;padding-top:18px;border-top:1px solid var(--line);flex-wrap:wrap;gap:14px;}
+  .like-btn{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:9px 18px;border-radius:24px;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;gap:8px;transition:.15s;font-weight:600;}
+  .like-btn:hover{border-color:var(--accent-l);}
+  .like-btn.liked{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .nav-arrows{display:flex;gap:8px;}
+  .nav-arrows button{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:20px;cursor:pointer;font-weight:700;font-size:13px;}
+  .nav-arrows button:disabled{opacity:.35;cursor:not-allowed;}
+
+  #readProgress{position:fixed;top:0;left:0;height:4px;background:var(--accent-l);width:0;z-index:100;transition:width .1s;}
+
+  /* Comments */
+  .comments{margin-top:28px;}
+  .comments h3{font-size:17px;margin-bottom:12px;font-weight:700;}
+  .comment-form{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+  .comment-form input,.comment-form textarea{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:10px 12px;border-radius:10px;font-family:inherit;font-size:14px;}
+  .comment-form textarea{resize:vertical;min-height:66px;}
+  .comment-form button{align-self:flex-end;background:var(--accent);color:#fff;border:none;padding:9px 20px;border-radius:20px;font-weight:700;cursor:pointer;}
+  .comment{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:10px;}
+  .comment .who{font-size:13px;font-weight:700;color:var(--accent-l);margin-bottom:4px;}
+  .comment .txt{font-size:14px;line-height:1.5;}
+  .empty-c{color:var(--muted);font-size:13px;font-style:italic;}
+
+  /* Popup */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:20px;}
+  .overlay.show{display:flex;}
+  .popup{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px;max-width:400px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.4);animation:popIn .25s ease;}
+  @keyframes popIn{from{transform:scale(.85);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .popup h3{font-family:'Cormorant Garamond',serif;font-size:23px;margin-bottom:8px;color:var(--accent-l);}
+  .popup p{font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+  .popup .pop-actions{display:flex;flex-direction:column;gap:9px;}
+  .popup .pop-like{background:var(--accent);color:#fff;border:none;padding:11px;border-radius:22px;cursor:pointer;font-weight:700;font-size:14px;}
+  .popup .pop-comment{background:var(--card);border:1px solid var(--accent-l);color:var(--accent-l);padding:11px;border-radius:22px;cursor:pointer;font-weight:700;font-size:14px;}
+  .popup .pop-skip{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;margin-top:4px;text-decoration:underline;}
+
+  footer{text-align:center;padding:24px;color:var(--muted);font-size:12px;}
+  footer .fsocials{display:flex;gap:12px;justify-content:center;margin-top:8px;}
+  footer .fsocials a{color:var(--accent-l);text-decoration:none;font-weight:700;}
+  .lang-top{display:flex;justify-content:center;gap:8px;padding:12px 0 2px;}
+  .lang-top .chip{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:7px 16px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:700;transition:.15s;}
+  .lang-top .chip:hover{border-color:var(--accent-l);}
+  .lang-top .chip.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .disclaimer{max-width:900px;margin:18px auto 0;padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-size:12px;color:var(--muted);line-height:1.6;text-align:center;}
+  .disclaimer b{color:var(--accent-l);}
+  /* Auth */
+  .account-btn{background:rgba(255,255,255,.16);border:none;color:#fff;padding:7px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:700;transition:.15s;display:inline-flex;align-items:center;gap:6px;}
+  .account-btn:hover{background:rgba(255,255,255,.4);}
+  .auth-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center;padding:20px;}
+  .auth-overlay.show{display:flex;}
+  .auth-box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:popIn .25s ease;}
+  .auth-box h3{font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--accent-l);margin-bottom:6px;text-align:center;}
+  .auth-box .sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;line-height:1.5;}
+  .auth-box input{width:100%;background:var(--reader-bg);border:1px solid var(--line);color:var(--ink);padding:12px 14px;border-radius:10px;font-family:inherit;font-size:14px;margin-bottom:10px;}
+  .auth-box .auth-main{width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:22px;font-weight:700;cursor:pointer;font-size:15px;margin-top:6px;}
+  .auth-box .auth-toggle{text-align:center;font-size:13px;color:var(--muted);margin-top:14px;}
+  .auth-box .auth-toggle a{color:var(--accent-l);cursor:pointer;font-weight:700;text-decoration:underline;}
+  .auth-box .auth-close{text-align:center;margin-top:10px;}
+  .auth-box .auth-close a{color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline;}
+  .auth-error{background:rgba(176,61,94,.15);color:var(--accent-l);border:1px solid rgba(176,61,94,.3);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:10px;display:none;}
+  .auth-error.show{display:block;}
+  .guest-note{font-size:11px;color:var(--muted);text-align:center;margin-top:12px;font-style:italic;}
+  .author-reply{margin-left:16px;margin-top:8px;padding:10px 14px;background:rgba(176,61,94,.12);border-left:3px solid var(--accent-l);border-radius:8px;font-size:13.5px;line-height:1.5;}
+  .author-reply .who{font-weight:700;color:var(--accent-l);font-size:12.5px;margin-bottom:2px;}
+
+  /* ===== MOBILE : grille de couvertures façon Wattpad (≤ 600px) ===== */
+  @media (max-width: 600px){
+    /* Empêcher tout débordement horizontal (cause de la colonne étroite) */
+    html, body{ max-width:100%; overflow-x:hidden; }
+    /* Entête empilée sur 2 lignes, centrée */
+    .topbar{ padding:12px 14px; }
+    .topbar-inner{
+      flex-direction:column;
+      align-items:center;
+      gap:10px;
+    }
+    .brand{ align-items:center; text-align:center; }
+    .brand h1{ font-size:22px; }
+    /* La partie droite passe dessous, en colonne : liens sur une ligne, contrôles+connexion sur une autre */
+    .top-right{
+      flex-direction:column;
+      align-items:center;
+      gap:10px;
+      width:100%;
+    }
+    .socials{
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:8px;
+    }
+    /* Ligne : boutons taille texte + thème + se connecter, centrés */
+    .controls{ justify-content:center; }
+    #accountBtn{ margin-left:0; }
+    /* Le contenu occupe toute la largeur de l'écran */
+    .wrap{ width:100%; max-width:100%; padding:16px 14px 60px; }
+    .reader-body{ width:100%; padding:22px 18px; }
+    .wrap{ padding:16px 12px 60px; }
+    /* La liste devient une grille de 2 colonnes */
+    #bookList{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+    }
+    /* Le bouton retour et le titre de saga doivent occuper toute la largeur */
+    #bookList > .back-btn, #bookList > .lib-head{ grid-column:1 / -1; }
+    /* Chaque carte : couverture en haut, infos dessous (colonne) */
+    .book{
+      flex-direction:column;
+      padding:0;
+      gap:0;
+      overflow:hidden;
+    }
+    .book:hover{ transform:none; }
+    /* Couverture large en haut, format portrait */
+    .cover{
+      width:100%;
+      height:170px;
+      border-radius:14px 14px 0 0;
+      font-size:46px;
+      flex-shrink:0;
+    }
+    .book-info{ padding:10px 12px 14px; }
+    .book-info h3{ font-size:16px; line-height:1.2; }
+    /* Résumé masqué sur mobile (trop long en grille) — visible au clic dans le lecteur */
+    .book-info .summary{ display:none; }
+    .book-info .meta{ font-size:11px; margin-bottom:6px; }
+    .type-badge{ font-size:9px; padding:2px 7px; }
+    /* Tags : n'en montrer que quelques-uns, plus petits */
+    .book-info .tags{ gap:4px; margin-top:6px; }
+    .book-info .tags .tag{ font-size:10px; padding:2px 7px; }
+    /* En-tête : réduire un peu */
+    .brand h1{ font-size:20px; }
+    .filters{ gap:12px; }
+  }
+  .cover img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;}
+  .search-input{
+    background:var(--card); border:1px solid var(--line); color:var(--ink);
+    padding:9px 14px; border-radius:20px; font-size:14px; font-family:inherit;
+    width:100%; min-width:180px;
+  }
+  .search-input:focus{ outline:none; border-color:var(--accent-l); }
+  .search-input::placeholder{ color:var(--muted); }
+  /* ===== Bannière teaser (prochaine histoire) ===== */
+  .teaser{
+    display:flex; gap:0; border-radius:18px; overflow:hidden; margin:0 0 24px;
+    background:var(--card); border:2px solid var(--accent-l); box-shadow:0 8px 28px rgba(0,0,0,.4);
+    align-items:stretch;
+  }
+  .teaser-img{
+    width:420px; flex-shrink:0; object-fit:cover; object-position:center top;
+    display:block; align-self:stretch;
+  }
+  .teaser-text{
+    flex:1; min-width:240px; padding:22px 24px; display:flex; flex-direction:column; justify-content:center;
+  }
+  .teaser-badge{
+    display:inline-block; align-self:flex-start; background:var(--accent); color:#fff; font-weight:700;
+    font-size:12px; letter-spacing:1px; text-transform:uppercase;
+    padding:5px 14px; border-radius:20px; margin-bottom:10px;
+  }
+  .teaser h3{
+    font-family:'Cormorant Garamond',serif; font-size:25px; font-weight:600;
+    margin-bottom:8px; color:var(--accent-l);
+  }
+  .teaser p{ font-size:14px; line-height:1.5; color:var(--ink); }
+  .teaser .teaser-small{ font-size:12.5px; color:#FED20D; margin-top:8px; font-style:italic; }
+  @media (max-width:600px){
+    .teaser{ flex-direction:column; }
+    .teaser-img{ width:100%; height:auto; max-height:none; object-fit:contain; background:#0a1628; }
+    .teaser-text{ padding:18px 16px; }
+    .teaser h3{ font-size:22px; }
+  }
+</style>
+</head>
+<body>
+<div id="readProgress"></div>
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <h1>Julie Cacciola</h1>
+      <span class="handle">✦ YOULO182 ✦</span>
+    </div>
+    <div class="top-right">
+      <div class="socials">
+        <a href="https://x.com/Youlo182" target="_blank" title="X (Twitter)">𝕏</a>
+        <a href="https://www.wattpad.com/user/Youlo182" target="_blank" title="Wattpad">W</a>
+        <a href="https://archiveofourown.org/users/Youlo182/pseuds" target="_blank" title="AO3">AO3</a>
+        <a href="https://www.instagram.com/youlo182/" target="_blank" title="Instagram">📷</a>
+        <a href="https://www.threads.com/@youlo182" target="_blank" title="Threads">@</a>
+        <a href="https://www.tiktok.com/@youlo182" target="_blank" title="TikTok">♪</a>
+        <a href="https://www.thebookedition.com/fr/56271_julie-cacciola" target="_blank" title="Acheter mes livres (papier)">📚</a>
+        <a href="https://open.spotify.com/playlist/4q7nZ7O9VJvyIiJ2J0eT8i" target="_blank" title="Ma playlist d'inspiration">🎵</a>
+      </div>
+      <div class="controls">
+        <button class="ctrl" id="fontDown" title="Texte plus petit">A−</button>
+        <button class="ctrl" id="fontUp" title="Texte plus grand">A+</button>
+        <button class="ctrl" id="themeBtn" title="Mode clair / sombre">☀️</button>
+      </div>
+      <button class="account-btn" id="aboutBtn">💛 <span id="aboutLabel">À propos</span></button>
+      <button class="account-btn" id="accountBtn">👤 <span id="accountLabel">Se connecter</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- LANGUAGE SELECTOR (top, drives whole UI) -->
+  <div class="lang-top" id="langChips">
+    <button class="chip active" data-lang="fr">🇫🇷 Français</button>
+    <button class="chip" data-lang="en">🇬🇧 English</button>
+  </div>
+
+  <!-- ABOUT (page À propos) -->
+  <div id="about" style="display:none;">
+    <button class="back-btn" id="aboutBack">← Retour</button>
+    <div class="about-card">
+      <img class="about-photo" src="assets/julie-carina-maya.jpeg" alt="Julie avec Carina et Maya" loading="lazy">
+      <div class="about-text">
+        <h2 id="aboutTitle"></h2>
+        <div id="aboutBody"></div>
+        <div class="about-sign" id="aboutSign"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIBRARY -->
+  <div id="library">
+    <div class="lib-head">
+      <h2 id="libTitle">Mes Histoires</h2>
+      <p id="libSubtitle">Bienvenue dans mon univers ✦ Carina & Maya ✦ — reprends où tu t'es arrêté·e 💫</p>
+    </div>
+
+    <!-- Bannière teaser : prochaine histoire -->
+    <div id="teaser" class="teaser">
+      <img class="teaser-img" src="assets/tainted-love-banner.jpeg" alt="Tainted Love — à venir">
+      <div class="teaser-text">
+        <div class="teaser-badge" id="teaserBadge">✨ Bientôt</div>
+        <h3 id="teaserTitle">Nouvelle histoire à venir !</h3>
+        <p id="teaserText">Pensez à revenir vérifier les mises à jour, ou suivez-moi sur X / Instagram pour savoir dès qu'elle est disponible. 💛</p>
+        <p class="teaser-small" id="teaserSmall">Cette histoire sortira en avant-première ici, avant Wattpad et AO3. 🌟</p>
+      </div>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group" style="flex:1;min-width:200px;">
+        <span class="flabel" id="searchLabel">Recherche</span>
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Rechercher une histoire…">
+      </div>
+      <div class="filter-group">
+        <span class="flabel" id="typeLabel">Type d'histoire</span>
+        <div class="chips" id="typeChips">
+          <button class="chip active" data-type="all">Tout</button>
+          <button class="chip" data-type="oneshot">One Shot</button>
+          <button class="chip" data-type="standalone">Stand Alone</button>
+          <button class="chip" data-type="series">Avec suites</button>
+        </div>
+      </div>
+      <div class="filter-group" id="osCatGroup" style="display:none;">
+        <span class="flabel" id="osCatLabel">Catégorie</span>
+        <div class="chips" id="osCatChips">
+          <button class="chip active" data-oscat="all">Toutes</button>
+          <button class="chip" data-oscat="marina">🌊 Marina</button>
+          <button class="chip" data-oscat="stefanielle">💜 Stefanielle</button>
+          <button class="chip" data-oscat="station19">🚒 Station 19</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="bookList"></div>
+
+    <div class="disclaimer" id="disclaimer"></div>
+  </div>
+
+  <!-- READER -->
+  <div id="reader">
+    <button class="back-btn" id="backBtn">← Retour à la bibliothèque</button>
+    <div class="chapter-nav" id="chapterNav"></div>
+    <div class="reader-body" id="readerBody"></div>
+    <div class="chapter-actions">
+      <button class="like-btn" id="likeBtn">❤️ <span id="likeCount">0</span> J'aime</button>
+      <div class="nav-arrows">
+        <button id="prevCh">← Précédent</button>
+        <button id="nextCh">Suivant →</button>
+      </div>
+    </div>
+    <div class="comments">
+      <h3>💬 Commentaires</h3>
+      <div class="comment-form">
+        <div id="commentAs" style="display:none;font-size:13px;color:var(--muted);margin-bottom:2px;"></div>
+        <input type="text" id="cName" placeholder="Ton prénom (ou pseudo)">
+        <textarea id="cText" placeholder="Laisse un petit mot à l'autrice…"></textarea>
+        <button id="cSend">Envoyer</button>
+      </div>
+      <div id="commentList"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Écrit avec 💜 par Julie Cacciola — Youlo182
+  <div class="fsocials">
+    <a href="https://x.com/Youlo182" target="_blank">X</a>
+    <a href="https://www.wattpad.com/user/Youlo182" target="_blank">Wattpad</a>
+    <a href="https://archiveofourown.org/users/Youlo182/pseuds" target="_blank">AO3</a>
+    <a href="https://www.instagram.com/youlo182/" target="_blank">Instagram</a>
+    <a href="https://www.threads.com/@youlo182" target="_blank">Threads</a>
+    <a href="https://www.tiktok.com/@youlo182" target="_blank">TikTok</a>
+  </div>
+  <div class="fsocials" style="margin-top:6px;">
+    <a href="https://www.thebookedition.com/fr/56271_julie-cacciola" target="_blank">📚 Acheter mes livres (papier)</a>
+    <a href="https://open.spotify.com/playlist/4q7nZ7O9VJvyIiJ2J0eT8i" target="_blank">🎵 Ma playlist d'inspiration</a>
+  </div>
+</footer>
+
+<!-- Auth modal -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-box">
+    <h3 id="authTitle">Se connecter</h3>
+    <p class="sub" id="authSub">Connecte-toi pour garder ta progression, tes j'aime et tes commentaires sur tous tes appareils 💜</p>
+    <div class="auth-error" id="authError"></div>
+    <input type="text" id="authDisplayName" placeholder="Ton pseudo (affiché sur tes commentaires)" style="display:none;">
+    <input type="email" id="authEmail" placeholder="Ton email">
+    <input type="password" id="authPassword" placeholder="Ton mot de passe">
+    <button class="auth-main" id="authSubmit">Se connecter</button>
+    <div class="auth-toggle" id="authToggle">Pas encore de compte ? <a id="authSwitch">Inscris-toi</a></div>
+    <div class="guest-note" id="guestNote">Tu peux aussi lire sans compte — mais ta progression ne sera gardée que sur cet appareil.</div>
+    <div class="auth-close"><a id="authClose">Fermer</a></div>
+  </div>
+</div>
+
+<!-- Popup before next chapter -->
+<div class="overlay" id="overlay">
+  <div class="popup">
+    <h3>Tu as aimé ce chapitre ? 💜</h3>
+    <p>Un petit ❤️ ou un mot fait toujours super plaisir à l'autrice avant de continuer !</p>
+    <div class="pop-actions">
+      <button class="pop-like" id="popLike">❤️ Laisser un j'aime</button>
+      <button class="pop-comment" id="popComment">💬 Écrire un commentaire</button>
+      <button class="pop-skip" id="popSkip">Continuer vers le chapitre suivant →</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// Firebase functions are loaded dynamically so the site still renders even if
+// the CDN import is blocked (e.g. sandboxed preview). All FB calls null-check first.
+let initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
+    signInWithEmailAndPassword, signOut, updateProfile,
+    getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp;
+let auth=null, db=null, firebaseReady=false;
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDCXtXM-F_AoqwlUTk_trk3Ny9dxy-7q-g",
+  authDomain: "youlo182-fanfics.firebaseapp.com",
+  projectId: "youlo182-fanfics",
+  storageBucket: "youlo182-fanfics.firebasestorage.app",
+  messagingSenderId: "254835522518",
+  appId: "1:254835522518:web:c309ed0c14ff24a19c0277"
+};
+
+async function initFirebase(){
+  try{
+    const appMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    const authMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+    const fsMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    initializeApp=appMod.initializeApp;
+    ({ getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } = authMod);
+    ({ getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp } = fsMod);
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    firebaseReady=true;
+    // Wire auth state now that Firebase is up
+    onAuthStateChanged(auth, async function(user){
+      currentUser=user; updateAccountLabel(); updateCommentForm(); renderLibrary();
+      if(currentBook && document.getElementById('reader').style.display!=='none'){ renderChapter(); }
+    });
+  }catch(e){
+    console.warn('Firebase indisponible (mode aperçu ?) — le site s\'affiche sans les fonctions cloud.', e);
+  }
+}
+
+// ---- SAFE STORAGE (prefs + guest fallback) ----
+function safeGet(k,def){ try{ const v=localStorage.getItem(k); return v===null?def:v; }catch(e){ return def; } }
+function safeSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+// ---- DEMO DATA (bilingue + types) ----
+// Les histoires réelles sont chargées depuis stories.json au démarrage (loadRealStories).
+// Ce tableau reste vide : aucune histoire de démonstration.
+const BOOKS = [];
+
+const TYPE_LABEL = {oneshot:'One Shot', standalone:'Stand Alone', series:'Avec suites'};
+
+// ---- UI TRANSLATIONS ----
+const UI = {
+  fr:{
+    libTitle:"Mes Histoires",
+    libSubtitle:"Bienvenue dans mon univers ✦ Carina & Maya ✦ — reprends où tu t'es arrêté·e 💫",
+    typeLabel:"Type d'histoire",
+    typeAll:"Tout", typeOneshot:"One Shot", typeStandalone:"Stand Alone", typeSeries:"Avec suites",
+    back:"← Retour à la bibliothèque",
+    like:"J'aime", prev:"← Précédent", next:"Suivant →",
+    commentsTitle:"💬 Commentaires",
+    cName:"Ton prénom (ou pseudo)", cText:"Laisse un petit mot à l'autrice…", cSend:"Envoyer",
+    noBooks:"Aucune histoire dans cette catégorie pour l'instant 💜",
+    popTitle:"Tu as aimé ce chapitre ? 💜",
+    popText:"Un petit ❤️ ou un mot fait toujours super plaisir à l'autrice avant de continuer !",
+    popLike:"❤️ Laisser un j'aime", popComment:"💬 Écrire un commentaire", popSkip:"Continuer vers le chapitre suivant →",
+    footer:"Écrit avec 💜 par Julie Cacciola — Youlo182",
+    disclaimer:"<b>Disclaimer :</b> Ces histoires sont des œuvres de fiction originales dont je détiens les droits d'auteur sur le texte. Il s'agit de fanfictions écrites sans but lucratif : les personnages et l'univers de Station 19 ne m'appartiennent pas et restent la propriété d'ABC, Shondaland et de leurs ayants droit. Aucune atteinte aux droits d'auteur n'est intentionnelle. 💛",
+    login:"Se connecter", logout:"Se déconnecter",
+    authLoginTitle:"Se connecter", authSignupTitle:"Créer un compte",
+    authLoginSub:"Connecte-toi pour garder ta progression, tes j'aime et tes commentaires sur tous tes appareils 💜",
+    authSignupSub:"Crée ton compte pour garder ta progression, tes j'aime et tes commentaires sur tous tes appareils 💜",
+    authDoLogin:"Se connecter", authDoSignup:"S'inscrire",
+    authNoAccount:"Pas encore de compte ?", authHasAccount:"Déjà un compte ?",
+    authSwitchSignup:"Inscris-toi", authSwitchLogin:"Connecte-toi",
+    mustLogin:"Connecte-toi pour laisser un j'aime ou un commentaire 💜"
+  },
+  en:{
+    libTitle:"My Stories",
+    libSubtitle:"Welcome to my world ✦ Carina & Maya ✦ — pick up right where you left off 💫",
+    typeLabel:"Story type",
+    typeAll:"All", typeOneshot:"One Shot", typeStandalone:"Stand Alone", typeSeries:"With sequels",
+    back:"← Back to library",
+    like:"Like", prev:"← Previous", next:"Next →",
+    commentsTitle:"💬 Comments",
+    cName:"Your first name (or nickname)", cText:"Leave a little note for the author…", cSend:"Send",
+    noBooks:"No stories in this category yet 💜",
+    popTitle:"Did you enjoy this chapter? 💜",
+    popText:"A little ❤️ or a comment always means the world to the author before you continue!",
+    popLike:"❤️ Leave a like", popComment:"💬 Write a comment", popSkip:"Continue to next chapter →",
+    footer:"Written with 💜 by Julie Cacciola — Youlo182",
+    disclaimer:"<b>Disclaimer:</b> These stories are original works of fiction to which I hold the copyright for the text. They are non-profit fanfictions: the characters and the world of Station 19 do not belong to me and remain the property of ABC, Shondaland and their respective rights holders. No copyright infringement is intended. 💛",
+    login:"Sign in", logout:"Sign out",
+    authLoginTitle:"Sign in", authSignupTitle:"Create an account",
+    authLoginSub:"Sign in to keep your progress, likes and comments across all your devices 💜",
+    authSignupSub:"Create your account to keep your progress, likes and comments across all your devices 💜",
+    authDoLogin:"Sign in", authDoSignup:"Sign up",
+    authNoAccount:"No account yet?", authHasAccount:"Already have an account?",
+    authSwitchSignup:"Sign up", authSwitchLogin:"Sign in",
+    mustLogin:"Sign in to leave a like or a comment 💜"
+  }
+};
+
+// ---- STATE ----
+let currentBook=null, currentCh=0, fontSize=19;
+let SERIES={};          // résumés généraux des sagas (niveau 2)
+let currentSaga=null;   // saga ouverte (nom de série) ou null
+let lang = safeGet('fanfic_lang','fr');
+let typeFilter = 'all';
+let osCatFilter = 'all';   // sous-catégorie one-shot
+let searchQuery = '';      // texte de recherche
+let pendingNext = null;
+let currentUser = null;
+let authMode = 'login'; // or 'signup'
+let unsubComments = null;
+let unsubLikes = null;
+let myLiked = false;
+
+function coverImg(b){
+  if(b && b.cover){ return '<img src="'+b.cover+'" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.textContent=\''+(b.emoji||'📖')+'\';">'; }
+  return (b && b.emoji) || '📖';
+}
+// ---- PAGE À PROPOS ----
+function computeAge(){
+  // Née le 17 mars 1989 — âge auto-actualisé chaque année
+  const birth = new Date(1989, 2, 17); // mois 0-indexé : 2 = mars
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const m = now.getMonth() - birth.getMonth();
+  if(m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+  return age;
+}
+const ABOUT = {
+  fr: {
+    label:"À propos",
+    title:"À propos de moi 💛",
+    body:[
+      "Bonjour ! Moi c'est <em>Julie</em>, j'ai AGE ans, et voici les deux femmes qui donnent vie à Carina et Maya — j'ai eu la chance de les rencontrer à plusieurs reprises. 🥹",
+      "J'ai commencé à écrire sur <em>Marina</em> en juillet 2021… et je n'ai jamais réussi à m'arrêter depuis !",
+      "J'écris par passion, alors je m'excuse d'avance s'il y a des incohérences ou des fautes d'orthographe — je ne suis pas professionnelle, c'est juste un passe-temps qui me tient à cœur.",
+      "Je suis vraiment heureuse de partager mes histoires ici, sur mon propre site. J'espère que vous aimerez me lire et me suivre ici, plutôt que sur Wattpad ou AO3 (où je continuerai de poster, mais toujours après avoir publié ici 💛)."
+    ],
+    sign:"xx<br>Youlo182 aka Julie 💛"
+  },
+  en: {
+    label:"About",
+    title:"About me 💛",
+    body:[
+      "Hi! I'm <em>Julie</em>, I'm AGE years old, and here are the two women who bring Carina and Maya to life — I've been lucky enough to meet them several times. 🥹",
+      "I started writing about <em>Marina</em> in July 2021… and I've never managed to stop since!",
+      "I write out of passion, so I apologize in advance for any inconsistencies or spelling mistakes — I'm not a professional, it's just a hobby that's close to my heart.",
+      "I'm truly happy to share my stories here, on my very own site. I hope you'll enjoy reading and following me here, rather than on Wattpad or AO3 (where I'll keep posting, but always after publishing here 💛)."
+    ],
+    sign:"xx<br>Youlo182 aka Julie 💛"
+  }
+};
+function renderAbout(){
+  const t = ABOUT[lang];
+  document.getElementById('aboutLabel').textContent = t.label;
+  document.getElementById('aboutTitle').innerHTML = t.title;
+  const age = computeAge();
+  document.getElementById('aboutBody').innerHTML =
+    t.body.map(p => '<p>'+p.replace('AGE', age)+'</p>').join('');
+  document.getElementById('aboutSign').innerHTML = t.sign;
+}
+function showAbout(){
+  document.getElementById('library').style.display='none';
+  document.getElementById('reader').style.display='none';
+  document.getElementById('about').style.display='block';
+  document.querySelector('.lang-top').style.display='flex';
+  renderAbout();
+  window.scrollTo(0,0);
+}
+document.getElementById('aboutBtn').onclick = showAbout;
+document.getElementById('aboutBack').onclick = function(){
+  document.getElementById('about').style.display='none';
+  renderLibrary();
+};
+
+
+function applyUILang(){
+  const t=UI[lang];
+  document.getElementById('libTitle').textContent=t.libTitle;
+  document.getElementById('libSubtitle').textContent=t.libSubtitle;
+  document.getElementById('typeLabel').textContent=t.typeLabel;
+  var _sl=document.getElementById('searchLabel'); if(_sl) _sl.textContent=(lang==='fr'?'Recherche':'Search');
+  var _si=document.getElementById('searchInput'); if(_si) _si.placeholder=(lang==='fr'?'🔍 Rechercher une histoire…':'🔍 Search a story…');
+  var _ol=document.getElementById('osCatLabel'); if(_ol) _ol.textContent=(lang==='fr'?'Catégorie':'Category');
+  var _oc=document.querySelectorAll('#osCatChips .chip'); if(_oc&&_oc.length){ _oc[0].textContent=(lang==='fr'?'Toutes':'All'); _oc[3].textContent='🚒 Station 19'; }
+  const tc=document.querySelectorAll('#typeChips .chip');
+  tc[0].textContent=t.typeAll; tc[1].textContent=t.typeOneshot; tc[2].textContent=t.typeStandalone; tc[3].textContent=t.typeSeries;
+  document.getElementById('backBtn').textContent=t.back;
+  document.getElementById('prevCh').textContent=t.prev;
+  document.getElementById('nextCh').textContent=t.next;
+  document.querySelector('.comments h3').textContent=t.commentsTitle;
+  document.getElementById('cName').placeholder=t.cName;
+  document.getElementById('cText').placeholder=t.cText;
+  document.getElementById('cSend').textContent=t.cSend;
+  document.querySelector('.popup h3').textContent=t.popTitle;
+  document.querySelector('.popup p').textContent=t.popText;
+  document.getElementById('popLike').textContent=t.popLike;
+  document.getElementById('popComment').textContent=t.popComment;
+  document.getElementById('popSkip').textContent=t.popSkip;
+  document.querySelector('footer').childNodes[0].textContent=' '+t.footer+' ';
+  document.getElementById('disclaimer').innerHTML=t.disclaimer;
+  updateAccountLabel();
+  updateCommentForm();
+  var _al=document.getElementById('aboutLabel'); if(_al) _al.textContent=ABOUT[lang].label;
+  // Bannière teaser bilingue
+  var _tb=document.getElementById('teaserBadge'), _tt=document.getElementById('teaserTitle'),
+      _tx=document.getElementById('teaserText'), _ts=document.getElementById('teaserSmall');
+  if(_tb){
+    if(lang==='fr'){
+      _tb.textContent='✨ Bientôt';
+      _tt.textContent='Nouvelle histoire à venir !';
+      _tx.textContent='Pensez à revenir vérifier les mises à jour, ou suivez-moi sur X / Instagram pour savoir dès qu\'elle est disponible. 💛';
+      _ts.textContent='Cette histoire sortira en avant-première ici, avant Wattpad et AO3. 🌟';
+    } else {
+      _tb.textContent='✨ Coming soon';
+      _tt.textContent='A new story is coming!';
+      _tx.textContent='Remember to check back for updates, or follow me on X / Instagram to know as soon as it\'s available. 💛';
+      _ts.textContent='This story will be released here first, before Wattpad and AO3. 🌟';
+    }
+  }
+}
+
+// ---- THEME / FONT ----
+let isLight = safeGet('fanfic_light','0')==='1';
+function applyTheme(){ document.body.className = isLight?'light':''; document.getElementById('themeBtn').textContent = isLight?'🌙':'☀️'; safeSet('fanfic_light', isLight?'1':'0'); }
+document.getElementById('themeBtn').onclick=()=>{ isLight=!isLight; applyTheme(); };
+document.getElementById('fontUp').onclick=()=>{ fontSize=Math.min(26,fontSize+1); document.documentElement.style.setProperty('--fs',fontSize+'px'); safeSet('fanfic_fs',fontSize); };
+document.getElementById('fontDown').onclick=()=>{ fontSize=Math.max(14,fontSize-1); document.documentElement.style.setProperty('--fs',fontSize+'px'); safeSet('fanfic_fs',fontSize); };
+applyTheme();
+fontSize=parseInt(safeGet('fanfic_fs','19')); document.documentElement.style.setProperty('--fs',fontSize+'px');
+
+// ---- LANG + TYPE FILTERS ----
+document.querySelectorAll('#langChips .chip').forEach(function(c){
+  c.classList.toggle('active', c.dataset.lang===lang);
+  c.onclick=function(){ lang=c.dataset.lang; safeSet('fanfic_lang',lang); document.querySelectorAll('#langChips .chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); applyUILang(); if(document.getElementById('about').style.display!=='none'){ renderAbout(); } else if(currentSaga && document.getElementById('reader').style.display==='none'){ openSaga(currentSaga); } else { renderLibrary(); } if(document.getElementById('reader').style.display!=='none'){ renderChapter(); } };
+});
+document.querySelectorAll('#typeChips .chip').forEach(function(c){
+  c.onclick=function(){
+    typeFilter=c.dataset.type;
+    document.querySelectorAll('#typeChips .chip').forEach(x=>x.classList.remove('active')); c.classList.add('active');
+    // Afficher le sous-filtre uniquement pour One Shot
+    document.getElementById('osCatGroup').style.display = (typeFilter==='oneshot') ? 'flex' : 'none';
+    if(typeFilter!=='oneshot'){ osCatFilter='all'; document.querySelectorAll('#osCatChips .chip').forEach(x=>x.classList.toggle('active', x.dataset.oscat==='all')); }
+    renderLibrary();
+  };
+});
+// Sous-catégories One Shot
+document.querySelectorAll('#osCatChips .chip').forEach(function(c){
+  c.onclick=function(){
+    osCatFilter=c.dataset.oscat;
+    document.querySelectorAll('#osCatChips .chip').forEach(x=>x.classList.remove('active')); c.classList.add('active');
+    renderLibrary();
+  };
+});
+// Barre de recherche (filtre en direct)
+document.getElementById('searchInput').addEventListener('input', function(){
+  searchQuery = this.value.trim().toLowerCase();
+  currentSaga = null;                                   // quitter la vue saga si on y était
+  document.getElementById('reader').style.display='none';  // quitter la lecture si on y était
+  var _ab=document.getElementById('about'); if(_ab) _ab.style.display='none';
+  renderLibrary();
+});
+
+// ---- AUTH ----
+const authOverlay = document.getElementById('authOverlay');
+function updateCommentForm(){
+  const asEl=document.getElementById('commentAs');
+  const nameInput=document.getElementById('cName');
+  if(!asEl||!nameInput) return;
+  if(currentUser){
+    nameInput.style.display='none';
+    asEl.style.display='block';
+    asEl.textContent=(lang==='fr'?'Commenter en tant que ':'Commenting as ')+(currentUser.displayName||currentUser.email);
+  } else {
+    nameInput.style.display='none';
+    asEl.style.display='block';
+    asEl.textContent=(lang==='fr'?'Connecte-toi pour commenter 💜':'Sign in to comment 💜');
+  }
+}
+function updateAccountLabel(){
+  const el=document.getElementById('accountLabel');
+  if(currentUser){ el.textContent=(currentUser.displayName||currentUser.email)+' · '+UI[lang].logout; }
+  else { el.textContent=UI[lang].login; }
+}
+function openAuth(){
+  authMode='login'; renderAuthMode();
+  document.getElementById('authError').classList.remove('show');
+  authOverlay.classList.add('show');
+}
+function renderAuthMode(){
+  const t=UI[lang];
+  document.getElementById('authTitle').textContent = authMode==='login'?t.authLoginTitle:t.authSignupTitle;
+  document.getElementById('authSub').textContent = authMode==='login'?t.authLoginSub:t.authSignupSub;
+  document.getElementById('authSubmit').textContent = authMode==='login'?t.authDoLogin:t.authDoSignup;
+  document.getElementById('authDisplayName').style.display = authMode==='signup'?'block':'none';
+  document.getElementById('authToggle').innerHTML = (authMode==='login'? t.authNoAccount+' <a id="authSwitch">'+t.authSwitchSignup+'</a>' : t.authHasAccount+' <a id="authSwitch">'+t.authSwitchLogin+'</a>');
+  document.getElementById('authSwitch').onclick=function(){ authMode = authMode==='login'?'signup':'login'; renderAuthMode(); };
+}
+document.getElementById('accountBtn').onclick=function(){
+  if(currentUser){ signOut(auth); } else { openAuth(); }
+};
+document.getElementById('authClose').onclick=function(){ authOverlay.classList.remove('show'); };
+document.getElementById('authSubmit').onclick=async function(){
+  const email=document.getElementById('authEmail').value.trim();
+  const pass=document.getElementById('authPassword').value;
+  const errEl=document.getElementById('authError');
+  errEl.classList.remove('show');
+  try{
+    if(authMode==='signup'){
+      const name=document.getElementById('authDisplayName').value.trim()||'Anonyme';
+      const cred=await createUserWithEmailAndPassword(auth,email,pass);
+      await updateProfile(cred.user,{displayName:name});
+      await setDoc(doc(db,'users',cred.user.uid),{displayName:name,email:email,createdAt:serverTimestamp()},{merge:true});
+    } else {
+      await signInWithEmailAndPassword(auth,email,pass);
+    }
+    authOverlay.classList.remove('show');
+    document.getElementById('authEmail').value=''; document.getElementById('authPassword').value=''; document.getElementById('authDisplayName').value='';
+  }catch(e){
+    errEl.textContent = e.message.replace('Firebase: ','');
+    errEl.classList.add('show');
+  }
+};
+
+// (auth state wired inside initFirebase once Firebase loads)
+
+// ---- PROGRESS (Firestore if logged in, else localStorage) ----
+async function getProgress(bookId){
+  if(currentUser && firebaseReady && db){
+    try{ const s=await getDoc(doc(db,'users',currentUser.uid,'progress',bookId)); return s.exists()?s.data():{ch:0}; }catch(e){ return {ch:0}; }
+  }
+  try{ return JSON.parse(safeGet('prog_'+bookId,'{"ch":0}')); }catch(e){ return {ch:0}; }
+}
+async function setProgress(bookId,ch){
+  if(currentUser && firebaseReady && db){
+    try{ await setDoc(doc(db,'users',currentUser.uid,'progress',bookId),{ch:ch,updatedAt:serverTimestamp()}); }catch(e){}
+  } else {
+    safeSet('prog_'+bookId,JSON.stringify({ch}));
+  }
+}
+
+// ---- LIBRARY ----
+// ---- LIBRARY (niveau 1 : catégories + sagas regroupées) ----
+function renderLibrary(){
+  document.getElementById('library').style.display='block';
+  document.getElementById('reader').style.display='none';
+  var _ab=document.getElementById('about'); if(_ab) _ab.style.display='none';
+  document.getElementById('readProgress').style.width='0';
+  // Bannière teaser : visible seulement sur "Tout" sans recherche active
+  var _tz=document.getElementById('teaser');
+  if(_tz) _tz.style.display = (typeFilter==='all' && !searchQuery) ? 'flex' : 'none';
+  if(unsubComments){ unsubComments(); unsubComments=null; }
+  if(unsubLikes){ unsubLikes(); unsubLikes=null; }
+  currentSaga=null;
+  const books = BOOKS.filter(function(b){
+    if(typeFilter!=='all' && b.type!==typeFilter) return false;
+    if(b.onlyLang && b.onlyLang!==lang) return false;   // one-shot d'une seule langue
+    // Sous-catégorie one-shot (Marina / Stefanielle / Station 19)
+    if(typeFilter==='oneshot' && osCatFilter!=='all' && (b.oscat||'marina')!==osCatFilter) return false;
+    // Recherche texte (titre FR + EN + tags)
+    if(searchQuery){
+      var hay = ((b.fr&&b.fr.title||'')+' '+(b.en&&b.en.title||'')+' '+(b.serie||'')+' '+((b.tags||[]).join(' '))).toLowerCase();
+      if(hay.indexOf(searchQuery)===-1) return false;
+    }
+    return true;
+  });
+  const list=document.getElementById('bookList');
+  if(books.length===0){ list.innerHTML='<div class="no-books">'+UI[lang].noBooks+'</div>'; return; }
+  // Regrouper : les livres d'une même série (b.serie) → une seule carte "saga".
+  // Les autres (one-shots, stand-alones) → carte normale.
+  const singles=[]; const sagas={}; const sagaOrder=[];
+  books.forEach(function(b){
+    if(b.serie){
+      if(!sagas[b.serie]){ sagas[b.serie]=[]; sagaOrder.push(b.serie); }
+      sagas[b.serie].push(b);
+    } else { singles.push(b); }
+  });
+  let out='';
+  // Cartes de sagas (niveau 2 accessible au clic)
+  sagaOrder.forEach(function(name){
+    const tomes=sagas[name];
+    const info=(SERIES[name]&&SERIES[name][lang])||{};
+    const meta=(SERIES[name]||{});
+    const title=info.title||name;
+    const summary=info.summary||'';
+    const emoji=meta.emoji||tomes[0].emoji||'📖';
+    const tags=meta.tags||tomes[0].tags||[];
+    const nbTomes=tomes.length;
+    out+='<div class="book" onclick="openSaga(\''+name.replace(/'/g,"\\'")+'\')">'+
+      '<div class="cover">'+coverImg(tomes[0])+'</div>'+
+      '<div class="book-info" style="flex:1">'+
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;"><h3>'+title+'</h3><span class="type-badge">'+(lang==='fr'?'Saga':'Series')+'</span></div>'+
+        '<div class="meta">'+nbTomes+(lang==='fr'?' tomes':' books')+'</div>'+
+        '<div class="summary">'+summary+'</div>'+
+        '<div class="tags">'+tags.map(t=>'<span class="tag">'+t+'</span>').join('')+'</div>'+
+        '<div style="margin-top:10px;color:var(--accent-l);font-weight:700;font-size:13px;">'+(lang==='fr'?'Voir les tomes →':'View books →')+'</div>'+
+      '</div>'+
+    '</div>';
+  });
+  // Cartes simples (one-shots / stand-alones)
+  out+=singles.map(function(b){
+    const d=b[lang];
+    const total=d.chapters.length;
+    return '<div class="book" onclick="openBook(\''+b.id+'\')">'+
+      '<div class="cover">'+coverImg(b)+'</div>'+
+      '<div class="book-info" style="flex:1">'+
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;"><h3>'+d.title+'</h3><span class="type-badge">'+TYPE_LABEL[b.type]+'</span></div>'+
+        '<div class="meta">'+total+(lang==='fr'?' chapitre':' chapter')+(total>1?'s':'')+'</div>'+
+        '<div class="summary">'+d.summary+'</div>'+
+        '<div class="tags">'+b.tags.map(t=>'<span class="tag">'+t+'</span>').join('')+'</div>'+
+        '<div class="progress-mini" id="pm_'+b.id+'" style="display:none;"><div class="bar"><div class="fill" style="width:0"></div></div><div class="lbl"></div></div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  list.innerHTML=out;
+  // Enrich progress for single books only
+  singles.forEach(function(b){
+    Promise.resolve(getProgress(b.id+'_'+lang)).then(function(p){
+      const el=document.getElementById('pm_'+b.id); if(!el) return;
+      const total=b[lang].chapters.length;
+      const chn=(p&&p.ch)||0;
+      const started=chn>0;
+      if(started){
+        const pct=Math.round((chn/((total-1)||1))*100);
+        el.style.display='block';
+        el.querySelector('.fill').style.width=pct+'%';
+        el.querySelector('.lbl').textContent='📌 '+(lang==='fr'?'Reprendre au chapitre ':'Resume at chapter ')+(chn+1)+' ('+pct+'%)';
+      }
+    }).catch(function(){});
+  });
+}
+
+window.renderLibrary = renderLibrary;  // exposé pour les onclick inline
+
+// ---- SAGA (niveau 2 : liste des tomes) ----
+window.openSaga=function(name){
+  currentSaga=name;
+  document.getElementById('library').style.display='block';
+  document.getElementById('reader').style.display='none';
+  var _tz=document.getElementById('teaser'); if(_tz) _tz.style.display='none';
+  const tomes=BOOKS.filter(b=>b.serie===name).sort((a,b)=>(a.tome||0)-(b.tome||0));
+  const info=(SERIES[name]&&SERIES[name][lang])||{};
+  const list=document.getElementById('bookList');
+  let out='<button class="back-btn" onclick="renderLibrary()" style="margin-bottom:14px;">'+(lang==='fr'?'← Retour à la bibliothèque':'← Back to library')+'</button>';
+  out+='<div class="lib-head" style="margin-top:4px;"><h2>'+(info.title||name)+'</h2><p>'+(lang==='fr'?'Choisis un tome pour commencer 💫':'Pick a book to start 💫')+'</p></div>';
+  out+=tomes.map(function(b){
+    const d=b[lang];
+    const total=d.chapters.length;
+    return '<div class="book" onclick="openBook(\''+b.id+'\')">'+
+      '<div class="cover">'+coverImg(b)+'</div>'+
+      '<div class="book-info" style="flex:1">'+
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;"><h3>'+d.title+'</h3><span class="type-badge">'+(lang==='fr'?'Tome ':'Book ')+(b.tome||'')+'</span></div>'+
+        '<div class="meta">'+total+(lang==='fr'?' chapitres':' chapters')+'</div>'+
+        '<div class="summary">'+d.summary+'</div>'+
+        '<div class="progress-mini" id="pm_'+b.id+'" style="display:none;"><div class="bar"><div class="fill" style="width:0"></div></div><div class="lbl"></div></div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  list.innerHTML=out;
+  tomes.forEach(function(b){
+    Promise.resolve(getProgress(b.id+'_'+lang)).then(function(p){
+      const el=document.getElementById('pm_'+b.id); if(!el) return;
+      const total=b[lang].chapters.length; const chn=(p&&p.ch)||0;
+      if(chn>0){
+        const pct=Math.round((chn/((total-1)||1))*100);
+        el.style.display='block';
+        el.querySelector('.fill').style.width=pct+'%';
+        el.querySelector('.lbl').textContent='📌 '+(lang==='fr'?'Reprendre au chapitre ':'Resume at chapter ')+(chn+1)+' ('+pct+'%)';
+      }
+    }).catch(function(){});
+  });
+};
+
+// Compteur de vues : +1 par ouverture d'histoire (max 1 par histoire par session)
+const __viewedThisSession = {};
+// Compteurs agrégés : un seul doc stats/totals mis à jour à chaque événement.
+// Permet au dashboard d'être instantané (une seule lecture) quel que soit le catalogue.
+async function bumpTotals(field, delta, bookId){
+  if(!firebaseReady || !db) return;
+  try{
+    const ref = doc(db, 'stats', 'totals');
+    await runTransaction(db, async function(tx){
+      const s = await tx.get(ref);
+      const data = s.exists() ? s.data() : {};
+      data[field] = (data[field]||0) + delta;                 // total global
+      if(bookId){
+        data.byStory = data.byStory || {};
+        data.byStory[bookId] = data.byStory[bookId] || {views:0,likes:0,comments:0};
+        data.byStory[bookId][field] = (data.byStory[bookId][field]||0) + delta;
+      }
+      tx.set(ref, data, {merge:true});
+    });
+  }catch(e){ /* silencieux */ }
+}
+async function countView(bookId){
+  if(!firebaseReady || !db) return;
+  if(__viewedThisSession[bookId]) return;   // évite de compter plusieurs fois dans la même visite
+  __viewedThisSession[bookId] = true;
+  try{
+    const ref = doc(db, 'views', bookId);
+    await runTransaction(db, async function(tx){
+      const s = await tx.get(ref);
+      const cur = (s.exists() && s.data().count) ? s.data().count : 0;
+      tx.set(ref, { count: cur + 1, updatedAt: serverTimestamp() }, { merge:true });
+    });
+    bumpTotals('views', 1, bookId);
+  }catch(e){ /* silencieux : le comptage ne doit jamais gêner la lecture */ }
+}
+window.openBook=async function(id){
+  currentBook=BOOKS.find(b=>b.id===id);
+  let p={ch:0};
+  try{ p=await getProgress(id+'_'+lang); }catch(e){}
+  currentCh=(p&&p.ch)||0;
+  countView(id);   // compte une vue (tous lecteurs, inscrits ou non)
+  document.getElementById('library').style.display='none';
+  document.getElementById('reader').style.display='block';
+  renderChapter(); window.scrollTo(0,0);
+};
+
+function renderChapterNav(){
+  const chs=currentBook[lang].chapters;
+  document.getElementById('chapterNav').innerHTML=chs.map(function(c,i){
+    return '<button class="'+(i===currentCh?'active':'')+'" onclick="goChapter('+i+')">Ch. '+(i+1)+'</button>';
+  }).join('');
+}
+window.goChapter=function(i){ currentCh=i; renderChapter(); window.scrollTo(0,0); };
+
+function chapterKey(){ return currentBook.id+'_'+lang+'_'+currentCh; }
+
+// Cache des chapitres déjà chargés (clé: url du fichier)
+const __chapterCache = {};
+async function fetchChapterHTML(book, langCode, chIndex){
+  const url = book.path + '/' + langCode + '/ch' + (chIndex+1) + '.html';
+  if(__chapterCache[url] !== undefined) return __chapterCache[url];
+  const res = await fetch(url, {cache:'force-cache'});
+  if(!res.ok) throw new Error('HTTP '+res.status+' sur '+url);
+  const txt = await res.text();
+  __chapterCache[url] = txt;
+  return txt;
+}
+async function renderChapter(){
+  const d=currentBook[lang];
+  const ch=d.chapters[currentCh];
+  const body=document.getElementById('readerBody');
+  if(currentBook.path){
+    // Vraie histoire : on charge le fichier du chapitre à la demande.
+    // Un one-shot n'existe que dans sa langue d'origine (onlyLang).
+    const fetchLang = currentBook.onlyLang || lang;
+    body.innerHTML='<h2>'+ch.title+'</h2><p style="opacity:.6">…</p>';
+    try{
+      const html = await fetchChapterHTML(currentBook, fetchLang, currentCh);
+      body.innerHTML='<h2>'+ch.title+'</h2>'+html;
+    }catch(e){
+      body.innerHTML='<h2>'+ch.title+'</h2><p style="opacity:.7">⚠️ '+
+        (lang==='fr'?'Chapitre indisponible pour le moment.':'Chapter unavailable right now.')+'</p>';
+      console.error('Chargement chapitre', e);
+    }
+  } else {
+    // Démo : texte en dur.
+    body.innerHTML='<h2>'+ch.title+'</h2>'+(ch.text||[]).map(p=>'<p>'+p+'</p>').join('');
+  }
+  renderChapterNav();
+  setProgress(currentBook.id+'_'+lang,currentCh);
+  subscribeLikes();
+  subscribeComments();
+  document.getElementById('prevCh').disabled=(currentCh===0);
+  document.getElementById('nextCh').disabled=(currentCh===d.chapters.length-1);
+}
+
+document.getElementById('prevCh').onclick=()=>{ if(currentCh>0){currentCh--;renderChapter();window.scrollTo(0,0);} };
+document.getElementById('nextCh').onclick=function(){
+  const total=currentBook[lang].chapters.length;
+  if(currentCh<total-1){ pendingNext=currentCh+1; document.getElementById('overlay').classList.add('show'); }
+};
+document.getElementById('backBtn').onclick=function(){
+  // Revenir à la liste des tomes si on lisait un tome de saga, sinon à la bibliothèque
+  if(currentBook && currentBook.serie){ openSaga(currentBook.serie); } else { renderLibrary(); }
+};
+
+// ---- LIKES (Firestore, per chapter; each user max 1 like) ----
+function subscribeLikes(){
+  if(!firebaseReady||!db) return;
+  if(unsubLikes){ unsubLikes(); unsubLikes=null; }
+  const key=chapterKey();
+  const ref=doc(db,'likes',key);
+  unsubLikes=onSnapshot(ref,function(snap){
+    const data=snap.exists()?snap.data():{count:0,users:{}};
+    const count=data.count||0;
+    myLiked = !!(currentUser && data.users && data.users[currentUser.uid]);
+    document.getElementById('likeCount').textContent=count;
+    document.getElementById('likeBtn').className='like-btn'+(myLiked?' liked':'');
+  }, function(){});
+}
+async function doLike(){
+  if(!firebaseReady||!db){ return; }
+  if(!currentUser){ openAuth(); return; }
+  const key=chapterKey();
+  const ref=doc(db,'likes',key);
+  let likeDelta=0;
+  try{
+    await runTransaction(db, async function(tx){
+      const s=await tx.get(ref);
+      let data=s.exists()?s.data():{count:0,users:{}};
+      if(!data.users) data.users={};
+      if(data.users[currentUser.uid]){ delete data.users[currentUser.uid]; data.count=Math.max(0,(data.count||0)-1); likeDelta=-1; }
+      else { data.users[currentUser.uid]=true; data.count=(data.count||0)+1; likeDelta=1; }
+      tx.set(ref,data);
+    });
+    if(likeDelta!==0 && currentBook){ bumpTotals('likes', likeDelta, currentBook.id); }
+  }catch(e){ alert('Oops: '+e.message); }
+}
+document.getElementById('likeBtn').onclick=function(){ doLike(); };
+
+// ---- COMMENTS (Firestore, live) ----
+let replyUnsubs=[];
+function clearReplyUnsubs(){ replyUnsubs.forEach(function(u){ try{u();}catch(e){} }); replyUnsubs=[]; }
+function subscribeComments(){
+  if(!firebaseReady||!db){ document.getElementById('commentList').innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les commentaires 💬':'Sign in online to see comments 💬')+'</div>'; return; }
+  if(unsubComments){ unsubComments(); unsubComments=null; }
+  clearReplyUnsubs();
+  const key=chapterKey();
+  const q=query(collection(db,'comments',key,'items'), orderBy('ts','desc'));
+  unsubComments=onSnapshot(q,function(snap){
+    const list=document.getElementById('commentList');
+    if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois le premier à laisser un mot 💌':'Be the first to leave a note 💌')+'</div>'; return; }
+    clearReplyUnsubs();
+    let out='';
+    snap.forEach(function(d){ const c=d.data(); const cid=d.id;
+      out+='<div class="comment"><div class="who">'+escapeHtml(c.name||'Anonyme')+'</div><div class="txt">'+escapeHtml(c.text||'')+'</div><div id="ar_'+cid+'"></div></div>';
+    });
+    list.innerHTML=out;
+    // Subscribe to each comment's replies (author answers)
+    snap.forEach(function(d){
+      const cid=d.id;
+      const rq=query(collection(db,'comments',key,'items',cid,'replies'), orderBy('ts','asc'));
+      const u=onSnapshot(rq,function(rsnap){
+        const el=document.getElementById('ar_'+cid); if(!el)return;
+        let rout='';
+        rsnap.forEach(function(rd){ const r=rd.data(); rout+='<div class="author-reply"><div class="who">✍️ '+escapeHtml(r.name||'Youlo182')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
+        el.innerHTML=rout;
+      }, function(){});
+      replyUnsubs.push(u);
+    });
+  }, function(){});
+}
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+document.getElementById('cSend').onclick=async function(){
+  if(!currentUser){ alert(UI[lang].mustLogin); openAuth(); return; }
+  const text=document.getElementById('cText').value.trim();
+  if(!text)return;
+  const key=chapterKey();
+  try{
+    await addDoc(collection(db,'comments',key,'items'),{
+      name: currentUser.displayName||'Anonyme',
+      uid: currentUser.uid,
+      text: text,
+      ts: serverTimestamp()
+    });
+    document.getElementById('cText').value='';
+    if(currentBook){ bumpTotals('comments', 1, currentBook.id); }
+  }catch(e){ alert('Oops: '+e.message); }
+};
+
+// ---- POPUP ----
+function advance(){
+  document.getElementById('overlay').classList.remove('show');
+  if(pendingNext!==null){ currentCh=pendingNext; pendingNext=null; renderChapter(); window.scrollTo(0,0); }
+}
+document.getElementById('popLike').onclick=function(){ doLike(); advance(); };
+document.getElementById('popComment').onclick=function(){ document.getElementById('overlay').classList.remove('show'); pendingNext=null; document.getElementById('cText').focus(); document.getElementById('cText').scrollIntoView({behavior:'smooth'}); };
+document.getElementById('popSkip').onclick=function(){ advance(); };
+
+// ---- READING PROGRESS BAR ----
+window.addEventListener('scroll',function(){
+  if(document.getElementById('reader').style.display==='none')return;
+  const h=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('readProgress').style.width=(h>0?(window.scrollY/h)*100:0)+'%';
+});
+
+// ---- INIT ----
+// Charge les vraies histoires depuis stories.json (chapitres à la demande).
+// Si le fichier est absent (ex: aperçu hors-ligne), on garde les démos.
+async function loadRealStories(){
+  try{
+    const res = await fetch('stories.json', {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    if(data && Array.isArray(data.stories) && data.stories.length){
+      // Convertit chaque histoire au format attendu par le site.
+      // chapters devient une liste de titres ; le texte est chargé à la demande.
+      const real = data.stories.map(function(s){
+        function mapLang(L){
+          return {
+            title: L.title,
+            summary: L.summary,
+            chapters: (L.chapters||[]).map(function(t){ return {title:t, text:null}; })
+          };
+        }
+        return {
+          id: s.id,
+          type: s.type || 'series',
+          emoji: s.emoji || '📖',
+          cover: s.cover || null,   // image de couverture (jaquette) si disponible
+          oscat: s.oscat || null,   // sous-catégorie one-shot : marina / stefanielle / station19
+          path: s.path,           // dossier des fichiers de chapitres
+          serie: s.serie, tome: s.tome,
+          onlyLang: s.onlyLang || null,   // one-shot dispo dans une seule langue
+          tags: s.tags || [],
+          fr: mapLang(s.fr),
+          en: mapLang(s.en)
+        };
+      });
+      // Remplace les démos par les vraies histoires.
+      // Remplace les démos par les vraies histoires.
+      BOOKS.length = 0;
+      real.forEach(function(b){ BOOKS.push(b); });
+      if(data.series){ SERIES = data.series; }
+    }
+  }catch(e){
+    console.warn('stories.json non chargé (démos conservées):', e.message);
+  }
+}
+async function __init(){
+  try{ applyUILang(); }catch(e){ console.error('applyUILang',e); }
+  await loadRealStories();
+  try{ renderLibrary(); }catch(e){ console.error('renderLibrary',e); }
+}
+if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',__init); } else { __init(); }
+initFirebase();
+</script>
+</body>
+</html>

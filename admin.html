@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Admin — Youlo182</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#0a1628; --card:#122138; --ink:#e8eef6; --muted:#9fb0c6; --accent:#8B1E3F; --accent-d:#6d1730; --accent-l:#b03d5e; --line:#1e3050; }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Nunito Sans',sans-serif;}
+  body{background:var(--bg);color:var(--ink);min-height:100vh;}
+  .topbar{background:linear-gradient(90deg,var(--accent-d),var(--accent));padding:16px 24px;box-shadow:0 2px 14px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:space-between;}
+  .topbar h1{font-family:'Cormorant Garamond',serif;font-size:24px;color:#fff;font-weight:600;}
+  .topbar .sub{font-size:12px;color:rgba(255,255,255,.8);}
+  .logout{background:rgba(255,255,255,.16);border:none;color:#fff;padding:7px 15px;border-radius:16px;cursor:pointer;font-size:12px;font-weight:700;}
+  .wrap{max-width:1000px;margin:0 auto;padding:26px 20px 80px;}
+  .gate{max-width:400px;margin:60px auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;text-align:center;}
+  .gate h2{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--accent-l);margin-bottom:10px;}
+  .gate p{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+  .gate input{width:100%;background:#0d1c30;border:1px solid var(--line);color:var(--ink);padding:12px;border-radius:10px;font-size:14px;margin-bottom:10px;}
+  .gate button{width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:22px;font-weight:700;cursor:pointer;font-size:15px;}
+  .gate .err{background:rgba(176,61,94,.15);color:var(--accent-l);border:1px solid rgba(176,61,94,.3);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px;display:none;}
+  .gate .err.show{display:block;}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:26px;}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;text-align:center;}
+  .kpi .num{font-size:34px;font-weight:800;color:var(--accent-l);}
+  .kpi .lbl{font-size:12px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+  .section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:20px;}
+  .section h2{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--accent-l);margin-bottom:14px;}
+  .story-stat{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#0d1c30;flex-wrap:wrap;gap:8px;}
+  .story-stat .name{font-weight:700;font-size:14px;}
+  .story-stat .nums{font-size:13px;color:var(--muted);display:flex;gap:14px;}
+  .story-stat .nums b{color:var(--accent-l);}
+  .cmt{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:#0d1c30;}
+  .cmt .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;}
+  .cmt .who{font-weight:700;color:var(--accent-l);font-size:14px;}
+  .cmt .where{font-size:11px;color:var(--muted);}
+  .cmt .txt{font-size:14px;line-height:1.5;margin-bottom:10px;}
+  .cmt .reply{margin-left:16px;padding:10px 14px;background:rgba(176,61,94,.12);border-left:3px solid var(--accent-l);border-radius:8px;font-size:13px;margin-top:8px;}
+  .reply-form{display:flex;gap:8px;margin-top:8px;}
+  .reply-form input{flex:1;background:#0d1c30;border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:8px;font-size:13px;}
+  .reply-form button{background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:16px;font-weight:700;cursor:pointer;font-size:12px;}
+  .empty{color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:20px;}
+  a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700;}
+  .loading{text-align:center;color:var(--muted);padding:20px;font-style:italic;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div><h1>📊 Dashboard Admin</h1><div class="sub">Youlo182 · Espace privé de l'autrice</div></div>
+  <button class="logout" id="logoutBtn" style="display:none;">Se déconnecter</button>
+</div>
+
+<div class="wrap">
+  <div class="gate" id="gate">
+    <h2>🔒 Accès réservé</h2>
+    <p>Cet espace est réservé à l'autrice. Connecte-toi avec ton compte administrateur.</p>
+    <div class="err" id="gateErr"></div>
+    <input type="email" id="admEmail" placeholder="Email admin">
+    <input type="password" id="admPass" placeholder="Mot de passe">
+    <button id="admLogin">Se connecter</button>
+    <p style="margin-top:14px;"><a class="back" href="index.html">← Retour au site</a></p>
+  </div>
+
+  <div id="dash" style="display:none;">
+    <div class="kpis" id="kpis"></div>
+    <div class="section">
+      <h2>📚 Par histoire</h2>
+      <div id="perStory"><div class="loading">Chargement…</div></div>
+    </div>
+    <div class="section">
+      <h2>💬 Tous les commentaires</h2>
+      <div id="commentsAdmin"><div class="loading">Chargement…</div></div>
+    </div>
+    <p><a class="back" href="index.html">← Retour au site public</a></p>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, collectionGroup, getDocs, addDoc, doc, getDoc, query, orderBy, onSnapshot, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDCXtXM-F_AoqwlUTk_trk3Ny9dxy-7q-g",
+  authDomain: "youlo182-fanfics.firebaseapp.com",
+  projectId: "youlo182-fanfics",
+  storageBucket: "youlo182-fanfics.firebasestorage.app",
+  messagingSenderId: "254835522518",
+  appId: "1:254835522518:web:c309ed0c14ff24a19c0277"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const ADMIN_EMAIL = "julie.cacciola@gmail.com";
+
+// ⚙️ Liste des histoires (doit correspondre à index.html) — permet de parcourir sans requête globale
+// STORIES est chargé dynamiquement depuis stories.json (voir loadStories()).
+let STORIES = [];
+async function loadStories(){
+  try{
+    const res = await fetch('stories.json', {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    STORIES = (data.stories||[]).map(function(s){
+      return {
+        id: s.id,
+        fr: (s.fr&&s.fr.title)||s.id,
+        en: (s.en&&s.en.title)||s.id,
+        chapters: (s.fr&&s.fr.chapters&&s.fr.chapters.length)|| (s.en&&s.en.chapters&&s.en.chapters.length) || 0
+      };
+    });
+  }catch(e){
+    console.warn('stories.json non chargé dans le dashboard:', e.message);
+    STORIES = [];
+  }
+}
+const LANGS=['fr','en'];
+
+const gate=document.getElementById('gate'), dash=document.getElementById('dash'), gateErr=document.getElementById('gateErr');
+
+document.getElementById('admLogin').onclick=async function(){
+  gateErr.classList.remove('show');
+  try{ await signInWithEmailAndPassword(auth, document.getElementById('admEmail').value.trim(), document.getElementById('admPass').value); }
+  catch(e){ gateErr.textContent=e.message.replace('Firebase: ',''); gateErr.classList.add('show'); }
+};
+document.getElementById('logoutBtn').onclick=()=>signOut(auth);
+
+onAuthStateChanged(auth, function(user){
+  if(user && user.email===ADMIN_EMAIL){
+    gate.style.display='none'; dash.style.display='block';
+    document.getElementById('logoutBtn').style.display='inline-block';
+    loadDashboard();
+  } else {
+    gate.style.display='block'; dash.style.display='none';
+    document.getElementById('logoutBtn').style.display='none';
+    if(user && user.email!==ADMIN_EMAIL){ gateErr.textContent="Ce compte n'a pas accès à l'espace admin."; gateErr.classList.add('show'); signOut(auth); }
+  }
+});
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function kpi(n,l){ return '<div class="kpi"><div class="num">'+n+'</div><div class="lbl">'+l+'</div></div>'; }
+
+async function loadDashboard(){
+  if(STORIES.length===0){ await loadStories(); }
+
+  // ---- 1) STATS INSTANTANÉES : un seul document agrégé stats/totals ----
+  let totalViews=0, totalLikes=0, totalComments=0, byStory={};
+  try{
+    const t = await getDoc(doc(db,'stats','totals'));
+    if(t.exists()){
+      const d=t.data();
+      totalViews=d.views||0; totalLikes=d.likes||0; totalComments=d.comments||0;
+      byStory=d.byStory||{};
+    }
+  }catch(e){ console.warn('totals read:', e.message); }
+
+  // Lecteurs inscrits
+  let userCount=0;
+  try{ const us=await getDocs(collection(db,'users')); userCount=us.size; }catch(e){}
+
+  // KPIs (affichage immédiat)
+  document.getElementById('kpis').innerHTML =
+    kpi(totalViews,'Vues totales') + kpi(userCount,'Lecteurs inscrits') + kpi(totalLikes,"J'aime au total") + kpi(totalComments,'Commentaires');
+
+  // Par histoire (depuis byStory agrégé)
+  const idToName={};
+  STORIES.forEach(function(s){ idToName[s.id]=s.fr||s.en||s.id; });
+  const perStory=Object.keys(byStory).map(function(id){
+    const b=byStory[id]||{};
+    return {name:idToName[id]||id, views:b.views||0, likes:b.likes||0, comments:b.comments||0};
+  }).filter(p=>p.views||p.likes||p.comments)
+    .sort((a,b)=>(b.views+b.likes+b.comments)-(a.views+a.likes+a.comments));
+  const ps=document.getElementById('perStory');
+  ps.innerHTML = perStory.length? perStory.map(p=>
+    '<div class="story-stat"><span class="name">📖 '+esc(p.name)+'</span><span class="nums">'+(p.views?'<span>👁️ <b>'+p.views+'</b> vues</span>':'')+'<span>❤️ <b>'+p.likes+'</b> j\'aime</span><span>💬 <b>'+p.comments+'</b> commentaires</span></span></div>'
+  ).join('') : '<div class="empty">Pas encore d\'activité 💜</div>';
+
+  // ---- 2) COMMENTAIRES : chargés en arrière-plan (ne bloque pas les stats) ----
+  document.getElementById('commentsAdmin').innerHTML='<div class="loading">Chargement des commentaires…</div>';
+  loadCommentsAsync();
+}
+
+// Charge tous les commentaires en tâche de fond (pour pouvoir y répondre)
+async function loadCommentsAsync(){
+  const box=document.getElementById('commentsAdmin');
+  // Index id d'histoire -> nom lisible (depuis STORIES)
+  const idToName={};
+  STORIES.forEach(function(s){ idToName[s.id]=s.fr||s.en||s.id; });
+
+  let allComments=[];
+  try{
+    // Une seule requête récupère TOUS les commentaires (sous-collection 'items')
+    const snap = await getDocs(collectionGroup(db,'items'));
+    snap.forEach(function(d){
+      const parts = d.ref.path.split('/');   // comments/{key}/items/{id}
+      const key = parts[1] || '';
+      // key = bookId_lang_chIndex  → on isole lang + chapitre
+      const km = key.match(/^(.*)_(fr|en)_(\d+)$/);
+      let bookId=key, lang='', ch=0;
+      if(km){ bookId=km[1]; lang=km[2]; ch=parseInt(km[3]); }
+      allComments.push(Object.assign({id:d.id, key, bookId, lang, ch, storyName:(idToName[bookId]||bookId)}, d.data()));
+    });
+  }catch(e){
+    box.innerHTML='<div class="empty">⚠️ '+esc(e.message)+'</div>';
+    return;
+  }
+
+  allComments.sort((a,b)=>{ const ta=a.ts&&a.ts.seconds?a.ts.seconds:0; const tb=b.ts&&b.ts.seconds?b.ts.seconds:0; return tb-ta; });
+  box.innerHTML = allComments.length? allComments.map(c=>
+    '<div class="cmt"><div class="head"><span class="who">'+esc(c.name)+'</span><span class="where">📖 '+esc(c.storyName)+(c.lang?(' · '+(c.lang==='fr'?'FR':'EN')):'')+' · ch.'+(c.ch+1)+'</span></div>'+
+    '<div class="txt">'+esc(c.text)+'</div><div id="reply_'+c.id+'"></div>'+
+    '<div class="reply-form"><input type="text" id="rin_'+c.id+'" placeholder="Répondre en tant qu\'autrice…"><button onclick="sendReply(\''+c.key+'\',\''+c.id+'\')">Répondre</button></div></div>'
+  ).join('') : '<div class="empty">Aucun commentaire pour l\'instant 💌</div>';
+  allComments.forEach(c=>loadReplies(c.key,c.id));
+}
+
+window.sendReply=async function(key,commentId){
+  const inp=document.getElementById('rin_'+commentId); const text=inp.value.trim(); if(!text)return;
+  try{ await addDoc(collection(db,'comments',key,'items',commentId,'replies'),{name:'Youlo182',text:text,admin:true,ts:serverTimestamp()}); inp.value=''; }
+  catch(e){ alert('Oops: '+e.message); }
+};
+</script>
+</body>
+</html>
