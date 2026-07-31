@@ -249,7 +249,7 @@
   }
 
 /* ---- Commentaires par passage (Wattpad-style) ---- */
-#passageBtn{position:absolute;z-index:9999;display:none;background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);white-space:nowrap;}
+#passageBtn{position:fixed;z-index:9999;display:none;background:var(--accent);color:#fff;border:none;padding:11px 18px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 #passageBtn:hover{background:var(--accent-l);}
 #readerBody .cmarked{background:rgba(176,61,94,.22);border-bottom:2px dotted var(--accent-l);cursor:pointer;border-radius:3px;padding:0 1px;}
 #readerBody .cmarked:hover{background:rgba(176,61,94,.34);}
@@ -1206,17 +1206,25 @@ function openPassagePopup(){
   if(pq) pq.textContent = '\u201c' + (q.length>160 ? q.slice(0,160)+'\u2026' : q) + '\u201d';
   if(pb) pb.style.display='none';
 
-  // Position pres de la selection
-  var top=100, left=100;
+  // Position pres de la selection (avec fallback centre pour mobile)
+  var W=300, H=200;
+  var isMobile = window.innerWidth < 640;
+  var top=null, left=null;
   try{
     var sel=window.getSelection();
-    if(sel && sel.rangeCount){
+    if(sel && sel.rangeCount && !sel.isCollapsed){
       var rect=sel.getRangeAt(0).getBoundingClientRect();
-      top = rect.bottom + 8;
-      left = rect.left + (rect.width/2) - 150;
+      if(rect && (rect.width || rect.height)){
+        top = rect.bottom + 8;
+        left = rect.left + (rect.width/2) - (W/2);
+      }
     }
   }catch(e){}
-  var W=300, H=200;
+  if(isMobile || top===null){
+    // Sur mobile : popup centre horizontalement, ancre vers le bas de l'ecran (au-dessus du clavier)
+    left = Math.max(8, (window.innerWidth - Math.min(W, window.innerWidth-16))/2);
+    top = (top!==null) ? top : Math.max(60, window.innerHeight*0.28);
+  }
   if(left < 8) left = 8;
   var maxLeft = window.innerWidth - W - 8; if(left > maxLeft) left = Math.max(8, maxLeft);
   if(top + H > window.innerHeight - 8){ top = Math.max(8, window.innerHeight - H - 8); }
@@ -1279,8 +1287,26 @@ function handleSelection(e){
   }catch(err){ pb.style.display='none'; }
 }
 
+// Desktop : mouseup suffit
 document.addEventListener('mouseup', function(e){ setTimeout(function(){ handleSelection(e); }, 10); });
-document.addEventListener('touchend', function(e){ setTimeout(function(){ handleSelection(e); }, 10); });
+// Mobile : la selection se finalise APRES le touchend (ajustement des poignees).
+// On ecoute selectionchange (avec un petit debounce) pour attraper la selection finale.
+var __selTimer=null;
+document.addEventListener('selectionchange', function(){
+  if(__selTimer) clearTimeout(__selTimer);
+  __selTimer=setTimeout(function(){
+    var sel=window.getSelection();
+    // Sur mobile on ne montre le bouton que si une vraie selection existe
+    if(sel && !sel.isCollapsed && sel.toString().trim().length>=3){
+      handleSelection(null);
+    }
+  }, 350);
+});
+// touchend : on retente aussi apres un delai plus long (certains navigateurs mobiles)
+document.addEventListener('touchend', function(e){
+  if(e && e.target){ var pb=document.getElementById('passageBtn'); if(pb && (e.target===pb || (pb.contains&&pb.contains(e.target)))) return; }
+  setTimeout(function(){ handleSelection(null); }, 300);
+});
 
 // Bouton "Commenter ce passage" : mousedown/touchstart pour ne pas perdre la selection
 function onPassageBtnPress(e){
