@@ -300,6 +300,23 @@
   box-shadow:0 8px 28px rgba(0,0,0,.45); display:inline-block;
 }
 @media (max-width:600px){ .chapter-cover img{ max-width:200px; } }
+
+/* ===== Manuel "Comment ça marche" ===== */
+.guide{ background:var(--card); border:1px solid var(--line); border-radius:14px; margin:0 0 20px; overflow:hidden; }
+.guide summary{ cursor:pointer; padding:14px 18px; font-weight:700; color:var(--accent-l); font-size:15px; list-style:none; user-select:none; }
+.guide summary::-webkit-details-marker{ display:none; }
+.guide summary::before{ content:"▸ "; }
+.guide[open] summary::before{ content:"▾ "; }
+.guide summary:hover{ background:rgba(176,61,94,.08); }
+.guide-body{ padding:4px 22px 18px; }
+.guide-body ul{ margin:0; padding-left:18px; }
+.guide-body li{ font-size:14px; line-height:1.65; color:var(--ink); margin-bottom:10px; }
+/* ===== Interaction page À propos ===== */
+.about-interact{ margin-top:26px; padding-top:20px; border-top:1px solid var(--line); }
+.about-interact .comment-form{ margin-top:10px; }
+.about-interact textarea{ width:100%; min-height:70px; background:#0d1c30; border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:10px; font-size:14px; font-family:inherit; box-sizing:border-box; resize:vertical; }
+.about-interact #aboutCSend{ margin-top:8px; background:var(--accent); color:#fff; border:none; border-radius:20px; padding:9px 20px; font-weight:700; cursor:pointer; }
+.about-interact #aboutCSend:hover{ background:var(--accent-l); }
 </style>
 </head>
 <body>
@@ -349,6 +366,18 @@
         <h2 id="aboutTitle"></h2>
         <div id="aboutBody"></div>
         <div class="about-sign" id="aboutSign"></div>
+
+        <!-- Like + commentaires sur la page À propos -->
+        <div class="about-interact">
+          <button id="aboutLikeBtn" class="like-btn"><span class="heart">🤍</span> <span id="aboutLikeCount">0</span></button>
+          <h3 id="aboutCommentsTitle" style="margin-top:20px;">💬 Laisse-moi un mot</h3>
+          <div class="comment-form">
+            <div id="aboutCommentAs" style="display:none;font-size:13px;color:var(--muted);margin-bottom:2px;"></div>
+            <textarea id="aboutCText" placeholder="Un petit message pour l'autrice…"></textarea>
+            <button id="aboutCSend">Envoyer</button>
+          </div>
+          <div id="aboutCommentList"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -359,6 +388,12 @@
       <h2 id="libTitle">Mes Histoires</h2>
       <p id="libSubtitle">Bienvenue dans mon univers ✦ Carina & Maya ✦ — reprends où tu t'es arrêté·e 💫</p>
     </div>
+
+    <!-- Manuel : comment fonctionne le site -->
+    <details id="guide" class="guide">
+      <summary id="guideSummary">📖 Comment ça marche ? (commentaires & likes)</summary>
+      <div id="guideBody" class="guide-body"></div>
+    </details>
 
     <!-- Bannière teaser : prochaine histoire (avec décompte + bouton) -->
     <div id="teaser" class="teaser">
@@ -630,7 +665,8 @@ const ABOUT = {
       "Bonjour ! Moi c'est <em>Julie</em>, j'ai AGE ans, et voici les deux femmes qui donnent vie à Carina et Maya — j'ai eu la chance de les rencontrer à plusieurs reprises. 🥹",
       "J'ai commencé à écrire sur <em>Marina</em> en juillet 2021… et je n'ai jamais réussi à m'arrêter depuis !",
       "J'écris par passion, alors je m'excuse d'avance s'il y a des incohérences ou des fautes d'orthographe — je ne suis pas professionnelle, c'est juste un passe-temps qui me tient à cœur.",
-      "Je suis vraiment heureuse de partager mes histoires ici, sur mon propre site. J'espère que vous aimerez me lire et me suivre ici, plutôt que sur Wattpad ou AO3 (où je continuerai de poster, mais toujours après avoir publié ici 💛)."
+      "Je suis vraiment heureuse de partager mes histoires ici, sur mon propre site. J'espère que vous aimerez me lire et me suivre ici, plutôt que sur Wattpad ou AO3 (où je continuerai de poster, mais toujours après avoir publié ici 💛).",
+      "<strong>Petit mot sur les couvertures :</strong> la plupart de mes pochettes sont générées par IA. D'abord parce que je ne voulais pas utiliser le vrai visage de Danielle et Stefania, ces histoires étant des fanfictions, leur image ne m'appartient pas. Ensuite, pour être bien claire : <strong>les histoires, elles, ne sont pas écrites par une IA, c'est bien moi qui les écris</strong>, avec le cœur. 💛"
     ],
     sign:"xx<br>Youlo182 aka Julie 💛"
   },
@@ -641,11 +677,40 @@ const ABOUT = {
       "Hi! I'm <em>Julie</em>, I'm AGE years old, and here are the two women who bring Carina and Maya to life — I've been lucky enough to meet them several times. 🥹",
       "I started writing about <em>Marina</em> in July 2021… and I've never managed to stop since!",
       "I write out of passion, so I apologize in advance for any inconsistencies or spelling mistakes — I'm not a professional, it's just a hobby that's close to my heart.",
-      "I'm truly happy to share my stories here, on my very own site. I hope you'll enjoy reading and following me here, rather than on Wattpad or AO3 (where I'll keep posting, but always after publishing here 💛)."
+      "I'm truly happy to share my stories here, on my very own site. I hope you'll enjoy reading and following me here, rather than on Wattpad or AO3 (where I'll keep posting, but always after publishing here 💛).",
+      "<strong>A quick word about the covers:</strong> most of my covers are AI-generated. First, because I didn't want to use Danielle and Stefania's real faces, since these are fanfictions and their likeness doesn't belong to me. And to be perfectly clear: <strong>the stories themselves are NOT written by AI, I write every single one of them</strong>, with all my heart. 💛"
     ],
     sign:"xx<br>Youlo182 aka Julie 💛"
   }
 };
+// ---- Manuel "Comment ça marche" ----
+var GUIDE = {
+  fr: {
+    summary: "📖 Comment ça marche ? (commentaires & likes)",
+    html: "<ul>"
+      + "<li>💬 <strong>Commenter un passage précis</strong> : dans un chapitre, <strong>sélectionne le texte</strong> qui te touche (au doigt sur mobile, à la souris sur ordi). Un bouton « Commenter ce passage » apparaît, clique dessus et écris ton mot, il s'enregistre juste sur cette phrase.</li>"
+      + "<li>🔖 <strong>Repérer les passages commentés</strong> : les phrases déjà commentées sont surlignées avec une petite pastille 💬 et le nombre de commentaires. Clique dessus pour lire les échanges.</li>"
+      + "<li>✍️ <strong>Se répondre entre lecteur·rices</strong> : une fois inscrit·e, tu peux répondre aux commentaires des autres. Mes réponses d'autrice apparaissent en rose avec ✍️.</li>"
+      + "<li>❤️ <strong>Aimer un chapitre</strong> : clique sur le cœur en bas du chapitre (connexion requise).</li>"
+      + "<li>🔐 <strong>Pourquoi s'inscrire ?</strong> Pour liker, commenter et garder ta progression de lecture. C'est gratuit et rapide 💛</li>"
+      + "</ul>"
+  },
+  en: {
+    summary: "📖 How does it work? (comments & likes)",
+    html: "<ul>"
+      + "<li>💬 <strong>Comment on a specific passage</strong>: in a chapter, <strong>select the text</strong> that moves you (tap on mobile, mouse on desktop). A « Comment this passage » button appears, click it and write your note, it's saved right on that sentence.</li>"
+      + "<li>🔖 <strong>Spot commented passages</strong>: sentences that already have comments are highlighted with a little 💬 badge and the comment count. Click to read the exchanges.</li>"
+      + "<li>✍️ <strong>Reply to each other</strong>: once signed in, you can reply to other readers' comments. My author replies show up in pink with ✍️.</li>"
+      + "<li>❤️ <strong>Like a chapter</strong>: click the heart at the bottom of the chapter (sign-in required).</li>"
+      + "<li>🔐 <strong>Why sign up?</strong> To like, comment and keep your reading progress. It's free and quick 💛</li>"
+      + "</ul>"
+  }
+};
+function renderGuide(){
+  var g=GUIDE[lang]||GUIDE.fr;
+  var s=document.getElementById('guideSummary'); if(s) s.textContent=g.summary;
+  var b=document.getElementById('guideBody'); if(b) b.innerHTML=g.html;
+}
 function renderAbout(){
   const t = ABOUT[lang];
   document.getElementById('aboutLabel').textContent = t.label;
@@ -655,12 +720,75 @@ function renderAbout(){
     t.body.map(p => '<p>'+p.replace('AGE', age)+'</p>').join('');
   document.getElementById('aboutSign').innerHTML = t.sign;
 }
+// ---- Like + commentaires sur la page À propos (clé Firebase fixe "about") ----
+var __unsubAboutLike=null, __unsubAboutComments=null;
+function subscribeAboutLike(){
+  if(!firebaseReady||!db) return;
+  if(__unsubAboutLike){ __unsubAboutLike(); __unsubAboutLike=null; }
+  var ref=doc(db,'likes','about');
+  __unsubAboutLike=onSnapshot(ref,function(snap){
+    var data=snap.exists()?snap.data():{count:0,users:{}};
+    var count=data.count||0;
+    var liked = !!(currentUser && data.users && data.users[currentUser.uid]);
+    var cEl=document.getElementById('aboutLikeCount'); if(cEl) cEl.textContent=count;
+    var btn=document.getElementById('aboutLikeBtn');
+    if(btn){ btn.className='like-btn'+(liked?' liked':''); var h=btn.querySelector('.heart'); if(h) h.textContent=liked?'❤️':'🤍'; }
+  }, function(){});
+}
+window.doAboutLike=async function(){
+  if(!firebaseReady||!db){ return; }
+  if(!currentUser){ openAuth(); return; }
+  var ref=doc(db,'likes','about');
+  try{
+    await runTransaction(db, async function(tx){
+      var s=await tx.get(ref);
+      var data=s.exists()?s.data():{count:0,users:{}};
+      if(!data.users) data.users={};
+      if(data.users[currentUser.uid]){ delete data.users[currentUser.uid]; data.count=Math.max(0,(data.count||0)-1); }
+      else { data.users[currentUser.uid]=true; data.count=(data.count||0)+1; }
+      tx.set(ref,data);
+    });
+  }catch(e){ console.warn('aboutLike',e.message); }
+};
+function subscribeAboutComments(){
+  if(!firebaseReady||!db){ var l=document.getElementById('aboutCommentList'); if(l) l.innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les mots 💬':'Sign in online to see notes 💬')+'</div>'; return; }
+  if(__unsubAboutComments){ __unsubAboutComments(); __unsubAboutComments=null; }
+  var q=query(collection(db,'comments','about','items'), orderBy('ts','desc'));
+  __unsubAboutComments=onSnapshot(q,function(snap){
+    var list=document.getElementById('aboutCommentList'); if(!list) return;
+    if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois la première personne à me laisser un mot 💌':'Be the first to leave me a note 💌')+'</div>'; return; }
+    var out='';
+    snap.forEach(function(d){ var c=d.data();
+      var isA = c.name==='Youlo182';
+      out+='<div class="comment"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(c.name||'Anonyme')+'</div><div class="txt">'+escapeHtml(c.text||'')+'</div></div>';
+    });
+    list.innerHTML=out;
+  }, function(){});
+}
+function initAboutInteract(){
+  var lb=document.getElementById('aboutLikeBtn'); if(lb) lb.onclick=doAboutLike;
+  var title=document.getElementById('aboutCommentsTitle'); if(title) title.textContent = lang==='fr' ? '💬 Laisse-moi un mot' : '💬 Leave me a note';
+  var ta=document.getElementById('aboutCText'); if(ta) ta.placeholder = lang==='fr' ? "Un petit message pour l'autrice…" : 'A little note for the author…';
+  var sb=document.getElementById('aboutCSend'); if(sb){ sb.textContent = lang==='fr'?'Envoyer':'Send';
+    sb.onclick=async function(){
+      if(!currentUser){ alert(UI[lang].mustLogin); openAuth(); return; }
+      var text=ta.value.trim(); if(!text) return;
+      try{
+        await addDoc(collection(db,'comments','about','items'),{ name: currentUser.displayName||'Anonyme', uid: currentUser.uid, text: text, ts: serverTimestamp() });
+        ta.value='';
+      }catch(e){ alert('Oops: '+e.message); }
+    };
+  }
+  subscribeAboutLike();
+  subscribeAboutComments();
+}
 function showAbout(){
   document.getElementById('library').style.display='none';
   document.getElementById('reader').style.display='none';
   document.getElementById('about').style.display='block';
   document.querySelector('.lang-top').style.display='flex';
   renderAbout();
+  try{ initAboutInteract(); }catch(e){}
   window.scrollTo(0,0);
 }
 document.getElementById('aboutBtn').onclick = showAbout;
@@ -728,7 +856,7 @@ fontSize=parseInt(safeGet('fanfic_fs','19')); document.documentElement.style.set
 // ---- LANG + TYPE FILTERS ----
 document.querySelectorAll('#langChips .chip').forEach(function(c){
   c.classList.toggle('active', c.dataset.lang===lang);
-  c.onclick=function(){ lang=c.dataset.lang; safeSet('fanfic_lang',lang); document.querySelectorAll('#langChips .chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); applyUILang(); if(document.getElementById('about').style.display!=='none'){ renderAbout(); } else if(currentSaga && document.getElementById('reader').style.display==='none'){ openSaga(currentSaga); } else { renderLibrary(); } if(document.getElementById('reader').style.display!=='none'){ renderChapter(); } try{ initTeaser(); }catch(e){} };
+  c.onclick=function(){ lang=c.dataset.lang; safeSet('fanfic_lang',lang); document.querySelectorAll('#langChips .chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); applyUILang(); if(document.getElementById('about').style.display!=='none'){ renderAbout(); try{ initAboutInteract(); }catch(e){} } else if(currentSaga && document.getElementById('reader').style.display==='none'){ openSaga(currentSaga); } else { renderLibrary(); } if(document.getElementById('reader').style.display!=='none'){ renderChapter(); } try{ initTeaser(); }catch(e){} };
 });
 document.querySelectorAll('#typeChips .chip').forEach(function(c){
   c.onclick=function(){
@@ -839,6 +967,7 @@ async function setProgress(bookId,ch){
 // ---- LIBRARY (niveau 1 : catégories + sagas regroupées) ----
 function renderLibrary(){
   document.getElementById('library').style.display='block';
+  try{ renderGuide(); }catch(e){}
   document.getElementById('reader').style.display='none';
   var _ab=document.getElementById('about'); if(_ab) _ab.style.display='none';
   document.getElementById('readProgress').style.width='0';
