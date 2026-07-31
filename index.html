@@ -1447,6 +1447,7 @@ async function loadRealStories(){
           serie: s.serie, tome: s.tome,
           onlyLang: s.onlyLang || null,   // one-shot dispo dans une seule langue
           tags: s.tags || [],
+          releaseAt: s.releaseAt || null,   // date de sortie programmée (bannière/décompte)
           fr: mapLang(s.fr),
           en: mapLang(s.en)
         };
