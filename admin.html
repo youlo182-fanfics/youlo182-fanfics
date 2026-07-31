@@ -110,7 +110,8 @@ async function loadStories(){
         id: s.id,
         fr: (s.fr&&s.fr.title)||s.id,
         en: (s.en&&s.en.title)||s.id,
-        chapters: (s.fr&&s.fr.chapters&&s.fr.chapters.length)|| (s.en&&s.en.chapters&&s.en.chapters.length) || 0
+        chapters: (s.fr&&s.fr.chapters&&s.fr.chapters.length)|| (s.en&&s.en.chapters&&s.en.chapters.length) || 0,
+        chapTitles: { fr: (s.fr&&s.fr.chapters)||[], en: (s.en&&s.en.chapters)||[] }
       };
     });
   }catch(e){
@@ -188,8 +189,8 @@ async function loadDashboard(){
 async function loadCommentsAsync(){
   const box=document.getElementById('commentsAdmin');
   // Index id d'histoire -> nom lisible (depuis STORIES)
-  const idToName={};
-  STORIES.forEach(function(s){ idToName[s.id]=s.fr||s.en||s.id; });
+  const idToName={}; const idToChaps={};
+  STORIES.forEach(function(s){ idToName[s.id]=s.fr||s.en||s.id; idToChaps[s.id]=s.chapTitles||{fr:[],en:[]}; });
 
   let allComments=[];
   try{
@@ -202,7 +203,9 @@ async function loadCommentsAsync(){
       const km = key.match(/^(.*)_(fr|en)_(\d+)$/);
       let bookId=key, lang='', ch=0;
       if(km){ bookId=km[1]; lang=km[2]; ch=parseInt(km[3]); }
-      allComments.push(Object.assign({id:d.id, key, bookId, lang, ch, storyName:(idToName[bookId]||bookId)}, d.data()));
+      const chArr=(idToChaps[bookId]&&idToChaps[bookId][lang]&&idToChaps[bookId][lang].length)?idToChaps[bookId][lang]:((idToChaps[bookId]&&idToChaps[bookId].fr)||[]);
+      const chTitle=chArr[ch]||('Chapitre '+(ch+1));
+      allComments.push(Object.assign({id:d.id, key, bookId, lang, ch, chTitle, storyName:(idToName[bookId]||bookId)}, d.data()));
     });
   }catch(e){
     box.innerHTML='<div class="empty">⚠️ '+esc(e.message)+'</div>';
@@ -211,11 +214,32 @@ async function loadCommentsAsync(){
 
   allComments.sort((a,b)=>{ const ta=a.ts&&a.ts.seconds?a.ts.seconds:0; const tb=b.ts&&b.ts.seconds?b.ts.seconds:0; return tb-ta; });
   box.innerHTML = allComments.length? allComments.map(c=>
-    '<div class="cmt"><div class="head"><span class="who">'+esc(c.name)+'</span><span class="where">📖 '+esc(c.storyName)+(c.lang?(' · '+(c.lang==='fr'?'FR':'EN')):'')+' · ch.'+(c.ch+1)+'</span></div>'+
+    '<div class="cmt"><div class="head"><span class="who">'+esc(c.name)+'</span><span class="where">📖 '+esc(c.storyName)+(c.lang?(' · '+(c.lang==='fr'?'FR':'EN')):'')+' · '+esc(c.chTitle||('ch.'+(c.ch+1)))+'</span></div>'+
     '<div class="txt">'+esc(c.text)+'</div><div id="reply_'+c.id+'"></div>'+
     '<div class="reply-form"><input type="text" id="rin_'+c.id+'" placeholder="Répondre en tant qu\'autrice…"><button onclick="sendReply(\''+c.key+'\',\''+c.id+'\')">Répondre</button></div></div>'
   ).join('') : '<div class="empty">Aucun commentaire pour l\'instant 💌</div>';
   allComments.forEach(c=>loadReplies(c.key,c.id));
+}
+
+// Affiche EN TEMPS REEL le fil de reponses sous un commentaire.
+// C'est ce qui garde ta reponse d'autrice visible apres l'avoir postee.
+function loadReplies(key, commentId){
+  const box = document.getElementById('reply_'+commentId);
+  if(!box) return;
+  try{
+    const q = query(collection(db,'comments',key,'items',commentId,'replies'), orderBy('ts','asc'));
+    onSnapshot(q, function(snap){
+      let html='';
+      snap.forEach(function(d){
+        const r=d.data();
+        const isAdmin = r.admin===true || r.name==='Youlo182';
+        html += '<div class="reply"'+(isAdmin?' style="border-left-color:#b03d5e;background:rgba(176,61,94,.18);"':'')+'>'+
+                '<b style="color:'+(isAdmin?'#b03d5e':'#9fb0c6')+';">'+(isAdmin?'\u270d\ufe0f ':'')+esc(r.name||'Anonyme')+'</b> '+
+                esc(r.text||'')+'</div>';
+      });
+      box.innerHTML = html;
+    }, function(err){ console.warn('replies '+commentId+':', err.message); });
+  }catch(e){ console.warn('loadReplies:', e.message); }
 }
 
 window.sendReply=async function(key,commentId){
