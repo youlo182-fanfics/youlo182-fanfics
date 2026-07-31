@@ -311,6 +311,31 @@
 .guide-body{ padding:4px 22px 18px; }
 .guide-body ul{ margin:0; padding-left:18px; }
 .guide-body li{ font-size:14px; line-height:1.65; color:var(--ink); margin-bottom:10px; }
+/* ===== Carte À propos (mise en page + photo responsive) ===== */
+#about{ max-width:900px; margin:0 auto; }
+.about-card{
+  display:flex; gap:0; background:var(--card); border:1px solid var(--line);
+  border-radius:18px; overflow:hidden; box-shadow:0 8px 28px rgba(0,0,0,.4); margin-top:14px;
+}
+.about-photo{
+  width:300px; flex-shrink:0; object-fit:cover; object-position:center top;
+  display:block; align-self:stretch;
+}
+.about-text{ flex:1; min-width:260px; padding:28px 30px; }
+.about-text h2{
+  font-family:'Cormorant Garamond',serif; font-size:28px; font-weight:600;
+  color:var(--accent-l); margin-bottom:16px;
+}
+.about-text p{ font-size:14px; line-height:1.7; color:var(--ink); margin-bottom:12px; }
+.about-text em{ color:var(--accent-l); font-style:italic; }
+.about-sign{ margin-top:16px; color:var(--accent-l); font-style:italic; font-size:15px; }
+@media (max-width:640px){
+  .about-card{ flex-direction:column; }
+  .about-photo{ width:100%; height:auto; max-height:340px; object-fit:cover; }
+  .about-text{ padding:22px 18px; }
+  .about-text h2{ font-size:24px; }
+}
+
 /* ===== Interaction page À propos ===== */
 .about-interact{ margin-top:26px; padding-top:20px; border-top:1px solid var(--line); }
 .about-interact .comment-form{ margin-top:10px; }
