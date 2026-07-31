@@ -1084,63 +1084,78 @@ function subscribeComments(){
 function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 // ==================== COMMENTAIRES PAR PASSAGE (Wattpad-style) ====================
 window.__pendingQuote = '';
+window.__selectedQuote = '';
 window.clearQuote = function(){
   window.__pendingQuote='';
   var qb=document.getElementById('quoteBadge'); if(qb) qb.style.display='none';
   var pb=document.getElementById('passageBtn'); if(pb) pb.style.display='none';
 };
 
+// Confirme le passage : memorise + ouvre la zone commentaire
+function confirmPassage(){
+  var q=window.__selectedQuote||'';
+  if(!q) return;
+  window.__pendingQuote = q;
+  var qb=document.getElementById('quoteBadge'); var qt=document.getElementById('quoteText');
+  if(qt) qt.textContent = q.length>140 ? q.slice(0,140)+'\u2026' : q;
+  if(qb) qb.style.display='block';
+  var pb=document.getElementById('passageBtn'); if(pb) pb.style.display='none';
+  var ct=document.getElementById('cText');
+  if(ct){ ct.scrollIntoView({behavior:'smooth', block:'center'}); setTimeout(function(){ ct.focus(); }, 400); }
+  var s=window.getSelection(); if(s) s.removeAllRanges();
+}
+window.confirmPassage = confirmPassage;
+
 // Affiche le bouton "Commenter ce passage" quand du texte est selectionne dans le chapitre
-function handleSelection(){
+function handleSelection(e){
   var pb=document.getElementById('passageBtn');
   var body=document.getElementById('readerBody');
   var reader=document.getElementById('reader');
   if(!pb||!body||!reader) return;
+  // Ne pas recalculer si on vient de cliquer SUR le bouton lui-meme
+  if(e && e.target && (e.target===pb || (pb.contains && pb.contains(e.target)))) return;
   var sel=window.getSelection();
   if(!sel || sel.isCollapsed || !sel.toString().trim()){ pb.style.display='none'; return; }
-  // La selection doit etre DANS le texte du chapitre
   var anchorNode = sel.anchorNode;
   if(!anchorNode || !body.contains(anchorNode)){ pb.style.display='none'; return; }
   var txt = sel.toString().trim();
   if(txt.length < 3){ pb.style.display='none'; return; }
   if(txt.length > 300){ txt = txt.slice(0,300); }
   window.__selectedQuote = txt;
-  // Positionner le bouton au-dessus de la selection
   try{
     var range=sel.getRangeAt(0);
     var rect=range.getBoundingClientRect();
-    var rrect=reader.getBoundingClientRect();
-    pb.style.display='block';
-    var top = rect.top - rrect.top - 44; if(top<0) top = rect.bottom - rrect.top + 8;
-    var left = rect.left - rrect.left + (rect.width/2) - 90;
-    if(left<8) left=8;
+    // Position fixe par rapport au viewport (fiable au scroll + mobile)
+    pb.style.position='fixed';
+    var top = rect.top - 48; if(top < 8) top = rect.bottom + 8;
+    var left = rect.left + (rect.width/2) - 90;
+    if(left < 8) left = 8;
+    var maxLeft = window.innerWidth - 190; if(left > maxLeft) left = maxLeft;
     pb.style.top = top + 'px';
     pb.style.left = left + 'px';
-  }catch(e){ pb.style.display='none'; }
+    pb.style.display='block';
+  }catch(err){ pb.style.display='none'; }
 }
 
-document.addEventListener('mouseup', function(){ setTimeout(handleSelection, 10); });
-document.addEventListener('touchend', function(){ setTimeout(handleSelection, 10); });
+document.addEventListener('mouseup', function(e){ setTimeout(function(){ handleSelection(e); }, 10); });
+document.addEventListener('touchend', function(e){ setTimeout(function(){ handleSelection(e); }, 10); });
 
-// Clic sur le bouton : on memorise le passage et on ouvre la zone commentaire
-(function(){
+// Le clic sur le bouton est attache via delegation (robuste au timing de chargement).
+// On utilise mousedown/touchstart AVANT que la selection ne soit perdue.
+document.addEventListener('mousedown', function(e){
   var pb=document.getElementById('passageBtn');
-  if(pb){
-    pb.addEventListener('click', function(){
-      var q=window.__selectedQuote||'';
-      if(!q) return;
-      window.__pendingQuote = q;
-      var qb=document.getElementById('quoteBadge'); var qt=document.getElementById('quoteText');
-      if(qt) qt.textContent = q.length>140 ? q.slice(0,140)+'\u2026' : q;
-      if(qb) qb.style.display='block';
-      pb.style.display='none';
-      // scroll doux vers la zone commentaire + focus
-      var ct=document.getElementById('cText');
-      if(ct){ ct.scrollIntoView({behavior:'smooth', block:'center'}); setTimeout(function(){ ct.focus(); }, 400); }
-      var s=window.getSelection(); if(s) s.removeAllRanges();
-    });
+  if(pb && (e.target===pb || (pb.contains && pb.contains(e.target)))){
+    e.preventDefault(); // empeche la perte de selection
+    confirmPassage();
   }
-})();
+});
+document.addEventListener('touchstart', function(e){
+  var pb=document.getElementById('passageBtn');
+  if(pb && (e.target===pb || (pb.contains && pb.contains(e.target)))){
+    e.preventDefault();
+    confirmPassage();
+  }
+}, {passive:false});
 
 window.authorReply=async function(cid){
   if(!isAuthor){ return; }
