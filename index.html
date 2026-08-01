@@ -1336,7 +1336,11 @@ async function fetchChapterHTML(book, langCode, chIndex){
   if(__chapterCache[url] !== undefined) return __chapterCache[url];
   const res = await fetch(url, {cache:'force-cache'});
   if(!res.ok) throw new Error('HTTP '+res.status+' sur '+url);
-  const txt = await res.text();
+  let txt = await res.text();
+  // Le chapitre est injecté dans index.html (racine) : on transforme les chemins d'images
+  // relatifs (src="images/...") en chemins complets vers le dossier du chapitre.
+  const base = book.path + '/' + langCode + '/';
+  txt = txt.replace(/(<img[^>]*\ssrc=")(images\/)/g, '$1' + base + '$2');
   __chapterCache[url] = txt;
   return txt;
 }
