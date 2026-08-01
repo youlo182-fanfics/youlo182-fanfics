@@ -1047,7 +1047,7 @@ function updateCommentForm(){
 }
 function updateAccountLabel(){
   const el=document.getElementById('accountLabel');
-  if(currentUser){ el.textContent=(currentUser.displayName||currentUser.email)+' · '+UI[lang].logout; }
+  if(currentUser){ el.textContent=(currentUser.displayName||currentUser.email); }
   else { el.textContent=UI[lang].login; }
 }
 function openAuth(){
@@ -1066,8 +1066,37 @@ function renderAuthMode(){
   document.getElementById('authSwitch').onclick=function(){ authMode = authMode==='login'?'signup':'login'; renderAuthMode(); };
 }
 document.getElementById('accountBtn').onclick=function(){
-  if(currentUser){ signOut(auth); } else { openAuth(); }
+  if(currentUser){ openAccount(); } else { openAuth(); }
 };
+async function openAccount(){
+  var ov=document.getElementById('accountOverlay'); if(!ov) return;
+  var isEN=(lang==='en');
+  document.getElementById('accTitle').textContent = isEN ? 'My account 💛' : 'Mon compte 💛';
+  document.getElementById('accWho').textContent = (currentUser.displayName||'') + ' · ' + (currentUser.email||'');
+  document.getElementById('accNlLabel').textContent = isEN ? 'Get an email when a new story is published 💛' : 'Recevoir un email quand une nouvelle histoire est publiée 💛';
+  document.getElementById('accLogout').textContent = isEN ? 'Sign out' : 'Se déconnecter';
+  document.getElementById('accClose').textContent = isEN ? 'Close' : 'Fermer';
+  document.getElementById('accNlSaved').style.display='none';
+  // Charger l'état actuel de la préférence newsletter
+  var chk=document.getElementById('accNewsletter'); chk.checked=false;
+  try{
+    var snap=await getDoc(doc(db,'users',currentUser.uid));
+    if(snap.exists() && snap.data().newsletter===true) chk.checked=true;
+  }catch(e){}
+  ov.classList.add('show');
+}
+// Enregistrer la préférence au changement de la case
+document.getElementById('accNewsletter').onchange=async function(){
+  if(!currentUser) return;
+  var val=this.checked;
+  try{
+    await setDoc(doc(db,'users',currentUser.uid),{ newsletter:val, email:currentUser.email, displayName:(currentUser.displayName||'Anonyme') },{merge:true});
+    var s=document.getElementById('accNlSaved'); if(s){ s.style.display='block'; setTimeout(function(){ s.style.display='none'; },2500); }
+  }catch(e){ alert('Oops: '+e.message); }
+};
+document.getElementById('accLogout').onclick=function(){ document.getElementById('accountOverlay').classList.remove('show'); signOut(auth); };
+document.getElementById('accClose').onclick=function(){ document.getElementById('accountOverlay').classList.remove('show'); };
+document.getElementById('accountOverlay').addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
 document.getElementById('authClose').onclick=function(){ authOverlay.classList.remove('show'); };
 document.getElementById('authSubmit').onclick=async function(){
   const email=document.getElementById('authEmail').value.trim();
@@ -2144,5 +2173,18 @@ async function __init(){
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',__init); } else { __init(); }
 initFirebase();
 </script>
+<div id="accountOverlay" class="auth-overlay">
+  <div class="auth-box" style="text-align:left;">
+    <h2 id="accTitle" style="font-family:'Cormorant Garamond',serif;color:var(--accent-l);margin-bottom:6px;">Mon compte 💛</h2>
+    <p id="accWho" style="font-size:13px;color:var(--muted);margin-bottom:16px;"></p>
+    <label id="accNlWrap" style="display:flex;align-items:flex-start;gap:8px;width:100%;text-align:left;font-size:14px;color:var(--ink);margin-bottom:16px;cursor:pointer;box-sizing:border-box;background:rgba(176,61,94,.10);border:1px solid var(--line);border-radius:10px;padding:12px;">
+      <input type="checkbox" id="accNewsletter" style="margin-top:3px;flex-shrink:0;">
+      <span id="accNlLabel" style="flex:1;min-width:0;">Recevoir un email quand une nouvelle histoire est publiée 💛</span>
+    </label>
+    <div id="accNlSaved" style="display:none;font-size:12.5px;color:#00a651;margin-bottom:12px;">✅ Préférence enregistrée !</div>
+    <button class="auth-main" id="accLogout" style="background:var(--card);border:1px solid var(--accent-l);color:var(--accent-l);">Se déconnecter</button>
+    <button class="auth-main" id="accClose" style="margin-top:8px;">Fermer</button>
+  </div>
+</div>
 </body>
 </html>
