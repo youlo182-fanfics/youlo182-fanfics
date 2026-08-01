@@ -610,9 +610,9 @@
     <input type="text" id="authDisplayName" placeholder="Ton pseudo (affiché sur tes commentaires)" style="display:none;">
     <input type="email" id="authEmail" placeholder="Ton email">
     <input type="password" id="authPassword" placeholder="Ton mot de passe">
-    <label id="authNewsletterWrap" style="display:none;align-items:flex-start;gap:8px;text-align:left;font-size:13px;color:var(--muted);margin:2px 0 4px;cursor:pointer;">
+    <label id="authNewsletterWrap" style="display:none;width:100%;align-items:flex-start;gap:8px;text-align:left;font-size:13px;color:var(--muted);margin:2px 0 4px;cursor:pointer;box-sizing:border-box;">
       <input type="checkbox" id="authNewsletter" style="margin-top:3px;flex-shrink:0;">
-      <span id="authNewsletterLabel">Je veux recevoir un email quand une nouvelle histoire est publiée 💛</span>
+      <span id="authNewsletterLabel" style="flex:1;min-width:0;">Je veux recevoir un email quand une nouvelle histoire est publiée 💛</span>
     </label>
     <button class="auth-main" id="authSubmit">Se connecter</button>
     <div class="auth-toggle" id="authToggle">Pas encore de compte ? <a id="authSwitch">Inscris-toi</a></div>
