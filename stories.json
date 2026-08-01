@@ -603,61 +603,6 @@
    "cover": "stories/covers/new-encounter-nouvelle-rencontre.jpg"
   },
   {
-   "id": "os-003-les-voeux-fr",
-   "type": "oneshot",
-   "emoji": "💫",
-   "path": "stories/oneshots/os-003-les-voeux-fr",
-   "onlyLang": "fr",
-   "tags": [
-    "Station 19",
-    "Marina",
-    "One Shot"
-   ],
-   "fr": {
-    "title": "Les voeux",
-    "summary": "",
-    "chapters": [
-     "Les voeux"
-    ]
-   },
-   "en": {
-    "title": "Les voeux",
-    "summary": "",
-    "chapters": [
-     "Les voeux"
-    ]
-   },
-   "oscat": "marina",
-   "cover": "stories/covers/station-19-entre-saison-4-et-5.jpg"
-  },
-  {
-   "id": "os-004-premier-baiser-fr",
-   "type": "oneshot",
-   "emoji": "💫",
-   "path": "stories/oneshots/os-004-premier-baiser-fr",
-   "onlyLang": "fr",
-   "tags": [
-    "Station 19",
-    "Marina",
-    "One Shot"
-   ],
-   "fr": {
-    "title": "Premier baiser",
-    "summary": "",
-    "chapters": [
-     "Premier baiser"
-    ]
-   },
-   "en": {
-    "title": "Premier baiser",
-    "summary": "",
-    "chapters": [
-     "Premier baiser"
-    ]
-   },
-   "oscat": "marina"
-  },
-  {
    "id": "os-005-captain-oh-my-captain-fr",
    "type": "oneshot",
    "emoji": "💫",
@@ -738,7 +683,8 @@
      "Did you get turned on when we kissed? (Stefanielle)"
     ]
    },
-   "oscat": "stefanielle"
+   "oscat": "stefanielle",
+   "cover": "stories/covers/did-you-get-turned-on-when-we-kissed.jpg"
   },
   {
    "id": "os-008-formation-requise-fr",
@@ -821,7 +767,8 @@
      "Jalousie (Stefanielle)"
     ]
    },
-   "oscat": "stefanielle"
+   "oscat": "stefanielle",
+   "cover": "stories/covers/jalousie-stefanielle.jpg"
   },
   {
    "id": "os-011-c-est-un-amour-de-vacances-fr",
@@ -1328,33 +1275,6 @@
    "cover": "stories/covers/sorority-sororite.jpg"
   },
   {
-   "id": "os-029-la-d-cision-fr",
-   "type": "oneshot",
-   "emoji": "💫",
-   "path": "stories/oneshots/os-029-la-d-cision-fr",
-   "onlyLang": "fr",
-   "tags": [
-    "Station 19",
-    "Marina",
-    "One Shot"
-   ],
-   "fr": {
-    "title": "La décision",
-    "summary": "",
-    "chapters": [
-     "La décision"
-    ]
-   },
-   "en": {
-    "title": "La décision",
-    "summary": "",
-    "chapters": [
-     "La décision"
-    ]
-   },
-   "oscat": "marina"
-  },
-  {
    "id": "os-030-amour-impossible-fr",
    "type": "oneshot",
    "emoji": "💫",
@@ -1437,33 +1357,6 @@
    },
    "oscat": "stefanielle",
    "cover": "stories/covers/wildest-dream.jpg"
-  },
-  {
-   "id": "os-033-quatre-mois-plus-tard-fr",
-   "type": "oneshot",
-   "emoji": "💫",
-   "path": "stories/oneshots/os-033-quatre-mois-plus-tard-fr",
-   "onlyLang": "fr",
-   "tags": [
-    "Station 19",
-    "Marina",
-    "One Shot"
-   ],
-   "fr": {
-    "title": "Quatre mois plus tard",
-    "summary": "",
-    "chapters": [
-     "Quatre mois plus tard"
-    ]
-   },
-   "en": {
-    "title": "Quatre mois plus tard",
-    "summary": "",
-    "chapters": [
-     "Quatre mois plus tard"
-    ]
-   },
-   "oscat": "marina"
   },
   {
    "id": "os-036-la-photo-parfaite-fr",
@@ -1632,33 +1525,6 @@
    },
    "oscat": "marina",
    "cover": "stories/covers/in-the-air-dans-les-airs.jpg"
-  },
-  {
-   "id": "os-043-station-19-6x01-shower-scene-fr",
-   "type": "oneshot",
-   "emoji": "💫",
-   "path": "stories/oneshots/os-043-station-19-6x01-shower-scene-fr",
-   "onlyLang": "fr",
-   "tags": [
-    "Station 19",
-    "Marina",
-    "One Shot"
-   ],
-   "fr": {
-    "title": "Station 19 : 6x01 - shower scene",
-    "summary": "",
-    "chapters": [
-     "Station 19 : 6x01 - shower scene"
-    ]
-   },
-   "en": {
-    "title": "Station 19 : 6x01 - shower scene",
-    "summary": "",
-    "chapters": [
-     "Station 19 : 6x01 - shower scene"
-    ]
-   },
-   "oscat": "station19"
   },
   {
    "id": "os-045-station-19-6x05-la-r-conciliation-fr",
@@ -3008,17 +2874,16 @@
    "type": "oneshot",
    "emoji": "💫",
    "path": "stories/oneshots/os-010-station-19-after-season-5-4-months-later-en",
-   "onlyLang": "en",
    "tags": [
     "Station 19",
     "Marina",
     "One Shot"
    ],
    "fr": {
-    "title": "Station 19 - after season 5 - 4 months later",
+    "title": "Station 19 - après la saison 5 - Quatre mois plus tard",
     "summary": "",
     "chapters": [
-     "Station 19 - after season 5 - 4 months later"
+     "Station 19 - après la saison 5 - Quatre mois plus tard"
     ]
    },
    "en": {
@@ -3028,7 +2893,8 @@
      "Station 19 - after season 5 - 4 months later"
     ]
    },
-   "oscat": "station19"
+   "oscat": "station19",
+   "cover": "stories/covers/station-19-quatre-mois-plus-tard.jpg"
   },
   {
    "id": "os-011-sorority-en",
@@ -3063,27 +2929,27 @@
    "type": "oneshot",
    "emoji": "💫",
    "path": "stories/oneshots/os-012-station-19-between-305-amp-306-first-kis-en",
-   "onlyLang": "en",
    "tags": [
     "Station 19",
     "Marina",
     "One Shot"
    ],
    "fr": {
-    "title": "Station 19 - between 305 &amp; 306 - First Kiss",
+    "title": "Station 19 - entre 3x05 & 3x06 - Premier baiser",
     "summary": "",
     "chapters": [
-     "Station 19 - between 305 &amp; 306 - First Kiss"
+     "Station 19 - entre 3x05 & 3x06 - Premier baiser"
     ]
    },
    "en": {
-    "title": "Station 19 - between 305 &amp; 306 - First Kiss",
+    "title": "Station 19 - between 3x05 & 3x06 - First Kiss",
     "summary": "",
     "chapters": [
-     "Station 19 - between 305 &amp; 306 - First Kiss"
+     "Station 19 - between 3x05 & 3x06 - First Kiss"
     ]
    },
-   "oscat": "station19"
+   "oscat": "station19",
+   "cover": "stories/covers/station-19-premier-baiser-first-kiss.jpg"
   },
   {
    "id": "os-013-first-love-en",
@@ -3426,24 +3292,23 @@
    "type": "oneshot",
    "emoji": "💫",
    "path": "stories/oneshots/os-025-station-19-4x16-the-vows-en",
-   "onlyLang": "en",
    "tags": [
     "Station 19",
     "Marina",
     "One Shot"
    ],
    "fr": {
-    "title": "Station 19 - 4x16 - the vows",
+    "title": "Station 19 - 4x16 - Les voeux",
     "summary": "",
     "chapters": [
-     "Station 19 - 4x16 - the vows"
+     "Station 19 - 4x16 - Les voeux"
     ]
    },
    "en": {
-    "title": "Station 19 - 4x16 - the vows",
+    "title": "Station 19 - 4x16 - The vows",
     "summary": "",
     "chapters": [
-     "Station 19 - 4x16 - the vows"
+     "Station 19 - 4x16 - The vows"
     ]
    },
    "oscat": "station19",
@@ -3482,27 +3347,27 @@
    "type": "oneshot",
    "emoji": "💫",
    "path": "stories/oneshots/os-027-station-19-5x13-the-decision-en",
-   "onlyLang": "en",
    "tags": [
     "Station 19",
     "Marina",
     "One Shot"
    ],
    "fr": {
-    "title": "Station 19 - 5x13 - the decision",
+    "title": "Station 19 - 5x13 - La décision",
     "summary": "",
     "chapters": [
-     "Station 19 - 5x13 - the decision"
+     "Station 19 - 5x13 - La décision"
     ]
    },
    "en": {
-    "title": "Station 19 - 5x13 - the decision",
+    "title": "Station 19 - 5x13 - The decision",
     "summary": "",
     "chapters": [
-     "Station 19 - 5x13 - the decision"
+     "Station 19 - 5x13 - The decision"
     ]
    },
-   "oscat": "station19"
+   "oscat": "station19",
+   "cover": "stories/covers/station-19-5x13-la-decision.jpg"
   },
   {
    "id": "os-028-dirty-dancing-stefanielle-en",
@@ -3789,27 +3654,27 @@
    "type": "oneshot",
    "emoji": "💫",
    "path": "stories/oneshots/os-038-station-19-6x01-shower-scene-en",
-   "onlyLang": "en",
    "tags": [
     "Station 19",
     "Marina",
     "One Shot"
    ],
    "fr": {
-    "title": "Station 19 : 6x01 - shower scene",
+    "title": "Station 19 - 6x01 - Shower scene",
     "summary": "",
     "chapters": [
-     "Station 19 : 6x01 - shower scene"
+     "Station 19 - 6x01 - Shower scene"
     ]
    },
    "en": {
-    "title": "Station 19 : 6x01 - shower scene",
+    "title": "Station 19 - 6x01 - Shower scene",
     "summary": "",
     "chapters": [
-     "Station 19 : 6x01 - shower scene"
+     "Station 19 - 6x01 - Shower scene"
     ]
    },
-   "oscat": "station19"
+   "oscat": "station19",
+   "cover": "stories/covers/station-19-6x01-shower-scene.jpg"
   },
   {
    "id": "os-039-station-19-6x05-the-reconciliation-en",
@@ -3836,7 +3701,8 @@
      "Station 19 - 6x05 - the reconciliation"
     ]
    },
-   "oscat": "station19"
+   "oscat": "station19",
+   "cover": "stories/covers/station-19-6x05-reconciliation.jpg"
   },
   {
    "id": "os-040-all-i-want-for-christmas-is-you-en",

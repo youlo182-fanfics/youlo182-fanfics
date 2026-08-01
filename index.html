@@ -374,6 +374,14 @@
 .notif-item .n-meta{ font-size:11px; color:var(--muted); }
 .notif-item .n-preview{ color:var(--ink); font-style:italic; opacity:.85; }
 .notif-empty{ padding:22px 16px; text-align:center; color:var(--muted); font-size:13px; font-style:italic; }
+
+/* ===== Actions commentaire (modifier/supprimer) ===== */
+.cmt-actions{ display:flex; gap:8px; margin-top:6px; }
+.cmt-act{ background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:4px 10px; font-size:12px; cursor:pointer; font-weight:600; }
+.cmt-act:hover{ border-color:var(--accent-l); color:var(--accent-l); }
+.cmt-del:hover{ border-color:#e63950; color:#e63950; }
+.cmt-edit-area{ width:100%; min-height:60px; background:#0d1c30; border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:8px; font-size:14px; font-family:inherit; box-sizing:border-box; resize:vertical; }
+.cmt-edit-actions{ display:flex; gap:8px; margin-top:6px; }
 </style>
 </head>
 <body>
@@ -593,7 +601,7 @@
 // the CDN import is blocked (e.g. sandboxed preview). All FB calls null-check first.
 let initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
     signInWithEmailAndPassword, signOut, updateProfile,
-    getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp;
+    getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, deleteDoc, updateDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp;
 let auth=null, db=null, firebaseReady=false;
 
 const firebaseConfig = {
@@ -614,7 +622,7 @@ async function initFirebase(){
     const fsMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
     initializeApp=appMod.initializeApp;
     ({ getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } = authMod);
-    ({ getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp } = fsMod);
+    ({ getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, deleteDoc, updateDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp } = fsMod);
     const app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
@@ -1362,7 +1370,16 @@ function subscribeComments(){
       var quote = c.quote ? '<div class="cquote">\u201c'+escapeHtml(c.quote)+'\u201d</div>' : '';
       var ph = isAuthor ? 'R\u00e9pondre en tant qu\'autrice\u2026' : 'R\u00e9pondre\u2026';
       var authorBox = currentUser ? '<div class="areply-form"><input type="text" id="arin_'+cid+'" placeholder="'+ph+'"><button onclick="postReply(\''+cid+'\')">R\u00e9pondre</button></div>' : '';
-      out+='<div class="comment">'+quote+'<div class="who">'+escapeHtml(c.name||'Anonyme')+'</div><div class="txt">'+escapeHtml(c.text||'')+'</div><div id="ar_'+cid+'"></div>'+authorBox+'</div>';
+      var isMine = currentUser && c.uid && c.uid===currentUser.uid;
+      var canDelete = isMine || isAuthor;   // proprietaire OU autrice
+      var actions = '';
+      if(isMine || canDelete){
+        actions = '<div class="cmt-actions">'
+          + (isMine ? '<button class="cmt-act" onclick="editComment(\''+cid+'\')">✏️ '+(lang==='fr'?'Modifier':'Edit')+'</button>' : '')
+          + (canDelete ? '<button class="cmt-act cmt-del" onclick="deleteComment(\''+cid+'\','+(isAuthor && !isMine ? 'true':'false')+')">🗑️ '+(lang==='fr'?'Supprimer':'Delete')+'</button>' : '')
+          + '</div>';
+      }
+      out+='<div class="comment" data-cid="'+cid+'">'+quote+'<div class="who">'+escapeHtml(c.name||'Anonyme')+'</div><div class="txt" id="ctxt_'+cid+'">'+escapeHtml(c.text||'')+'</div>'+actions+'<div id="ar_'+cid+'"></div>'+authorBox+'</div>';
     });
     list.innerHTML=out;
     // Subscribe to each comment's replies (author answers)
@@ -1595,6 +1612,37 @@ document.addEventListener('click', function(e){
   if(e.target.id==='ppSend'){ e.preventDefault(); sendPassageComment(); }
   else if(e.target.id==='ppCancel' || e.target.id==='ppOverlay'){ e.preventDefault(); closePassagePopup(); }
 });
+
+// ---- Modifier son propre commentaire ----
+window.editComment=async function(cid){
+  if(!currentUser) return;
+  var txtEl=document.getElementById('ctxt_'+cid); if(!txtEl) return;
+  var current=txtEl.textContent;
+  // Remplacer le texte par un champ d'édition
+  txtEl.innerHTML='<textarea class="cmt-edit-area" id="cedit_'+cid+'">'+escapeHtml(current)+'</textarea>'
+    +'<div class="cmt-edit-actions"><button class="cmt-act" onclick="saveComment(\''+cid+'\')">'+(lang==='fr'?'Enregistrer':'Save')+'</button>'
+    +'<button class="cmt-act" onclick="subscribeComments()">'+(lang==='fr'?'Annuler':'Cancel')+'</button></div>';
+  var ta=document.getElementById('cedit_'+cid); if(ta){ ta.focus(); }
+};
+window.saveComment=async function(cid){
+  var ta=document.getElementById('cedit_'+cid); if(!ta) return;
+  var newText=ta.value.trim(); if(!newText) return;
+  var key=chapterKey();
+  try{
+    await updateDoc(doc(db,'comments',key,'items',cid), { text:newText, edited:true });
+  }catch(e){ alert('Oops: '+e.message); }
+};
+// ---- Supprimer un commentaire (proprietaire OU autrice) ----
+window.deleteComment=async function(cid, asAuthor){
+  var msg = asAuthor
+    ? (lang==='fr'?'Supprimer ce commentaire d\'un lecteur ? Cette action est définitive.':'Delete this reader\'s comment? This cannot be undone.')
+    : (lang==='fr'?'Supprimer ton commentaire ? Cette action est définitive.':'Delete your comment? This cannot be undone.');
+  if(!confirm(msg)) return;
+  var key=chapterKey();
+  try{
+    await deleteDoc(doc(db,'comments',key,'items',cid));
+  }catch(e){ alert('Oops: '+e.message); }
+};
 
 window.postReply=async function(cid){
   if(!currentUser){ alert(UI[lang].mustLogin); openAuth(); return; }

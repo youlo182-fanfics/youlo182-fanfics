@@ -44,6 +44,12 @@
   .empty{color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:20px;}
   a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700;}
   .loading{text-align:center;color:var(--muted);padding:20px;font-style:italic;}
+
+  .pager{ display:flex; align-items:center; justify-content:center; gap:14px; margin:14px 0; flex-wrap:wrap; }
+  .pager-btn{ background:var(--card); border:1px solid var(--accent-l); color:var(--accent-l); border-radius:16px; padding:7px 16px; font-weight:700; cursor:pointer; font-size:13px; }
+  .pager-btn:hover:not(:disabled){ background:var(--accent); color:#fff; }
+  .pager-btn:disabled{ opacity:.4; cursor:not-allowed; border-color:var(--line); color:var(--muted); }
+  .pager-info{ font-size:12.5px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -176,9 +182,11 @@ async function loadDashboard(){
   }).filter(p=>p.views||p.likes||p.comments)
     .sort((a,b)=>(b.views+b.likes+b.comments)-(a.views+a.likes+a.comments));
   const ps=document.getElementById('perStory');
-  ps.innerHTML = perStory.length? perStory.map(p=>
-    '<div class="story-stat"><span class="name">📖 '+esc(p.name)+'</span><span class="nums">'+(p.views?'<span>👁️ <b>'+p.views+'</b> vues</span>':'')+'<span>❤️ <b>'+p.likes+'</b> j\'aime</span><span>💬 <b>'+p.comments+'</b> commentaires</span></span></div>'
-  ).join('') : '<div class="empty">Pas encore d\'activité 💜</div>';
+  function renderStat(p){
+    return '<div class="story-stat"><span class="name">📖 '+esc(p.name)+'</span><span class="nums">'+(p.views?'<span>👁️ <b>'+p.views+'</b> vues</span>':'')+'<span>❤️ <b>'+p.likes+'</b> j\'aime</span><span>💬 <b>'+p.comments+'</b> commentaires</span></span></div>';
+  }
+  if(perStory.length===0){ ps.innerHTML='<div class="empty">Pas encore d\'activité 💜</div>'; }
+  else { paginate('perStory', perStory, renderStat, 12); }
 
   // ---- 2) COMMENTAIRES : chargés en arrière-plan (ne bloque pas les stats) ----
   document.getElementById('commentsAdmin').innerHTML='<div class="loading">Chargement des commentaires…</div>';
@@ -213,12 +221,17 @@ async function loadCommentsAsync(){
   }
 
   allComments.sort((a,b)=>{ const ta=a.ts&&a.ts.seconds?a.ts.seconds:0; const tb=b.ts&&b.ts.seconds?b.ts.seconds:0; return tb-ta; });
-  box.innerHTML = allComments.length? allComments.map(c=>
-    '<div class="cmt">'+(c.quote?('<div style="font-style:italic;font-size:12.5px;color:#b03d5e;border-left:2px solid #b03d5e;padding-left:8px;margin-bottom:8px;opacity:.9;">\u201c'+esc(c.quote)+'\u201d</div>'):'')+'<div class="head"><span class="who">'+esc(c.name)+'</span><span class="where">📖 '+esc(c.storyName)+(c.lang?(' · '+(c.lang==='fr'?'FR':'EN')):'')+' · '+esc(c.chTitle||('ch.'+(c.ch+1)))+'</span></div>'+
-    '<div class="txt">'+esc(c.text)+'</div><div id="reply_'+c.id+'"></div>'+
-    '<div class="reply-form"><input type="text" id="rin_'+c.id+'" placeholder="Répondre en tant qu\'autrice…"><button onclick="sendReply(\''+c.key+'\',\''+c.id+'\')">Répondre</button></div></div>'
-  ).join('') : '<div class="empty">Aucun commentaire pour l\'instant 💌</div>';
-  allComments.forEach(c=>loadReplies(c.key,c.id));
+  function renderCmt(c){
+    return '<div class="cmt">'+(c.quote?('<div style="font-style:italic;font-size:12.5px;color:#b03d5e;border-left:2px solid #b03d5e;padding-left:8px;margin-bottom:8px;opacity:.9;">\u201c'+esc(c.quote)+'\u201d</div>'):'')+'<div class="head"><span class="who">'+esc(c.name)+'</span><span class="where">📖 '+esc(c.storyName)+(c.lang?(' · '+(c.lang==='fr'?'FR':'EN')):'')+' · '+esc(c.chTitle||('ch.'+(c.ch+1)))+'</span></div>'+
+      '<div class="txt">'+esc(c.text)+'</div><div id="reply_'+c.id+'"></div>'+
+      '<div class="reply-form"><input type="text" id="rin_'+c.id+'" placeholder="Répondre en tant qu\'autrice…"><button onclick="sendReply(\''+c.key+'\',\''+c.id+'\')">Répondre</button></div></div>';
+  }
+  if(allComments.length===0){
+    box.innerHTML='<div class="empty">Aucun commentaire pour l\'instant 💌</div>';
+  } else {
+    paginate('commentsAdmin', allComments, renderCmt, 12);
+    allComments.forEach(c=>loadReplies(c.key,c.id));
+  }
 }
 
 // Affiche EN TEMPS REEL le fil de reponses sous un commentaire.
@@ -241,6 +254,45 @@ function loadReplies(key, commentId){
     }, function(err){ console.warn('replies '+commentId+':', err.message); });
   }catch(e){ console.warn('loadReplies:', e.message); }
 }
+
+// ---- Pagination générique ----
+var __pageState = {};
+function paginate(containerId, items, renderItem, pageSize){
+  pageSize = pageSize || 12;
+  __pageState[containerId] = { page:0, pageSize:pageSize, items:items, renderItem:renderItem };
+  renderPage(containerId);
+}
+function renderPage(containerId){
+  var st = __pageState[containerId]; if(!st) return;
+  var box = document.getElementById(containerId); if(!box) return;
+  var total = st.items.length;
+  if(total===0){ return; }
+  var pages = Math.ceil(total/st.pageSize);
+  if(st.page > pages-1) st.page = pages-1;
+  if(st.page < 0) st.page = 0;
+  var start = st.page*st.pageSize;
+  var slice = st.items.slice(start, start+st.pageSize);
+  var html = slice.map(st.renderItem).join('');
+  if(pages > 1){
+    var nav = '<div class="pager">'
+      + '<button class="pager-btn" '+(st.page===0?'disabled':'')+' onclick="gotoPage(\''+containerId+'\','+(st.page-1)+')">\u2039 Pr\u00e9c\u00e9dent</button>'
+      + '<span class="pager-info">Page '+(st.page+1)+' / '+pages+' \u00b7 '+total+' au total</span>'
+      + '<button class="pager-btn" '+(st.page>=pages-1?'disabled':'')+' onclick="gotoPage(\''+containerId+'\','+(st.page+1)+')">Suivant \u203a</button>'
+      + '</div>';
+    html = nav + html + nav;
+  }
+  box.innerHTML = html;
+}
+window.gotoPage=function(containerId, p){
+  var st=__pageState[containerId]; if(!st) return;
+  st.page = p; renderPage(containerId);
+  // Recharger les réponses des commentaires visibles sur cette page
+  if(containerId==='commentsAdmin'){
+    var start=st.page*st.pageSize;
+    st.items.slice(start, start+st.pageSize).forEach(function(c){ loadReplies(c.key, c.id); });
+  }
+  var box=document.getElementById(containerId); if(box) box.scrollIntoView({behavior:'smooth', block:'start'});
+};
 
 window.sendReply=async function(key,commentId){
   const inp=document.getElementById('rin_'+commentId); const text=inp.value.trim(); if(!text)return;
