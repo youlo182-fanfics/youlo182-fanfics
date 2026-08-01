@@ -15,8 +15,8 @@
 <style>
   :root{ --bg:#0a1628; --card:#122138; --ink:#e8eef6; --muted:#9fb0c6; --accent:#8B1E3F; --accent-d:#6d1730; --accent-l:#b03d5e; --line:#1e3050; }
   *{box-sizing:border-box;margin:0;padding:0;font-family:'Nunito Sans',sans-serif;}
-  body{background:var(--bg);color:var(--ink);min-height:100vh;}
-  .topbar{background:linear-gradient(90deg,var(--accent-d),var(--accent));padding:16px 24px;box-shadow:0 2px 14px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:space-between;}
+  body{background:var(--bg);color:var(--ink);min-height:100vh;max-width:100%;overflow-x:hidden;}
+  .topbar{background:linear-gradient(90deg,var(--accent-d),var(--accent));padding:16px 24px;box-shadow:0 2px 14px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
   .topbar h1{font-family:'Cormorant Garamond',serif;font-size:24px;color:#fff;font-weight:600;}
   .topbar .sub{font-size:12px;color:rgba(255,255,255,.8);}
   .logout{background:rgba(255,255,255,.16);border:none;color:#fff;padding:7px 15px;border-radius:16px;cursor:pointer;font-size:12px;font-weight:700;}
@@ -61,7 +61,7 @@
 <body>
 <div class="topbar">
   <div><h1>📊 Dashboard Admin</h1><div class="sub">Youlo182 · Espace privé de l'autrice</div></div>
-  <div style="display:flex;gap:10px;align-items:center;">
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
     <button class="logout" id="mailingBtn" style="display:none;background:rgba(176,61,94,.25);">📧 Ma mailing list</button>
     <button class="logout" id="mailingAllBtn" style="display:none;background:rgba(176,61,94,.15);">📨 Tous les inscrits</button>
     <button class="logout" id="exportBtn" style="display:none;background:rgba(176,61,94,.25);">💾 Sauvegarder mes données</button>
