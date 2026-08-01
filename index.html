@@ -854,7 +854,7 @@ window.postAboutReply=async function(cid){
   var text=inp.value.trim(); if(!text)return;
   var replierName = isAuthor ? 'Youlo182' : (currentUser.displayName||'Anonyme');
   var payload = isAuthor
-    ? { name:'Youlo182', text:text, admin:true, ts:serverTimestamp() }
+    ? { name:'Youlo182', uid:currentUser.uid, text:text, admin:true, ts:serverTimestamp() }
     : { name:replierName, uid:currentUser.uid, text:text, ts:serverTimestamp() };
   try{
     await addDoc(collection(db,'comments','about','items',cid,'replies'), payload);
@@ -1603,7 +1603,7 @@ window.postReply=async function(cid){
   const key=chapterKey();
   const replierName = isAuthor ? 'Youlo182' : (currentUser.displayName||'Anonyme');
   const payload = isAuthor
-    ? { name:'Youlo182', text:text, admin:true, ts:serverTimestamp() }
+    ? { name:'Youlo182', uid:currentUser.uid, text:text, admin:true, ts:serverTimestamp() }
     : { name:replierName, uid:currentUser.uid, text:text, ts:serverTimestamp() };
   try{
     await addDoc(collection(db,'comments',key,'items',cid,'replies'), payload);
