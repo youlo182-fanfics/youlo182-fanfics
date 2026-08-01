@@ -614,7 +614,7 @@ async function initFirebase(){
     const fsMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
     initializeApp=appMod.initializeApp;
     ({ getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } = authMod);
-    ({ getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp } = fsMod);
+    ({ getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp } = fsMod);
     const app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
@@ -1616,20 +1616,31 @@ window.postReply=async function(cid){
 // Crée une notif pour l'auteur du commentaire parent (sauf si on se répond à soi-même)
 async function createReplyNotification(key, cid, replierName, text){
   if(!db) return;
-  // Lire le commentaire parent pour connaître son auteur (uid)
-  var parentSnap = await getDoc(doc(db,'comments',key,'items',cid));
-  if(!parentSnap.exists()) return;
-  var parent = parentSnap.data();
-  var targetUid = parent.uid;
-  if(!targetUid) return;                       // commentaire sans uid (ex: ancien/admin) : pas de notif
-  if(currentUser && targetUid===currentUser.uid) return;  // ne pas se notifier soi-même
-  // Décomposer la clé chapitre : bookId_lang_chIndex (ou "about")
+  var myUid = currentUser ? currentUser.uid : null;
+  // 1) Rassembler tous les participants du fil (auteur du commentaire + auteurs des réponses)
+  var targets = {};   // uid -> true (set)
+  try{
+    var parentSnap = await getDoc(doc(db,'comments',key,'items',cid));
+    if(parentSnap.exists()){
+      var pu = parentSnap.data().uid;
+      if(pu) targets[pu] = true;
+    }
+  }catch(e){ console.warn('notif parent', e.message); }
+  try{
+    var repliesSnap = await getDocs(collection(db,'comments',key,'items',cid,'replies'));
+    repliesSnap.forEach(function(rd){ var ru = rd.data().uid; if(ru) targets[ru] = true; });
+  }catch(e){ console.warn('notif replies', e.message); }
+  // Retirer soi-même
+  if(myUid) delete targets[myUid];
+  var uids = Object.keys(targets);
+  if(uids.length===0){ console.log('[notif] aucun destinataire (fil sans uid ou seulement moi)'); return; }
+  // 2) Décomposer la clé chapitre : bookId_lang_chIndex (ou "about")
   var m = key.match(/^(.*)_(fr|en)_(\d+)$/);
   var isAbout = (key==='about');
   var bookId = isAbout ? 'about' : (m ? m[1] : key);
   var nlang = m ? m[2] : lang;
   var ch = m ? parseInt(m[3]) : 0;
-  await addDoc(collection(db,'notifications',targetUid,'items'),{
+  var payload = {
     type: 'reply',
     fromName: replierName,
     fromAdmin: (replierName==='Youlo182'),
@@ -1638,8 +1649,14 @@ async function createReplyNotification(key, cid, replierName, text){
     isAbout: isAbout,
     read: false,
     ts: serverTimestamp()
-  });
-  console.log('[notif] créée pour', targetUid, 'depuis', replierName);
+  };
+  // 3) Envoyer une notif à chaque participant
+  for(var i=0;i<uids.length;i++){
+    try{
+      await addDoc(collection(db,'notifications',uids[i],'items'), payload);
+      console.log('[notif] créée pour', uids[i], 'depuis', replierName);
+    }catch(e){ console.warn('[notif] échec pour', uids[i], e.message); }
+  }
 }
 
 // ==================== CLOCHE DE NOTIFICATIONS ====================
