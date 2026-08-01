@@ -819,17 +819,49 @@ function subscribeAboutComments(){
   if(!firebaseReady||!db){ var l=document.getElementById('aboutCommentList'); if(l) l.innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les mots 💬':'Sign in online to see notes 💬')+'</div>'; return; }
   if(__unsubAboutComments){ __unsubAboutComments(); __unsubAboutComments=null; }
   var q=query(collection(db,'comments','about','items'), orderBy('ts','desc'));
+  clearAboutReplyUnsubs();
   __unsubAboutComments=onSnapshot(q,function(snap){
     var list=document.getElementById('aboutCommentList'); if(!list) return;
     if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois la première personne à me laisser un mot 💌':'Be the first to leave me a note 💌')+'</div>'; return; }
+    clearAboutReplyUnsubs();
     var out='';
-    snap.forEach(function(d){ var c=d.data();
+    snap.forEach(function(d){ var c=d.data(); var cid=d.id;
       var isA = c.name==='Youlo182';
-      out+='<div class="comment"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(c.name||'Anonyme')+'</div><div class="txt">'+escapeHtml(c.text||'')+'</div></div>';
+      var replyForm = currentUser ? '<div class="areply-form"><input type="text" id="abrin_'+cid+'" placeholder="'+(isAuthor?(lang==='fr'?'Répondre en tant qu\'autrice…':'Reply as author…'):(lang==='fr'?'Répondre…':'Reply…'))+'"><button onclick="postAboutReply(\''+cid+'\')">'+(lang==='fr'?'Répondre':'Reply')+'</button></div>' : '';
+      out+='<div class="comment"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(c.name||'Anonyme')+'</div><div class="txt">'+escapeHtml(c.text||'')+'</div><div id="abar_'+cid+'"></div>'+replyForm+'</div>';
     });
     list.innerHTML=out;
+    // Abonnement aux réponses de chaque commentaire About
+    snap.forEach(function(d){
+      var cid=d.id;
+      var rq=query(collection(db,'comments','about','items',cid,'replies'), orderBy('ts','asc'));
+      var u=onSnapshot(rq,function(rsnap){
+        var el=document.getElementById('abar_'+cid); if(!el)return;
+        var rout='';
+        rsnap.forEach(function(rd){ var r=rd.data(); var ra = r.admin===true || r.name==='Youlo182';
+          rout+='<div class="'+(ra?'author-reply':'reader-reply')+'"><div class="who">'+(ra?'✍️ ':'')+escapeHtml(r.name||'Anonyme')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
+        el.innerHTML=rout;
+      }, function(){});
+      __aboutReplyUnsubs.push(u);
+    });
   }, function(){});
 }
+var __aboutReplyUnsubs=[];
+function clearAboutReplyUnsubs(){ __aboutReplyUnsubs.forEach(function(u){ try{u();}catch(e){} }); __aboutReplyUnsubs=[]; }
+window.postAboutReply=async function(cid){
+  if(!currentUser){ alert(UI[lang].mustLogin); openAuth(); return; }
+  var inp=document.getElementById('abrin_'+cid); if(!inp)return;
+  var text=inp.value.trim(); if(!text)return;
+  var replierName = isAuthor ? 'Youlo182' : (currentUser.displayName||'Anonyme');
+  var payload = isAuthor
+    ? { name:'Youlo182', text:text, admin:true, ts:serverTimestamp() }
+    : { name:replierName, uid:currentUser.uid, text:text, ts:serverTimestamp() };
+  try{
+    await addDoc(collection(db,'comments','about','items',cid,'replies'), payload);
+    inp.value='';
+    try{ await createReplyNotification('about', cid, replierName, text); }catch(e){ console.warn('notif about',e.message); }
+  }catch(e){ alert('Oops: '+e.message); }
+};
 function initAboutInteract(){
   var lb=document.getElementById('aboutLikeBtn'); if(lb) lb.onclick=doAboutLike;
   var title=document.getElementById('aboutCommentsTitle'); if(title) title.textContent = lang==='fr' ? '💬 Laisse-moi un mot' : '💬 Leave me a note';
@@ -1591,18 +1623,23 @@ async function createReplyNotification(key, cid, replierName, text){
   var targetUid = parent.uid;
   if(!targetUid) return;                       // commentaire sans uid (ex: ancien/admin) : pas de notif
   if(currentUser && targetUid===currentUser.uid) return;  // ne pas se notifier soi-même
-  // Décomposer la clé chapitre : bookId_lang_chIndex
+  // Décomposer la clé chapitre : bookId_lang_chIndex (ou "about")
   var m = key.match(/^(.*)_(fr|en)_(\d+)$/);
-  var bookId = m ? m[1] : key, nlang = m ? m[2] : lang, ch = m ? parseInt(m[3]) : 0;
+  var isAbout = (key==='about');
+  var bookId = isAbout ? 'about' : (m ? m[1] : key);
+  var nlang = m ? m[2] : lang;
+  var ch = m ? parseInt(m[3]) : 0;
   await addDoc(collection(db,'notifications',targetUid,'items'),{
     type: 'reply',
     fromName: replierName,
     fromAdmin: (replierName==='Youlo182'),
     preview: (text.length>80 ? text.slice(0,80)+'…' : text),
     bookId: bookId, lang: nlang, ch: ch, commentId: cid,
+    isAbout: isAbout,
     read: false,
     ts: serverTimestamp()
   });
+  console.log('[notif] créée pour', targetUid, 'depuis', replierName);
 }
 
 // ==================== CLOCHE DE NOTIFICATIONS ====================
@@ -1653,6 +1690,15 @@ window.openNotif=async function(nid){
   // fermer le panneau
   var panel=document.getElementById('notifPanel'); if(panel) panel.style.display='none';
   // naviguer vers le chapitre + commentaire
+  if(n.isAbout || n.bookId==='about'){
+    showAbout();
+    setTimeout(function(){
+      var el=document.getElementById('abar_'+n.commentId);
+      var card=el&&el.closest?el.closest('.comment'):null;
+      if(card){ card.scrollIntoView({behavior:'smooth',block:'center'}); card.classList.add('hl'); setTimeout(function(){card.classList.remove('hl');},2600); }
+    }, 600);
+    return;
+  }
   if(n.bookId){
     var b=BOOKS.find(function(x){return x.id===n.bookId;});
     if(b){
