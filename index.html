@@ -593,7 +593,7 @@
 // the CDN import is blocked (e.g. sandboxed preview). All FB calls null-check first.
 let initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
     signInWithEmailAndPassword, signOut, updateProfile,
-    getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp;
+    getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp;
 let auth=null, db=null, firebaseReady=false;
 
 const firebaseConfig = {
