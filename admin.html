@@ -55,7 +55,10 @@
 <body>
 <div class="topbar">
   <div><h1>📊 Dashboard Admin</h1><div class="sub">Youlo182 · Espace privé de l'autrice</div></div>
-  <button class="logout" id="logoutBtn" style="display:none;">Se déconnecter</button>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button class="logout" id="exportBtn" style="display:none;background:rgba(176,61,94,.25);">💾 Sauvegarder mes données</button>
+    <button class="logout" id="logoutBtn" style="display:none;">Se déconnecter</button>
+  </div>
 </div>
 
 <div class="wrap">
@@ -139,7 +142,7 @@ document.getElementById('logoutBtn').onclick=()=>signOut(auth);
 onAuthStateChanged(auth, function(user){
   if(user && user.email===ADMIN_EMAIL){
     gate.style.display='none'; dash.style.display='block';
-    document.getElementById('logoutBtn').style.display='inline-block';
+    document.getElementById('logoutBtn').style.display='inline-block'; document.getElementById('exportBtn').style.display='inline-block';
     loadDashboard();
   } else {
     gate.style.display='block'; dash.style.display='none';
@@ -293,6 +296,49 @@ window.gotoPage=function(containerId, p){
   }
   var box=document.getElementById(containerId); if(box) box.scrollIntoView({behavior:'smooth', block:'start'});
 };
+
+// ---- Sauvegarde/export des données (JSON téléchargé) ----
+async function exportData(){
+  var btn=document.getElementById('exportBtn');
+  var oldTxt = btn ? btn.textContent : '';
+  if(btn){ btn.textContent='⏳ Sauvegarde…'; btn.disabled=true; }
+  try{
+    var backup = { exportedAt: new Date().toISOString(), comments:[], likes:[], users:[], stats:null };
+    // Commentaires (+ réponses)
+    var itemsSnap = await getDocs(collectionGroup(db,'items'));
+    for(var k=0;k<itemsSnap.docs.length;k++){
+      var d = itemsSnap.docs[k];
+      var parts = d.ref.path.split('/');   // comments/{key}/items/{id}
+      if(parts[0]!=='comments') continue;
+      var entry = { chapterKey: parts[1], id: d.id, data: d.data(), replies: [] };
+      try{
+        var rep = await getDocs(collection(db,'comments',parts[1],'items',d.id,'replies'));
+        rep.forEach(function(r){ entry.replies.push({ id:r.id, data:r.data() }); });
+      }catch(e){}
+      backup.comments.push(entry);
+    }
+    // Likes
+    try{ var lk = await getDocs(collection(db,'likes')); lk.forEach(function(d){ backup.likes.push({id:d.id, data:d.data()}); }); }catch(e){}
+    // Users
+    try{ var us = await getDocs(collection(db,'users')); us.forEach(function(d){ backup.users.push({id:d.id, data:d.data()}); }); }catch(e){}
+    // Stats
+    try{ var st = await getDoc(doc(db,'stats','totals')); if(st.exists()) backup.stats = st.data(); }catch(e){}
+
+    // Télécharger le JSON
+    var blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var today = new Date().toISOString().slice(0,10);
+    a.href = url; a.download = 'youlo182-sauvegarde-'+today+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if(btn){ btn.textContent='✅ Sauvegardé !'; setTimeout(function(){ btn.textContent=oldTxt; btn.disabled=false; }, 2500); }
+  }catch(e){
+    alert('Erreur pendant la sauvegarde : '+e.message);
+    if(btn){ btn.textContent=oldTxt; btn.disabled=false; }
+  }
+}
+document.getElementById('exportBtn').onclick=exportData;
 
 window.sendReply=async function(key,commentId){
   const inp=document.getElementById('rin_'+commentId); const text=inp.value.trim(); if(!text)return;

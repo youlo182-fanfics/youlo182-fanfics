@@ -3,6 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ===== PWA (app installable) ===== -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#8B1E3F">
+<link rel="icon" type="image/png" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Youlo182">
+<!-- ===== Partage social (vignette Insta/Discord/Twitter) ===== -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Youlo182 — Fanfictions">
+<meta property="og:title" content="Youlo182 — Fanfictions Marina & Station 19">
+<meta property="og:description" content="Les fanfictions de Julie Cacciola (Youlo182) — Carina & Maya, en avant-première ici. 💛">
+<meta property="og:image" content="https://youlo182-fanfics.pages.dev/assets/tainted-love-banner.jpeg">
+<meta property="og:url" content="https://youlo182-fanfics.pages.dev/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Youlo182 — Fanfictions Marina & Station 19">
+<meta name="twitter:description" content="Les fanfictions de Julie Cacciola (Youlo182) — Carina & Maya, en avant-première ici. 💛">
+<meta name="twitter:image" content="https://youlo182-fanfics.pages.dev/assets/tainted-love-banner.jpeg">
 <title>Julie Cacciola — Youlo182 · Fanfictions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -382,6 +400,9 @@
 .cmt-del:hover{ border-color:#e63950; color:#e63950; }
 .cmt-edit-area{ width:100%; min-height:60px; background:#0d1c30; border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:8px; font-size:14px; font-family:inherit; box-sizing:border-box; resize:vertical; }
 .cmt-edit-actions{ display:flex; gap:8px; margin-top:6px; }
+
+.share-btn{ background:var(--card); border:1px solid var(--accent-l); color:var(--accent-l); border-radius:22px; padding:9px 18px; font-weight:700; cursor:pointer; font-size:14px; margin-left:8px; }
+.share-btn:hover{ background:var(--accent); color:#fff; }
 </style>
 </head>
 <body>
@@ -532,6 +553,7 @@
     <div class="reader-body" id="readerBody"></div>
     <div class="chapter-actions">
       <button class="like-btn" id="likeBtn">❤️ <span id="likeCount">0</span> J'aime</button>
+      <button class="share-btn" id="shareBtn" title="Partager">🔗 <span id="shareLabel">Partager</span></button>
       <div class="nav-arrows">
         <button id="prevCh">← Précédent</button>
         <button id="nextCh">Suivant →</button>
@@ -565,7 +587,19 @@
     <a href="https://www.thebookedition.com/fr/56271_julie-cacciola" target="_blank">📚 Acheter mes livres (papier)</a>
     <a href="https://open.spotify.com/playlist/4q7nZ7O9VJvyIiJ2J0eT8i" target="_blank">🎵 Ma playlist d'inspiration</a>
   </div>
+  <div style="margin-top:14px;font-size:12px;">
+    <a href="#" id="legalLink" style="color:var(--muted);text-decoration:underline;cursor:pointer;">Mentions légales & confidentialité</a>
+  </div>
 </footer>
+
+<!-- Modale Mentions légales -->
+<div id="legalOverlay" class="auth-overlay">
+  <div class="auth-box" style="max-width:640px;text-align:left;max-height:85vh;overflow-y:auto;">
+    <h2 id="legalTitle" style="font-family:'Cormorant Garamond',serif;color:var(--accent-l);margin-bottom:12px;">Mentions légales & confidentialité</h2>
+    <div id="legalBody" style="font-size:13.5px;line-height:1.6;"></div>
+    <button class="auth-main" id="legalClose" style="margin-top:16px;">Fermer</button>
+  </div>
+</div>
 
 <!-- Auth modal -->
 <div class="auth-overlay" id="authOverlay">
@@ -576,6 +610,10 @@
     <input type="text" id="authDisplayName" placeholder="Ton pseudo (affiché sur tes commentaires)" style="display:none;">
     <input type="email" id="authEmail" placeholder="Ton email">
     <input type="password" id="authPassword" placeholder="Ton mot de passe">
+    <label id="authNewsletterWrap" style="display:none;align-items:flex-start;gap:8px;text-align:left;font-size:13px;color:var(--muted);margin:2px 0 4px;cursor:pointer;">
+      <input type="checkbox" id="authNewsletter" style="margin-top:3px;flex-shrink:0;">
+      <span id="authNewsletterLabel">Je veux recevoir un email quand une nouvelle histoire est publiée 💛</span>
+    </label>
     <button class="auth-main" id="authSubmit">Se connecter</button>
     <div class="auth-toggle" id="authToggle">Pas encore de compte ? <a id="authSwitch">Inscris-toi</a></div>
     <div class="guest-note" id="guestNote">Tu peux aussi lire sans compte — mais ta progression ne sera gardée que sur cet appareil.</div>
@@ -627,9 +665,10 @@ async function initFirebase(){
     auth = getAuth(app);
     db = getFirestore(app);
     firebaseReady=true;
+    loadViewStats().then(function(){ try{ renderLibrary(); }catch(e){} });
     // Wire auth state now that Firebase is up
     onAuthStateChanged(auth, async function(user){
-      currentUser=user; isAuthor = !!(user && user.email===AUTHOR_EMAIL); updateAccountLabel(); updateCommentForm(); renderLibrary();
+      currentUser=user; isAuthor = !!(user && user.email===AUTHOR_EMAIL); updateAccountLabel(); updateCommentForm(); loadViewStats().then(function(){ renderLibrary(); }); renderLibrary();
       if(user){ try{ startNotifications(); }catch(e){console.warn(e);} } else { try{ stopNotifications(); }catch(e){} }
       if(currentBook && document.getElementById('reader').style.display!=='none'){ renderChapter(); }
     });
@@ -1022,6 +1061,7 @@ function renderAuthMode(){
   document.getElementById('authSub').textContent = authMode==='login'?t.authLoginSub:t.authSignupSub;
   document.getElementById('authSubmit').textContent = authMode==='login'?t.authDoLogin:t.authDoSignup;
   document.getElementById('authDisplayName').style.display = authMode==='signup'?'block':'none';
+  var _nlw=document.getElementById('authNewsletterWrap'); if(_nlw) _nlw.style.display = authMode==='signup'?'flex':'none';
   document.getElementById('authToggle').innerHTML = (authMode==='login'? t.authNoAccount+' <a id="authSwitch">'+t.authSwitchSignup+'</a>' : t.authHasAccount+' <a id="authSwitch">'+t.authSwitchLogin+'</a>');
   document.getElementById('authSwitch').onclick=function(){ authMode = authMode==='login'?'signup':'login'; renderAuthMode(); };
 }
@@ -1039,7 +1079,8 @@ document.getElementById('authSubmit').onclick=async function(){
       const name=document.getElementById('authDisplayName').value.trim()||'Anonyme';
       const cred=await createUserWithEmailAndPassword(auth,email,pass);
       await updateProfile(cred.user,{displayName:name});
-      await setDoc(doc(db,'users',cred.user.uid),{displayName:name,email:email,createdAt:serverTimestamp()},{merge:true});
+      var _nl=document.getElementById('authNewsletter'); var wantsNL = !!(_nl && _nl.checked);
+      await setDoc(doc(db,'users',cred.user.uid),{displayName:name,email:email,newsletter:wantsNL,createdAt:serverTimestamp()},{merge:true});
     } else {
       await signInWithEmailAndPassword(auth,email,pass);
     }
@@ -1137,7 +1178,7 @@ function renderLibrary(){
       '<div class="cover">'+coverImg(b)+'</div>'+
       '<div class="book-info" style="flex:1">'+
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;"><h3>'+d.title+'</h3><span class="type-badge">'+TYPE_LABEL[b.type]+'</span></div>'+
-        '<div class="meta">'+total+(lang==='fr'?' chapitre':' chapter')+(total>1?'s':'')+'</div>'+
+        '<div class="meta">'+total+(lang==='fr'?' chapitre':' chapter')+(total>1?'s':'')+(__viewStats[b.id]?(' · 👁️ '+__viewStats[b.id]+(lang==='fr'?' lectures':' reads')):'')+'</div>'+
         '<div class="summary">'+d.summary+'</div>'+
         '<div class="tags">'+b.tags.map(t=>'<span class="tag">'+t+'</span>').join('')+'</div>'+
         '<div class="progress-mini" id="pm_'+b.id+'" style="display:none;"><div class="bar"><div class="fill" style="width:0"></div></div><div class="lbl"></div></div>'+
@@ -1843,6 +1884,17 @@ window.addEventListener('scroll',function(){
 // ---- INIT ----
 // Charge les vraies histoires depuis stories.json (chapitres à la demande).
 // Si le fichier est absent (ex: aperçu hors-ligne), on garde les démos.
+var __viewStats = {};   // bookId -> nombre de vues (depuis stats/totals.byStory)
+async function loadViewStats(){
+  if(!firebaseReady || !db) return;
+  try{
+    var snap = await getDoc(doc(db,'stats','totals'));
+    if(snap.exists()){
+      var by = snap.data().byStory || {};
+      Object.keys(by).forEach(function(id){ __viewStats[id] = (by[id]&&by[id].views)||0; });
+    }
+  }catch(e){ /* silencieux */ }
+}
 async function loadRealStories(){
   try{
     const res = await fetch('stories.json', {cache:'no-store'});
@@ -1998,11 +2050,96 @@ function maybeCelebrate(releaseTs){
   }catch(e){ launchConfetti(5000); }
 }
 
+// ==================== PARTAGE + PWA ====================
+window.shareStory=async function(){
+  var url = location.origin + location.pathname;
+  var title = "Youlo182 — Fanfictions";
+  if(currentBook){
+    var t = (currentBook[lang]&&currentBook[lang].title) || (currentBook.fr&&currentBook.fr.title) || '';
+    title = t + " — Youlo182";
+    url = location.origin + location.pathname + "?story=" + encodeURIComponent(currentBook.id);
+  }
+  var shareData = { title: title, text: (lang==='fr'?'Découvre cette histoire sur Youlo182 💛':'Check out this story on Youlo182 💛'), url: url };
+  try{
+    if(navigator.share){ await navigator.share(shareData); }
+    else {
+      // Fallback ordi : copier le lien
+      await navigator.clipboard.writeText(url);
+      var lbl=document.getElementById('shareLabel');
+      if(lbl){ var old=lbl.textContent; lbl.textContent=(lang==='fr'?'Lien copié !':'Link copied!'); setTimeout(function(){ lbl.textContent=old; }, 2000); }
+    }
+  }catch(e){ /* annulé par l'utilisateur : rien à faire */ }
+};
+(function(){
+  var sb=document.getElementById('shareBtn');
+  if(sb){ sb.addEventListener('click', shareStory); }
+})();
+
+// Ouvrir directement une histoire si ?story=ID dans l'URL
+function openStoryFromURL(){
+  try{
+    var params = new URLSearchParams(location.search);
+    var sid = params.get('story');
+    if(sid && typeof openBook==='function'){
+      var b = BOOKS.find(function(x){return x.id===sid;});
+      if(b){ setTimeout(function(){ openBook(sid); }, 300); }
+    }
+  }catch(e){}
+}
+
+// Enregistrer le service worker (PWA installable)
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('SW', e.message); });
+  });
+}
+
+// ==================== MENTIONS LÉGALES ====================
+var LEGAL = {
+  fr: {
+    title: "Mentions légales & confidentialité",
+    html: "<h3 style='color:var(--accent-l);margin:14px 0 6px;'>📖 Disclaimer fanfiction</h3>"
+      + "<p>Ce site est un espace personnel et <strong>non officiel</strong>, sans but lucratif. Les personnages et univers évoqués (Station 19, etc.) appartiennent à leurs créateurs, chaînes et ayants droit respectifs. Ces récits sont des œuvres de fiction écrites par passion et ne revendiquent aucun lien officiel avec les œuvres d'origine ni avec les personnes réelles.</p>"
+      + "<h3 style='color:var(--accent-l);margin:14px 0 6px;'>🎨 À propos des couvertures</h3>"
+      + "<p>La plupart des couvertures sont générées par intelligence artificielle, afin de ne pas utiliser l'image réelle des actrices. <strong>En revanche, les histoires ne sont pas écrites par une IA : elles sont entièrement écrites par Julie Cacciola (Youlo182).</strong></p>"
+      + "<h3 style='color:var(--accent-l);margin:14px 0 6px;'>🔒 Confidentialité (RGPD)</h3>"
+      + "<p>Si tu crées un compte, les données suivantes sont enregistrées : ton <strong>adresse email</strong>, ton <strong>pseudo</strong>, ta progression de lecture, tes j'aime et tes commentaires. Ces données servent uniquement au fonctionnement du site (te reconnaître, garder ta progression, afficher tes commentaires). Elles sont stockées de façon sécurisée via Google Firebase et ne sont <strong>jamais vendues ni partagées</strong>.</p>"
+      + "<p>Si tu as coché l'option newsletter, ton email pourra être utilisé pour t'informer des nouvelles publications. Tu peux te désinscrire à tout moment.</p>"
+      + "<p>Pour demander l'accès à tes données ou leur suppression, contacte-moi via mes réseaux (voir bas de page). 💛</p>"
+  },
+  en: {
+    title: "Legal notice & privacy",
+    html: "<h3 style='color:var(--accent-l);margin:14px 0 6px;'>📖 Fanfiction disclaimer</h3>"
+      + "<p>This is a personal, <strong>unofficial</strong>, non-profit space. The characters and universes referenced (Station 19, etc.) belong to their respective creators, networks and rights holders. These are works of fiction written out of passion, with no official connection to the original works or to real people.</p>"
+      + "<h3 style='color:var(--accent-l);margin:14px 0 6px;'>🎨 About the covers</h3>"
+      + "<p>Most covers are AI-generated, so as not to use the actresses' real likeness. <strong>However, the stories are NOT written by AI: they are entirely written by Julie Cacciola (Youlo182).</strong></p>"
+      + "<h3 style='color:var(--accent-l);margin:14px 0 6px;'>🔒 Privacy (GDPR)</h3>"
+      + "<p>If you create an account, the following data is stored: your <strong>email</strong>, your <strong>display name</strong>, your reading progress, your likes and your comments. This data is only used to run the site (recognise you, keep your progress, show your comments). It is stored securely via Google Firebase and is <strong>never sold or shared</strong>.</p>"
+      + "<p>If you ticked the newsletter option, your email may be used to notify you of new releases. You can unsubscribe at any time.</p>"
+      + "<p>To request access to or deletion of your data, contact me via my socials (see footer). 💛</p>"
+  }
+};
+(function(){
+  var link=document.getElementById('legalLink');
+  var overlay=document.getElementById('legalOverlay');
+  var closeBtn=document.getElementById('legalClose');
+  function openLegal(e){ if(e) e.preventDefault();
+    var L=LEGAL[lang]||LEGAL.fr;
+    document.getElementById('legalTitle').textContent=L.title;
+    document.getElementById('legalBody').innerHTML=L.html;
+    if(overlay) overlay.classList.add('show');
+  }
+  if(link) link.addEventListener('click', openLegal);
+  if(closeBtn) closeBtn.addEventListener('click', function(){ overlay.classList.remove('show'); });
+  if(overlay) overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.classList.remove('show'); });
+})();
+
 async function __init(){
   try{ applyUILang(); }catch(e){ console.error('applyUILang',e); }
   await loadRealStories();
   try{ renderLibrary(); }catch(e){ console.error('renderLibrary',e); }
   try{ initTeaser(); }catch(e){ console.error('initTeaser',e); }
+  try{ openStoryFromURL(); }catch(e){}
 }
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',__init); } else { __init(); }
 initFirebase();

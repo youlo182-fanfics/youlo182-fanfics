@@ -1527,33 +1527,6 @@
    "cover": "stories/covers/in-the-air-dans-les-airs.jpg"
   },
   {
-   "id": "os-045-station-19-6x05-la-r-conciliation-fr",
-   "type": "oneshot",
-   "emoji": "💫",
-   "path": "stories/oneshots/os-045-station-19-6x05-la-r-conciliation-fr",
-   "onlyLang": "fr",
-   "tags": [
-    "Station 19",
-    "Marina",
-    "One Shot"
-   ],
-   "fr": {
-    "title": "Station 19 - 6x05 - la réconciliation",
-    "summary": "",
-    "chapters": [
-     "Station 19 - 6x05 - la réconciliation"
-    ]
-   },
-   "en": {
-    "title": "Station 19 - 6x05 - la réconciliation",
-    "summary": "",
-    "chapters": [
-     "Station 19 - 6x05 - la réconciliation"
-    ]
-   },
-   "oscat": "station19"
-  },
-  {
    "id": "os-046-all-i-want-for-christmas-is-you-fr",
    "type": "oneshot",
    "emoji": "💫",
@@ -3681,24 +3654,23 @@
    "type": "oneshot",
    "emoji": "💫",
    "path": "stories/oneshots/os-039-station-19-6x05-the-reconciliation-en",
-   "onlyLang": "en",
    "tags": [
     "Station 19",
     "Marina",
     "One Shot"
    ],
    "fr": {
-    "title": "Station 19 - 6x05 - the reconciliation",
+    "title": "Station 19 - 6x05 - La réconciliation",
     "summary": "",
     "chapters": [
-     "Station 19 - 6x05 - the reconciliation"
+     "Station 19 - 6x05 - La réconciliation"
     ]
    },
    "en": {
-    "title": "Station 19 - 6x05 - the reconciliation",
+    "title": "Station 19 - 6x05 - The reconciliation",
     "summary": "",
     "chapters": [
-     "Station 19 - 6x05 - the reconciliation"
+     "Station 19 - 6x05 - The reconciliation"
     ]
    },
    "oscat": "station19",
