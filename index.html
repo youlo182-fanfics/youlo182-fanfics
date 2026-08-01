@@ -318,8 +318,8 @@
   border-radius:18px; overflow:hidden; box-shadow:0 8px 28px rgba(0,0,0,.4); margin-top:14px;
 }
 .about-photo{
-  width:300px; flex-shrink:0; object-fit:cover; object-position:center top;
-  display:block; align-self:stretch;
+  width:300px; flex-shrink:0; object-fit:contain; object-position:center top;
+  display:block; align-self:flex-start; background:#0d1c30;
 }
 .about-text{ flex:1; min-width:260px; padding:28px 30px; }
 .about-text h2{
@@ -331,7 +331,7 @@
 .about-sign{ margin-top:16px; color:var(--accent-l); font-style:italic; font-size:15px; }
 @media (max-width:640px){
   .about-card{ flex-direction:column; }
-  .about-photo{ width:100%; height:auto; max-height:340px; object-fit:cover; }
+  .about-photo{ width:100%; height:auto; max-height:none; object-fit:contain; background:#0d1c30; }
   .about-text{ padding:22px 18px; }
   .about-text h2{ font-size:24px; }
 }
