@@ -662,6 +662,17 @@
   </div>
 </div>
 
+<!-- Popup : reprendre la lecture où on s'est arrêté -->
+<div class="overlay" id="resumeOverlay">
+  <div class="popup">
+    <h3 id="resumeTitle">📖 Reprendre ta lecture ?</h3>
+    <p id="resumeText">Tu t'étais arrêtée en cours de lecture. Veux-tu reprendre où tu en étais ?</p>
+    <div class="pop-actions">
+      <button class="pop-like" id="resumeYes">📖 Reprendre ma lecture</button>
+      <button class="pop-skip" id="resumeNo">Recommencer depuis le début</button>
+    </div>
+  </div>
+</div>
 <script type="module">
 // Firebase functions are loaded dynamically so the site still renders even if
 // the CDN import is blocked (e.g. sandboxed preview). All FB calls null-check first.
@@ -1167,6 +1178,81 @@ async function setProgress(bookId,ch){
   }
 }
 
+// ===== REPRISE AU SCROLL (position de lecture dans un chapitre / OS) =====
+// Économe en Firebase : la position est gardée en LOCAL (localStorage) en priorité.
+// Pour les connectés, on ne l'écrit dans Firebase qu'au moment de quitter le chapitre
+// (pas en continu) — donc au plus 1 écriture, pas des centaines.
+function scrollKey(){ return 'scroll_'+currentBook.id+'_'+lang+'_'+currentCh; }
+// Fraction de lecture (0..1) actuellement atteinte dans la page.
+function currentScrollFrac(){
+  var h=document.documentElement.scrollHeight-window.innerHeight;
+  return h>0 ? Math.min(1, Math.max(0, window.scrollY/h)) : 0;
+}
+// Sauvegarde LOCALE immédiate (appelée pendant le scroll, sans toucher Firebase).
+function saveScrollLocal(){
+  if(!currentBook) return;
+  try{ safeSet(scrollKey(), String(currentScrollFrac())); }catch(e){}
+}
+// Sauvegarde la position dans Firebase (connectés) — appelée seulement en quittant le chapitre.
+function flushScrollToCloud(){
+  if(!currentBook) return;
+  var frac=currentScrollFrac();
+  try{ safeSet(scrollKey(), String(frac)); }catch(e){}
+  if(currentUser && firebaseReady && db){
+    try{ setDoc(doc(db,'users',currentUser.uid,'progress',currentBook.id+'_'+lang),{ch:currentCh, sc:frac, updatedAt:serverTimestamp()},{merge:true}); }catch(e){}
+  }
+}
+// Lit la position mémorisée (local d'abord, sinon la valeur cloud passée en secours).
+function getSavedScrollFrac(cloudFrac){
+  try{
+    var v=safeGet(scrollKey(), null);
+    if(v!==null){ var f=parseFloat(v); if(!isNaN(f)) return f; }
+  }catch(e){}
+  return (typeof cloudFrac==='number' && !isNaN(cloudFrac)) ? cloudFrac : 0;
+}
+// Ramène le lecteur à sa position, en douceur, après le rendu du texte.
+// Fait défiler jusqu'à une fraction (0..1) de la page, en recalculant plusieurs
+// fois car la hauteur change au fur et à mesure que les images se chargent.
+function scrollToFrac(frac){
+  function place(smooth){
+    var h=document.documentElement.scrollHeight-window.innerHeight;
+    if(h>0){ window.scrollTo({top:h*frac, behavior: smooth?'smooth':'auto'}); }
+  }
+  setTimeout(function(){ place(false); }, 150);
+  setTimeout(function(){ place(true); }, 650);
+  try{
+    var imgs=document.querySelectorAll('#readerBody img');
+    var pending=0;
+    imgs.forEach(function(im){ if(!im.complete){ pending++; im.addEventListener('load', function(){ pending--; if(pending<=0) place(false); }, {once:true}); } });
+  }catch(e){}
+}
+// À l'ouverture d'un chapitre : si une position est mémorisée, proposer une popup
+// "Reprendre / Recommencer". Sinon on reste en haut.
+function restoreScroll(cloudFrac){
+  var frac=getSavedScrollFrac(cloudFrac);
+  window.__resumeFrac = frac;
+  if(frac<=0.02){ window.scrollTo(0,0); return; }   // début de lecture : rien à proposer
+  var ov=document.getElementById('resumeOverlay');
+  var pct=Math.round(frac*100);
+  var txt=document.getElementById('resumeText');
+  if(txt) txt.textContent = (lang==='fr'
+    ? ('Tu t\'étais arrêtée à environ '+pct+'% de ta lecture. Veux-tu reprendre où tu en étais ?')
+    : ('You stopped at about '+pct+'% of your reading. Do you want to resume where you left off?'));
+  var t=document.getElementById('resumeTitle'); if(t) t.textContent=(lang==='fr'?'📖 Reprendre ta lecture ?':'📖 Resume your reading?');
+  var yes=document.getElementById('resumeYes'); if(yes) yes.textContent=(lang==='fr'?'📖 Reprendre ma lecture':'📖 Resume reading');
+  var no=document.getElementById('resumeNo'); if(no) no.textContent=(lang==='fr'?'Recommencer depuis le début':'Start from the beginning');
+  if(ov) ov.classList.add('show');
+}
+window.doResume=function(){
+  var ov=document.getElementById('resumeOverlay'); if(ov) ov.classList.remove('show');
+  scrollToFrac(window.__resumeFrac||0);
+};
+window.doRestart=function(){
+  var ov=document.getElementById('resumeOverlay'); if(ov) ov.classList.remove('show');
+  try{ safeSet(scrollKey(), '0'); }catch(e){}   // oublie la position mémorisée
+  window.scrollTo(0,0);
+};
+
 // ---- LIBRARY ----
 // ---- LIBRARY (niveau 1 : catégories + sagas regroupées) ----
 function renderLibrary(){
@@ -1376,10 +1462,12 @@ window.openBook=async function(id){
   let p={ch:0};
   try{ p=await getProgress(id+'_'+lang); }catch(e){}
   currentCh=(p&&p.ch)||0;
+  // Position de lecture cloud (secours si pas de valeur locale). Utilisée par renderChapter.
+  window.__pendingScrollFrac = (p && typeof p.sc==='number') ? p.sc : null;
   countView(id);   // compte une vue (tous lecteurs, inscrits ou non)
   document.getElementById('library').style.display='none';
   document.getElementById('reader').style.display='block';
-  renderChapter(); window.scrollTo(0,0);
+  renderChapter();
 };
 
 function renderChapterNav(){
@@ -1441,14 +1529,24 @@ async function renderChapter(){
   subscribeComments();
   document.getElementById('prevCh').disabled=(currentCh===0);
   document.getElementById('nextCh').disabled=(currentCh===d.chapters.length-1);
+  // Reprise de lecture : si on vient d'ouvrir le livre, on restaure la position mémorisée.
+  // Sinon (navigation entre chapitres), on remonte en haut du nouveau chapitre.
+  if(typeof window.__pendingScrollFrac !== 'undefined'){
+    var cloud = window.__pendingScrollFrac;
+    window.__pendingScrollFrac = undefined;   // ne s'applique qu'à l'ouverture
+    restoreScroll(cloud);
+  } else {
+    window.scrollTo(0,0);
+  }
 }
 
-document.getElementById('prevCh').onclick=()=>{ if(currentCh>0){currentCh--;renderChapter();window.scrollTo(0,0);} };
+document.getElementById('prevCh').onclick=()=>{ if(currentCh>0){ flushScrollToCloud(); currentCh--; renderChapter(); window.scrollTo(0,0);} };
 document.getElementById('nextCh').onclick=function(){
   const total=currentBook[lang].chapters.length;
   if(currentCh<total-1){ pendingNext=currentCh+1; document.getElementById('overlay').classList.add('show'); }
 };
 document.getElementById('backBtn').onclick=function(){
+  flushScrollToCloud();   // mémorise la position avant de quitter la lecture
   // Revenir à la liste des tomes si on lisait un tome de saga, sinon à la bibliothèque
   if(currentBook && currentBook.serie){ openSaga(currentBook.serie); } else { renderLibrary(); }
 };
@@ -2012,6 +2110,7 @@ window.openNotif=async function(nid){
       document.getElementById('library').style.display='none';
       var ab=document.getElementById('about'); if(ab) ab.style.display='none';
       document.getElementById('reader').style.display='block';
+      window.__pendingScrollFrac = undefined;   // pas de reprise ici : on va scroller vers le commentaire
       renderChapter();
       // après rendu, défiler vers les commentaires + surligner
       setTimeout(function(){
@@ -2070,17 +2169,31 @@ document.getElementById('cSend').onclick=async function(){
 // ---- POPUP ----
 function advance(){
   document.getElementById('overlay').classList.remove('show');
+  flushScrollToCloud();   // mémorise la position du chapitre qu'on quitte
   if(pendingNext!==null){ currentCh=pendingNext; pendingNext=null; renderChapter(); window.scrollTo(0,0); }
 }
 document.getElementById('popLike').onclick=function(){ doLike(); advance(); };
 document.getElementById('popComment').onclick=function(){ document.getElementById('overlay').classList.remove('show'); pendingNext=null; document.getElementById('cText').focus(); document.getElementById('cText').scrollIntoView({behavior:'smooth'}); };
 document.getElementById('popSkip').onclick=function(){ advance(); };
+// Popup de reprise de lecture
+var __rY=document.getElementById('resumeYes'); if(__rY) __rY.onclick=function(){ doResume(); };
+var __rN=document.getElementById('resumeNo'); if(__rN) __rN.onclick=function(){ doRestart(); };
+var __rO=document.getElementById('resumeOverlay'); if(__rO) __rO.onclick=function(e){ if(e.target===__rO){ doResume(); } };  // clic hors popup = reprendre
 
 // ---- READING PROGRESS BAR ----
+var __scrollSaveTimer=null;
 window.addEventListener('scroll',function(){
   if(document.getElementById('reader').style.display==='none')return;
   const h=document.documentElement.scrollHeight-window.innerHeight;
   document.getElementById('readProgress').style.width=(h>0?(window.scrollY/h)*100:0)+'%';
+  // Mémorise la position en LOCAL (débounce 400ms) — aucune écriture Firebase ici.
+  if(__scrollSaveTimer) clearTimeout(__scrollSaveTimer);
+  __scrollSaveTimer=setTimeout(saveScrollLocal, 400);
+});
+// Quand le lecteur quitte/masque la page, on pousse la position (une fois) vers Firebase si connecté.
+window.addEventListener('pagehide', function(){ try{ flushScrollToCloud(); }catch(e){} });
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='hidden'){ try{ flushScrollToCloud(); }catch(e){} }
 });
 
 // ---- INIT ----
