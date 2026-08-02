@@ -834,18 +834,19 @@ function renderAbout(){
 }
 // ---- Like + commentaires sur la page À propos (clé Firebase fixe "about") ----
 var __unsubAboutLike=null, __unsubAboutComments=null;
-function subscribeAboutLike(){
+// Lectures PONCTUELLES (plus de listener temps réel).
+async function subscribeAboutLike(){
   if(!firebaseReady||!db) return;
-  if(__unsubAboutLike){ __unsubAboutLike(); __unsubAboutLike=null; }
   var ref=doc(db,'likes','about');
-  __unsubAboutLike=onSnapshot(ref,function(snap){
+  try{
+    var snap=await getDoc(ref);
     var data=snap.exists()?snap.data():{count:0,users:{}};
     var count=data.count||0;
     var liked = !!(currentUser && data.users && data.users[currentUser.uid]);
     var cEl=document.getElementById('aboutLikeCount'); if(cEl) cEl.textContent=count;
     var btn=document.getElementById('aboutLikeBtn');
     if(btn){ btn.className='like-btn'+(liked?' liked':''); var h=btn.querySelector('.heart'); if(h) h.textContent=liked?'❤️':'🤍'; }
-  }, function(){});
+  }catch(e){ /* silencieux */ }
 }
 window.doAboutLike=async function(){
   if(!firebaseReady||!db){ return; }
@@ -860,17 +861,16 @@ window.doAboutLike=async function(){
       else { data.users[currentUser.uid]=true; data.count=(data.count||0)+1; }
       tx.set(ref,data);
     });
+    subscribeAboutLike();   // recharge l'affichage après le clic
   }catch(e){ console.warn('aboutLike',e.message); }
 };
-function subscribeAboutComments(){
+async function subscribeAboutComments(){
   if(!firebaseReady||!db){ var l=document.getElementById('aboutCommentList'); if(l) l.innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les mots 💬':'Sign in online to see notes 💬')+'</div>'; return; }
-  if(__unsubAboutComments){ __unsubAboutComments(); __unsubAboutComments=null; }
   var q=query(collection(db,'comments','about','items'), orderBy('ts','desc'));
-  clearAboutReplyUnsubs();
-  __unsubAboutComments=onSnapshot(q,function(snap){
-    var list=document.getElementById('aboutCommentList'); if(!list) return;
-    if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois la première personne à me laisser un mot 💌':'Be the first to leave me a note 💌')+'</div>'; return; }
-    clearAboutReplyUnsubs();
+  var snap;
+  try{ snap=await getDocs(q); }catch(e){ console.warn('aboutComments',(e&&e.message)||e); return; }
+  var list=document.getElementById('aboutCommentList'); if(!list) return;
+  if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois la première personne à me laisser un mot 💌':'Be the first to leave me a note 💌')+'</div>'; return; }
     var out='';
     snap.forEach(function(d){ var c=d.data(); var cid=d.id;
       var isA = c.name==='Youlo182';
@@ -878,20 +878,19 @@ function subscribeAboutComments(){
       out+='<div class="comment"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(c.name||'Anonyme')+'</div><div class="txt">'+escapeHtml(c.text||'')+'</div><div id="abar_'+cid+'"></div>'+replyForm+'</div>';
     });
     list.innerHTML=out;
-    // Abonnement aux réponses de chaque commentaire About
-    snap.forEach(function(d){
+    // Charger les réponses de chaque commentaire en UNE lecture chacune (pas de listener).
+    for(const d of snap.docs){
       var cid=d.id;
       var rq=query(collection(db,'comments','about','items',cid,'replies'), orderBy('ts','asc'));
-      var u=onSnapshot(rq,function(rsnap){
-        var el=document.getElementById('abar_'+cid); if(!el)return;
+      try{
+        var rsnap=await getDocs(rq);
+        var el=document.getElementById('abar_'+cid); if(!el) continue;
         var rout='';
         rsnap.forEach(function(rd){ var r=rd.data(); var ra = r.admin===true || r.name==='Youlo182';
           rout+='<div class="'+(ra?'author-reply':'reader-reply')+'"><div class="who">'+(ra?'✍️ ':'')+escapeHtml(r.name||'Anonyme')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
         el.innerHTML=rout;
-      }, function(){});
-      __aboutReplyUnsubs.push(u);
-    });
-  }, function(){});
+      }catch(e){ /* silencieux */ }
+    }
 }
 var __aboutReplyUnsubs=[];
 function clearAboutReplyUnsubs(){ __aboutReplyUnsubs.forEach(function(u){ try{u();}catch(e){} }); __aboutReplyUnsubs=[]; }
@@ -907,6 +906,7 @@ window.postAboutReply=async function(cid){
     await addDoc(collection(db,'comments','about','items',cid,'replies'), payload);
     inp.value='';
     try{ await createReplyNotification('about', cid, replierName, text); }catch(e){ console.warn('notif about',e.message); }
+    subscribeAboutComments();   // recharge pour afficher la nouvelle réponse
   }catch(e){ alert('Oops: '+e.message); }
 };
 function initAboutInteract(){
@@ -920,6 +920,7 @@ function initAboutInteract(){
       try{
         await addDoc(collection(db,'comments','about','items'),{ name: currentUser.displayName||'Anonyme', uid: currentUser.uid, text: text, ts: serverTimestamp() });
         ta.value='';
+        subscribeAboutComments();   // recharge pour afficher le nouveau mot
       }catch(e){ alert('Oops: '+e.message); }
     };
   }
@@ -1277,22 +1278,56 @@ window.openSaga=function(name){
 const __viewedThisSession = {};
 // Compteurs agrégés : un seul doc stats/totals mis à jour à chaque événement.
 // Permet au dashboard d'être instantané (une seule lecture) quel que soit le catalogue.
+// IMPORTANT : cette mise à jour est "best-effort". Le document stats/totals est
+// partagé par TOUS les lecteurs, donc en cas de trafic il peut y avoir de la
+// contention (Firestore limite ~1 écriture/seconde par document). On réessaie
+// donc avec un petit délai, et si ça échoue on met l'incrément dans une file
+// locale qu'on retente plus tard — sans JAMAIS bloquer le like/commentaire/vue.
+const __statsQueue = [];   // { field, delta, bookId } en attente de réécriture
+let __statsFlushTimer = null;
+
+async function __writeBump(field, delta, bookId){
+  const ref = doc(db, 'stats', 'totals');
+  await runTransaction(db, async function(tx){
+    const s = await tx.get(ref);
+    const data = s.exists() ? s.data() : {};
+    data[field] = (data[field]||0) + delta;                 // total global
+    if(bookId){
+      data.byStory = data.byStory || {};
+      data.byStory[bookId] = data.byStory[bookId] || {views:0,likes:0,comments:0};
+      data.byStory[bookId][field] = (data.byStory[bookId][field]||0) + delta;
+    }
+    tx.set(ref, data, {merge:true});
+  });
+}
+
+function __scheduleStatsFlush(){
+  if(__statsFlushTimer) return;
+  __statsFlushTimer = setTimeout(async function(){
+    __statsFlushTimer = null;
+    if(!__statsQueue.length) return;
+    const job = __statsQueue.shift();
+    try{ await __writeBump(job.field, job.delta, job.bookId); }
+    catch(e){ __statsQueue.unshift(job); }   // remet en tête si ça échoue encore
+    if(__statsQueue.length) __scheduleStatsFlush();
+  }, 1500 + Math.random()*1000);   // délai pour laisser la contention retomber
+}
+
 async function bumpTotals(field, delta, bookId){
   if(!firebaseReady || !db) return;
-  try{
-    const ref = doc(db, 'stats', 'totals');
-    await runTransaction(db, async function(tx){
-      const s = await tx.get(ref);
-      const data = s.exists() ? s.data() : {};
-      data[field] = (data[field]||0) + delta;                 // total global
-      if(bookId){
-        data.byStory = data.byStory || {};
-        data.byStory[bookId] = data.byStory[bookId] || {views:0,likes:0,comments:0};
-        data.byStory[bookId][field] = (data.byStory[bookId][field]||0) + delta;
-      }
-      tx.set(ref, data, {merge:true});
-    });
-  }catch(e){ /* silencieux */ }
+  // 1re tentative immédiate, avec un réessai rapide
+  for(let n=0;n<2;n++){
+    try{ await __writeBump(field, delta, bookId); return; }
+    catch(e){
+      const code=(e && (e.code||e.message||'')).toString();
+      const transient=/unavailable|aborted|deadline|resource-exhausted|Quota|contention/i.test(code);
+      if(transient && n===0){ await new Promise(r=>setTimeout(r,400+Math.random()*300)); continue; }
+      // échec : on ne perd pas l'incrément, on le met en file pour plus tard
+      __statsQueue.push({field, delta, bookId});
+      __scheduleStatsFlush();
+      return;   // ne bloque jamais l'appelant
+    }
+  }
 }
 async function countView(bookId){
   if(!firebaseReady || !db) return;
@@ -1391,18 +1426,22 @@ document.getElementById('backBtn').onclick=function(){
 };
 
 // ---- LIKES (Firestore, per chapter; each user max 1 like) ----
-function subscribeLikes(){
+// Lecture PONCTUELLE de l'état des likes (plus de listener temps réel).
+// On lit une fois au chargement du chapitre ; le clic met à jour l'affichage
+// localement (voir doLike). subscribeLikes reste un alias pour compatibilité.
+function subscribeLikes(){ return loadLikes(); }
+async function loadLikes(){
   if(!firebaseReady||!db) return;
-  if(unsubLikes){ unsubLikes(); unsubLikes=null; }
   const key=chapterKey();
   const ref=doc(db,'likes',key);
-  unsubLikes=onSnapshot(ref,function(snap){
+  try{
+    const snap=await getDoc(ref);
     const data=snap.exists()?snap.data():{count:0,users:{}};
     const count=data.count||0;
     myLiked = !!(currentUser && data.users && data.users[currentUser.uid]);
-    document.getElementById('likeCount').textContent=count;
-    document.getElementById('likeBtn').className='like-btn'+(myLiked?' liked':'');
-  }, function(){});
+    const cEl=document.getElementById('likeCount'); if(cEl) cEl.textContent=count;
+    const bEl=document.getElementById('likeBtn'); if(bEl) bEl.className='like-btn'+(myLiked?' liked':'');
+  }catch(e){ /* silencieux : l'affichage garde l'état précédent */ }
 }
 async function doLike(){
   if(!firebaseReady||!db){ return; }
@@ -1437,6 +1476,13 @@ async function doLike(){
   }
   try{
     await attempt(3);
+    // Mise à jour LOCALE de l'affichage (plus de listener temps réel pour le faire).
+    if(likeDelta!==0){
+      myLiked = (likeDelta>0);
+      const cEl=document.getElementById('likeCount');
+      if(cEl){ const cur=parseInt(cEl.textContent,10)||0; cEl.textContent=Math.max(0,cur+likeDelta); }
+      if(btn) btn.className='like-btn'+(myLiked?' liked':'');
+    }
     // Les stats globales sont "best-effort" : si elles échouent (quota/contention),
     // le like reste enregistré et on n'affiche jamais d'erreur bloquante.
     if(likeDelta!==0 && currentBook){ try{ bumpTotals('likes', likeDelta, currentBook.id); }catch(_){} }
@@ -1456,17 +1502,23 @@ document.getElementById('likeBtn').onclick=function(){ doLike(); };
 // ---- COMMENTS (Firestore, live) ----
 let replyUnsubs=[];
 function clearReplyUnsubs(){ replyUnsubs.forEach(function(u){ try{u();}catch(e){} }); replyUnsubs=[]; }
-function subscribeComments(){
+// Lecture PONCTUELLE des commentaires (plus de listener temps réel : on ne
+// re-lit Firestore que quand c'est nécessaire — au chargement du chapitre et
+// après chaque action de l'utilisateur). Économise énormément de lectures.
+// subscribeComments est conservé comme alias pour rester compatible avec le
+// bouton "Annuler" de l'édition et les appels existants.
+function subscribeComments(){ return loadComments(); }
+async function loadComments(){
   if(!firebaseReady||!db){ document.getElementById('commentList').innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les commentaires 💬':'Sign in online to see comments 💬')+'</div>'; return; }
-  if(unsubComments){ unsubComments(); unsubComments=null; }
-  clearReplyUnsubs();
   const key=chapterKey();
   const q=query(collection(db,'comments',key,'items'), orderBy('ts','desc'));
-  unsubComments=onSnapshot(q,function(snap){
-    const list=document.getElementById('commentList');
-    if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois le premier à laisser un mot 💌':'Be the first to leave a note 💌')+'</div>'; return; }
-    clearReplyUnsubs();
-    let out='';
+  let snap;
+  try{ snap=await getDocs(q); }
+  catch(e){ console.warn('loadComments', (e&&e.message)||e); return; }
+  const list=document.getElementById('commentList');
+  if(!list) return;
+  if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois le premier à laisser un mot 💌':'Be the first to leave a note 💌')+'</div>'; return; }
+  let out='';
     var __allC=[];
     snap.forEach(function(d){ __allC.push({id:d.id, data:d.data()}); });
     snap.forEach(function(d){ const c=d.data(); const cid=d.id;
@@ -1485,22 +1537,21 @@ function subscribeComments(){
       out+='<div class="comment" data-cid="'+cid+'">'+quote+'<div class="who">'+escapeHtml(c.name||'Anonyme')+'</div><div class="txt" id="ctxt_'+cid+'">'+escapeHtml(c.text||'')+'</div>'+actions+'<div id="ar_'+cid+'"></div>'+authorBox+'</div>';
     });
     list.innerHTML=out;
-    // Subscribe to each comment's replies (author answers)
-    snap.forEach(function(d){
+    // Charger les réponses de chaque commentaire en UNE lecture chacune (pas de listener).
+    for(const d of snap.docs){
       const cid=d.id;
       const rq=query(collection(db,'comments',key,'items',cid,'replies'), orderBy('ts','asc'));
-      const u=onSnapshot(rq,function(rsnap){
-        const el=document.getElementById('ar_'+cid); if(!el)return;
+      try{
+        const rsnap=await getDocs(rq);
+        const el=document.getElementById('ar_'+cid); if(!el) continue;
         let rout='';
         rsnap.forEach(function(rd){ const r=rd.data(); var isA = r.admin===true || r.name==='Youlo182';
           rout+='<div class="'+(isA?'author-reply':'reader-reply')+'"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(r.name||'Anonyme')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
         el.innerHTML=rout;
-      }, function(){});
-      replyUnsubs.push(u);
-    });
+      }catch(e){ /* silencieux : une réponse manquante ne doit pas casser l'affichage */ }
+    }
     // Surligner les passages commentes dans le texte du chapitre
     try{ highlightQuotedPassages(__allC); }catch(e){ console.warn('highlight:', e.message); }
-  }, function(){});
 }
 
 // Regroupe les commentaires par passage cite et surligne le texte + pastille cliquable
@@ -1644,6 +1695,7 @@ async function sendPassageComment(){
     if(currentBook){ bumpTotals('comments', 1, currentBook.id); }
     closePassagePopup();
     var s=window.getSelection(); if(s) s.removeAllRanges();
+    loadComments();   // recharge la liste pour afficher le nouveau commentaire
   }catch(e){ alert('Oops: '+e.message); }
 }
 
@@ -1733,6 +1785,7 @@ window.saveComment=async function(cid){
   var key=chapterKey();
   try{
     await updateDoc(doc(db,'comments',key,'items',cid), { text:newText, edited:true });
+    loadComments();   // recharge pour afficher le texte modifié
   }catch(e){ alert('Oops: '+e.message); }
 };
 // ---- Supprimer un commentaire (proprietaire OU autrice) ----
@@ -1744,6 +1797,7 @@ window.deleteComment=async function(cid, asAuthor){
   var key=chapterKey();
   try{
     await deleteDoc(doc(db,'comments',key,'items',cid));
+    loadComments();   // recharge pour retirer le commentaire supprimé
   }catch(e){ alert('Oops: '+e.message); }
 };
 
@@ -1761,6 +1815,7 @@ window.postReply=async function(cid){
     inp.value='';
     // Créer une notification pour l'auteur du commentaire parent
     try{ await createReplyNotification(key, cid, replierName, text); }catch(e){ console.warn('notif',e.message); }
+    loadComments();   // recharge pour afficher la nouvelle réponse
   }catch(e){ alert('Oops: '+e.message); }
 };
 
@@ -1812,20 +1867,25 @@ async function createReplyNotification(key, cid, replierName, text){
 
 // ==================== CLOCHE DE NOTIFICATIONS ====================
 var __unsubNotifs=null; var __notifs=[];
+// Lecture PONCTUELLE des notifications (plus de listener permanent).
+// On charge à la connexion, puis on rafraîchit à l'ouverture de la cloche.
+async function refreshNotifs(){
+  if(!firebaseReady||!db||!currentUser) return;
+  var q=query(collection(db,'notifications',currentUser.uid,'items'), orderBy('ts','desc'));
+  try{
+    var snap=await getDocs(q);
+    __notifs=[];
+    snap.forEach(function(d){ __notifs.push(Object.assign({id:d.id}, d.data())); });
+    renderNotifs();
+  }catch(e){ console.warn('notifs',(e&&e.message)||e); }
+}
 function startNotifications(){
   var wrap=document.getElementById('bellWrap');
   if(!firebaseReady||!db||!currentUser){ if(wrap) wrap.style.display='none'; return; }
   if(wrap) wrap.style.display='inline-block';
-  if(__unsubNotifs){ __unsubNotifs(); __unsubNotifs=null; }
-  var q=query(collection(db,'notifications',currentUser.uid,'items'), orderBy('ts','desc'));
-  __unsubNotifs=onSnapshot(q,function(snap){
-    __notifs=[];
-    snap.forEach(function(d){ __notifs.push(Object.assign({id:d.id}, d.data())); });
-    renderNotifs();
-  }, function(e){ console.warn('notifs',e.message); });
+  refreshNotifs();
 }
 function stopNotifications(){
-  if(__unsubNotifs){ __unsubNotifs(); __unsubNotifs=null; }
   __notifs=[];
   var wrap=document.getElementById('bellWrap'); if(wrap) wrap.style.display='none';
 }
@@ -1854,7 +1914,7 @@ function renderNotifs(){
 window.openNotif=async function(nid){
   var n=__notifs.find(function(x){return x.id===nid;}); if(!n) return;
   // marquer comme lu
-  try{ if(!n.read && currentUser){ await setDoc(doc(db,'notifications',currentUser.uid,'items',nid),{read:true},{merge:true}); } }catch(e){}
+  try{ if(!n.read && currentUser){ await setDoc(doc(db,'notifications',currentUser.uid,'items',nid),{read:true},{merge:true}); n.read=true; renderNotifs(); } }catch(e){}
   // fermer le panneau
   var panel=document.getElementById('notifPanel'); if(panel) panel.style.display='none';
   // naviguer vers le chapitre + commentaire
@@ -1897,6 +1957,8 @@ document.addEventListener('click', function(e){
     e.stopPropagation();
     var willShow = (panel.style.display!=='block');
     panel.style.display = willShow ? 'block' : 'none';
+    // À l'ouverture, rafraîchit les notifications (lecture ponctuelle)
+    if(willShow){ try{ refreshNotifs(); }catch(_){} }
     // Sur mobile : caler le panneau juste sous la cloche (position fixe)
     if(willShow && window.innerWidth<=600){
       var r = bell.getBoundingClientRect();
@@ -1924,6 +1986,7 @@ document.getElementById('cSend').onclick=async function(){
     document.getElementById('cText').value='';
     window.__pendingQuote=''; var qb=document.getElementById('quoteBadge'); if(qb) qb.style.display='none';
     if(currentBook){ bumpTotals('comments', 1, currentBook.id); }
+    loadComments();   // recharge pour afficher le nouveau commentaire
   }catch(e){ alert('Oops: '+e.message); }
 };
 
