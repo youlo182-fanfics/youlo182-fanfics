@@ -1188,15 +1188,26 @@ function currentScrollFrac(){
   var h=document.documentElement.scrollHeight-window.innerHeight;
   return h>0 ? Math.min(1, Math.max(0, window.scrollY/h)) : 0;
 }
+// Position MAXIMALE atteinte dans le chapitre courant (le point le plus loin où
+// le lecteur est descendu). On mémorise ça, PAS la position à l'instant où il
+// quitte : ainsi remonter en haut pour cliquer "Retour" n'efface pas sa progression.
+var __maxFrac = 0;
+function resetMaxFrac(){ __maxFrac = 0; }
+function bumpMaxFrac(){
+  var f=currentScrollFrac();
+  if(f>__maxFrac) __maxFrac=f;
+  return __maxFrac;
+}
 // Sauvegarde LOCALE immédiate (appelée pendant le scroll, sans toucher Firebase).
 function saveScrollLocal(){
   if(!currentBook) return;
-  try{ safeSet(scrollKey(), String(currentScrollFrac())); }catch(e){}
+  bumpMaxFrac();
+  try{ safeSet(scrollKey(), String(__maxFrac)); }catch(e){}
 }
 // Sauvegarde la position dans Firebase (connectés) — appelée seulement en quittant le chapitre.
 function flushScrollToCloud(){
   if(!currentBook) return;
-  var frac=currentScrollFrac();
+  var frac=bumpMaxFrac();   // on garde le point le plus loin atteint
   try{ safeSet(scrollKey(), String(frac)); }catch(e){}
   if(currentUser && firebaseReady && db){
     try{ setDoc(doc(db,'users',currentUser.uid,'progress',currentBook.id+'_'+lang),{ch:currentCh, sc:frac, updatedAt:serverTimestamp()},{merge:true}); }catch(e){}
@@ -1250,6 +1261,7 @@ window.doResume=function(){
 window.doRestart=function(){
   var ov=document.getElementById('resumeOverlay'); if(ov) ov.classList.remove('show');
   try{ safeSet(scrollKey(), '0'); }catch(e){}   // oublie la position mémorisée
+  resetMaxFrac();   // repart de zéro pour la suite de la lecture
   window.scrollTo(0,0);
 };
 
@@ -1503,6 +1515,7 @@ function chapterCoverHTML(){
   return '<div class="chapter-cover"><img src="'+currentBook.cover+'" alt="'+t.replace(/"/g,'')+'"></div>';
 }
 async function renderChapter(){
+  resetMaxFrac();   // nouvelle page : on repart d'une progression max à 0
   const d=currentBook[lang];
   const ch=d.chapters[currentCh];
   const body=document.getElementById('readerBody');
@@ -2186,6 +2199,7 @@ window.addEventListener('scroll',function(){
   if(document.getElementById('reader').style.display==='none')return;
   const h=document.documentElement.scrollHeight-window.innerHeight;
   document.getElementById('readProgress').style.width=(h>0?(window.scrollY/h)*100:0)+'%';
+  bumpMaxFrac();   // suit en continu le point le plus loin atteint
   // Mémorise la position en LOCAL (débounce 400ms) — aucune écriture Firebase ici.
   if(__scrollSaveTimer) clearTimeout(__scrollSaveTimer);
   __scrollSaveTimer=setTimeout(saveScrollLocal, 400);
