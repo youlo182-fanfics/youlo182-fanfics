@@ -1,0 +1,24 @@
+# Cloudflare Pages — règles d'en-têtes HTTP
+# https://developers.cloudflare.com/pages/configuration/headers/
+
+# Les pages HTML (code du site) : jamais mises en cache, toujours revérifiées.
+# Garantit que les lecteurs reçoivent immédiatement les mises à jour du code.
+/*.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# La page d'accueil (servie sans nom de fichier)
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# stories.json : liste des histoires, doit toujours être fraîche
+/stories.json
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Le service worker : jamais mis en cache (règle standard PWA)
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Les images/assets : peuvent être mises en cache longtemps (elles changent rarement).
+# Ça accélère le site sans gêner les mises à jour de code.
+/assets/*
+  Cache-Control: public, max-age=604800
