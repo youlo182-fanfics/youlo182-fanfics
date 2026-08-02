@@ -1409,18 +1409,47 @@ async function doLike(){
   if(!currentUser){ openAuth(); return; }
   const key=chapterKey();
   const ref=doc(db,'likes',key);
+  const btn=document.getElementById('likeBtn');
+  if(btn && btn.dataset.busy==='1') return;   // évite le double-clic
+  if(btn) btn.dataset.busy='1';
   let likeDelta=0;
+  // Petit utilitaire : réessaie la transaction en cas de contention passagère
+  async function attempt(n){
+    try{
+      await runTransaction(db, async function(tx){
+        const s=await tx.get(ref);
+        let data=s.exists()?s.data():{count:0,users:{}};
+        if(!data.users) data.users={};
+        if(data.users[currentUser.uid]){ delete data.users[currentUser.uid]; data.count=Math.max(0,(data.count||0)-1); likeDelta=-1; }
+        else { data.users[currentUser.uid]=true; data.count=(data.count||0)+1; likeDelta=1; }
+        tx.set(ref,data);
+      });
+      return true;
+    }catch(e){
+      const code=(e && (e.code||e.message||'')).toString();
+      const transient = /unavailable|aborted|deadline|resource-exhausted|Quota|contention/i.test(code);
+      if(transient && n>0){
+        await new Promise(function(r){ setTimeout(r, 400*(4-n) + Math.random()*300); });
+        return attempt(n-1);
+      }
+      throw e;
+    }
+  }
   try{
-    await runTransaction(db, async function(tx){
-      const s=await tx.get(ref);
-      let data=s.exists()?s.data():{count:0,users:{}};
-      if(!data.users) data.users={};
-      if(data.users[currentUser.uid]){ delete data.users[currentUser.uid]; data.count=Math.max(0,(data.count||0)-1); likeDelta=-1; }
-      else { data.users[currentUser.uid]=true; data.count=(data.count||0)+1; likeDelta=1; }
-      tx.set(ref,data);
-    });
-    if(likeDelta!==0 && currentBook){ bumpTotals('likes', likeDelta, currentBook.id); }
-  }catch(e){ alert('Oops: '+e.message); }
+    await attempt(3);
+    // Les stats globales sont "best-effort" : si elles échouent (quota/contention),
+    // le like reste enregistré et on n'affiche jamais d'erreur bloquante.
+    if(likeDelta!==0 && currentBook){ try{ bumpTotals('likes', likeDelta, currentBook.id); }catch(_){} }
+  }catch(e){
+    const code=(e && (e.code||e.message||'')).toString();
+    if(/resource-exhausted|Quota/i.test(code)){
+      console.warn('like: quota/contention', code);   // silencieux pour le lecteur
+    }else{
+      console.warn('like error', code);
+    }
+  }finally{
+    if(btn) btn.dataset.busy='';
+  }
 }
 document.getElementById('likeBtn').onclick=function(){ doLike(); };
 
