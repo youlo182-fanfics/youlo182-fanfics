@@ -1,17 +1,17 @@
-=== SUPPRESSION DES COMMENTAIRES VIDES ORPHELINS ===
+=== SUPPRESSION DES COMMENTAIRES VIDES (version corrigée v2) ===
 
-SÉCURITÉ : ce script ne supprime QUE les commentaires qui remplissent TOUTES ces conditions :
-  - attachés à un bookId INCONNU (pas dans le catalogue)
-  - ET qui ne sont PAS sur 'about' ni 'demo-oneshot'
-  - ET qui sont VIDES (aucun texte)
-Il ne touche jamais : les commentaires 'about', ceux avec du texte, ni ceux des vraies histoires.
+CORRECTION : la v1 ramassait aussi la collection 'notifications' (qui a aussi une
+sous-collection 'items'), d'où les erreurs de permissions. Cette v2 ne cible QUE
+les documents dont le chemin commence par 'comments/'.
 
-Ça se fait en 2 temps :
-  ÉTAPE A = APERÇU (ne supprime rien, montre ce qui SERA supprimé)
-  ÉTAPE B = SUPPRESSION (à lancer seulement après avoir vérifié l'aperçu)
+SÉCURITÉ : supprime uniquement les commentaires qui sont TOUS :
+  - dans comments/ (jamais notifications/)
+  - attachés à un bookId INCONNU
+  - PAS sur 'about' ni 'demo-oneshot'
+  - VIDES (aucun texte)
 
 ------------------------------------------------------------
-ÉTAPE A — APERÇU (colle ceci d'abord, Entrée) :
+ÉTAPE A — APERÇU (colle, Entrée) :
 ------------------------------------------------------------
 
 (async () => {
@@ -23,6 +23,7 @@ Il ne touche jamais : les commentaires 'about', ceux avec du texte, ni ceux des 
   const toDelete = [];
   snap.forEach(function(d){
     const parts = d.ref.path.split("/");
+    if(parts[0] !== "comments") return;   // <-- IGNORE notifications et tout le reste
     const key = parts[1] || "";
     const data = d.data();
     const km = key.match(/^(.*)_(fr|en)_([0-9]+)$/);
@@ -30,30 +31,28 @@ Il ne touche jamais : les commentaires 'about', ceux avec du texte, ni ceux des 
     const known = knownPrefixes.some(function(p){ return bookId.indexOf(p) === 0; });
     const isProtected = protectedKeys.indexOf(bookId) !== -1;
     const hasText = !!(data.text && String(data.text).trim());
-    if(!known && !isProtected && !hasText){
-      toDelete.push(d.ref);
-    }
+    if(!known && !isProtected && !hasText){ toDelete.push(d.ref); }
   });
   window.__toDelete = toDelete;
-  console.log("%cA SUPPRIMER : " + toDelete.length + " commentaires vides", "font-size:16px;color:#b03d5e;font-weight:bold;");
+  console.log("A SUPPRIMER (comments uniquement) : " + toDelete.length);
   toDelete.forEach(function(r){ console.log("  - " + r.path); });
-  alert("APERÇU : " + toDelete.length + " commentaires vides seront supprimés.\n\nSi le nombre te convient (environ 24), lance l'ÉTAPE B.");
+  alert("APERCU v2 : " + toDelete.length + " commentaires vides (dans comments/ uniquement).\nSi le nombre te convient, lance l'ETAPE B.");
 })();
 
 ------------------------------------------------------------
-ÉTAPE B — SUPPRESSION (colle ceci SEULEMENT après avoir vérifié l'aperçu) :
+ÉTAPE B — SUPPRESSION (colle après avoir vérifié l'aperçu) :
 ------------------------------------------------------------
 
 (async () => {
   const m = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
   const db = m.getFirestore();
-  if(!window.__toDelete || !window.__toDelete.length){ alert("Lance d'abord l'ÉTAPE A (aperçu)."); return; }
-  let done = 0;
+  if(!window.__toDelete || !window.__toDelete.length){ alert("Lance d'abord l'ETAPE A."); return; }
+  let done = 0, fail = 0;
   for(const ref of window.__toDelete){
-    try{ await m.deleteDoc(ref); done++; }catch(e){ console.warn("échec:", ref.path, e.message); }
+    try{ await m.deleteDoc(ref); done++; }catch(e){ fail++; console.warn("echec:", ref.path, e.message); }
   }
-  console.log("%cSUPPRIMÉS : " + done, "font-size:16px;color:#00a651;font-weight:bold;");
-  alert("Terminé ! " + done + " commentaires vides supprimés.\nRecharge la page admin pour voir le résultat.");
+  console.log("SUPPRIMES: " + done + " | echecs: " + fail);
+  alert("Termine !\nSupprimes : " + done + "\nEchecs : " + fail + "\n\nRecharge la page admin.");
 })();
 
 ------------------------------------------------------------

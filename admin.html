@@ -223,6 +223,9 @@ async function loadCommentsAsync(){
     const snap = await getDocs(collectionGroup(db,'items'));
     snap.forEach(function(d){
       const parts = d.ref.path.split('/');   // comments/{key}/items/{id}
+      // IMPORTANT : collectionGroup('items') attrape AUSSI notifications/{uid}/items.
+      // On ne garde QUE les vrais commentaires (chemin commençant par 'comments/').
+      if(parts[0] !== 'comments') return;
       const key = parts[1] || '';
       // key = bookId_lang_chIndex  → on isole lang + chapitre
       const km = key.match(/^(.*)_(fr|en)_(\d+)$/);
