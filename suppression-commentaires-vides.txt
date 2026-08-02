@@ -1,0 +1,59 @@
+=== SUPPRESSION DES COMMENTAIRES VIDES ORPHELINS ===
+
+SÉCURITÉ : ce script ne supprime QUE les commentaires qui remplissent TOUTES ces conditions :
+  - attachés à un bookId INCONNU (pas dans le catalogue)
+  - ET qui ne sont PAS sur 'about' ni 'demo-oneshot'
+  - ET qui sont VIDES (aucun texte)
+Il ne touche jamais : les commentaires 'about', ceux avec du texte, ni ceux des vraies histoires.
+
+Ça se fait en 2 temps :
+  ÉTAPE A = APERÇU (ne supprime rien, montre ce qui SERA supprimé)
+  ÉTAPE B = SUPPRESSION (à lancer seulement après avoir vérifié l'aperçu)
+
+------------------------------------------------------------
+ÉTAPE A — APERÇU (colle ceci d'abord, Entrée) :
+------------------------------------------------------------
+
+(async () => {
+  const m = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  const db = m.getFirestore();
+  const snap = await m.getDocs(m.collectionGroup(db, "items"));
+  const knownPrefixes = ["os-","ine-","sa-","deluca-","apollo-","marine-","reunion-","ecole-","love-"];
+  const protectedKeys = ["about","demo-oneshot"];
+  const toDelete = [];
+  snap.forEach(function(d){
+    const parts = d.ref.path.split("/");
+    const key = parts[1] || "";
+    const data = d.data();
+    const km = key.match(/^(.*)_(fr|en)_([0-9]+)$/);
+    const bookId = km ? km[1] : key;
+    const known = knownPrefixes.some(function(p){ return bookId.indexOf(p) === 0; });
+    const isProtected = protectedKeys.indexOf(bookId) !== -1;
+    const hasText = !!(data.text && String(data.text).trim());
+    if(!known && !isProtected && !hasText){
+      toDelete.push(d.ref);
+    }
+  });
+  window.__toDelete = toDelete;
+  console.log("%cA SUPPRIMER : " + toDelete.length + " commentaires vides", "font-size:16px;color:#b03d5e;font-weight:bold;");
+  toDelete.forEach(function(r){ console.log("  - " + r.path); });
+  alert("APERÇU : " + toDelete.length + " commentaires vides seront supprimés.\n\nSi le nombre te convient (environ 24), lance l'ÉTAPE B.");
+})();
+
+------------------------------------------------------------
+ÉTAPE B — SUPPRESSION (colle ceci SEULEMENT après avoir vérifié l'aperçu) :
+------------------------------------------------------------
+
+(async () => {
+  const m = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  const db = m.getFirestore();
+  if(!window.__toDelete || !window.__toDelete.length){ alert("Lance d'abord l'ÉTAPE A (aperçu)."); return; }
+  let done = 0;
+  for(const ref of window.__toDelete){
+    try{ await m.deleteDoc(ref); done++; }catch(e){ console.warn("échec:", ref.path, e.message); }
+  }
+  console.log("%cSUPPRIMÉS : " + done, "font-size:16px;color:#00a651;font-weight:bold;");
+  alert("Terminé ! " + done + " commentaires vides supprimés.\nRecharge la page admin pour voir le résultat.");
+})();
+
+------------------------------------------------------------

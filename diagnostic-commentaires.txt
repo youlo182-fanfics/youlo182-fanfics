@@ -1,0 +1,38 @@
+=== DIAGNOSTIC : DÉTAIL DES 3 VRAIS COMMENTAIRES À ID BIZARRE ===
+
+But : voir la CLÉ EXACTE (le chemin Firebase) où sont stockés les 3 vrais
+commentaires (Nini2905, Melanight, Youlo182), pour comprendre à quoi ils
+sont rattachés et décider quoi en faire.
+
+Comment l'utiliser :
+1. Site admin en ligne : https://youlo182-fanfics.pages.dev/admin.html (connectée)
+2. F12 -> Console
+3. Colle le code ci-dessous, Entrée
+4. Une pop-up affiche le détail. Envoie-moi une capture.
+
+--- CODE À COLLER ---
+
+(async () => {
+  const m = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  const db = m.getFirestore();
+  const snap = await m.getDocs(m.collectionGroup(db, "items"));
+  const knownPrefixes = ["os-","ine-","sa-","deluca-","apollo-","marine-","reunion-","ecole-","love-"];
+  const details = [];
+  snap.forEach(function(d){
+    const parts = d.ref.path.split("/");
+    const key = parts[1] || "";
+    const data = d.data();
+    const km = key.match(/^(.*)_(fr|en)_([0-9]+)$/);
+    const bookId = km ? km[1] : key;
+    const known = knownPrefixes.some(function(p){ return bookId.indexOf(p) === 0; });
+    const hasText = !!(data.text && String(data.text).trim());
+    if(!known && hasText){
+      details.push("CLE COMPLETE: " + key + "\n  bookId: " + bookId + "\n  nom: " + (data.name||"?") + "\n  texte: " + String(data.text).slice(0,60) + "\n  chemin: " + d.ref.path);
+    }
+  });
+  const out = details.join("\n\n----------\n\n");
+  console.log(out);
+  alert(out || "Aucun trouvé");
+})();
+
+--- FIN DU CODE ---
