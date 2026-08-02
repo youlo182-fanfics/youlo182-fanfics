@@ -296,6 +296,18 @@
 #passagePopup .pp-send:hover{background:var(--accent-l);}
 #ppOverlay{position:fixed;inset:0;z-index:9999;display:none;background:transparent;}
 
+/* ---- Popup de LECTURE des commentaires d'un passage ---- */
+#readPassageOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;align-items:center;justify-content:center;padding:20px;}
+#readPassageOverlay.show{display:flex;}
+#readPassageBox{background:var(--card);border:1px solid var(--accent-l);border-radius:16px;max-width:460px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:popIn .22s ease;overflow:hidden;}
+#readPassageBox .rp-head{padding:16px 18px 10px;border-bottom:1px solid var(--line);}
+#readPassageBox .rp-quote{font-style:italic;font-size:13px;color:var(--accent-l);border-left:3px solid var(--accent-l);padding-left:10px;line-height:1.5;}
+#readPassageBox .rp-body{padding:14px 18px;overflow-y:auto;}
+#readPassageBox .rp-foot{padding:10px 18px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;}
+#readPassageBox .rp-close{background:var(--card);border:1px solid var(--accent-l);color:var(--accent-l);border-radius:18px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;}
+#readPassageBox .rp-reply{background:var(--accent);border:none;color:#fff;border-radius:18px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px;}
+#readPassageBox .rp-reply:hover{background:var(--accent-l);}
+
 /* ===== Décompte + bouton bannière + confettis ===== */
 .teaser-countdown{ display:flex; gap:10px; margin:12px 0 6px; }
 .teaser-countdown .cd-box{
@@ -573,6 +585,18 @@
         <button id="cSend">Envoyer</button>
       </div>
       <div id="commentList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Popup de lecture des commentaires d'un passage précis -->
+<div id="readPassageOverlay">
+  <div id="readPassageBox">
+    <div class="rp-head"><div class="rp-quote" id="rpQuote"></div></div>
+    <div class="rp-body" id="rpBody"></div>
+    <div class="rp-foot">
+      <button class="rp-reply" id="rpReply" style="display:none;">💬 Commenter ce passage</button>
+      <button class="rp-close" id="rpClose">Fermer</button>
     </div>
   </div>
 </div>
@@ -1505,6 +1529,8 @@ document.getElementById('likeBtn').onclick=function(){ doLike(); };
 
 // ---- COMMENTS (Firestore, live) ----
 let replyUnsubs=[];
+var __chapterComments=[];   // tous les commentaires du chapitre courant (en mémoire, pour la popup)
+window.__currentPassageQuote='';  // le passage actuellement ouvert dans la popup de lecture
 function clearReplyUnsubs(){ replyUnsubs.forEach(function(u){ try{u();}catch(e){} }); replyUnsubs=[]; }
 // Lecture PONCTUELLE des commentaires (plus de listener temps réel : on ne
 // re-lit Firestore que quand c'est nécessaire — au chargement du chapitre et
@@ -1521,41 +1547,64 @@ async function loadComments(){
   catch(e){ console.warn('loadComments', (e&&e.message)||e); return; }
   const list=document.getElementById('commentList');
   if(!list) return;
-  if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois le premier à laisser un mot 💌':'Be the first to leave a note 💌')+'</div>'; return; }
-  let out='';
-    var __allC=[];
-    snap.forEach(function(d){ __allC.push({id:d.id, data:d.data()}); });
-    snap.forEach(function(d){ const c=d.data(); const cid=d.id;
-      var quote = c.quote ? '<div class="cquote">\u201c'+escapeHtml(c.quote)+'\u201d</div>' : '';
-      var ph = isAuthor ? 'R\u00e9pondre en tant qu\'autrice\u2026' : 'R\u00e9pondre\u2026';
-      var authorBox = currentUser ? '<div class="areply-form"><input type="text" id="arin_'+cid+'" placeholder="'+ph+'"><button onclick="postReply(\''+cid+'\')">R\u00e9pondre</button></div>' : '';
-      var isMine = currentUser && c.uid && c.uid===currentUser.uid;
-      var canDelete = isMine || isAuthor;   // proprietaire OU autrice
-      var actions = '';
-      if(isMine || canDelete){
-        actions = '<div class="cmt-actions">'
-          + (isMine ? '<button class="cmt-act" onclick="editComment(\''+cid+'\')">✏️ '+(lang==='fr'?'Modifier':'Edit')+'</button>' : '')
-          + (canDelete ? '<button class="cmt-act cmt-del" onclick="deleteComment(\''+cid+'\','+(isAuthor && !isMine ? 'true':'false')+')">🗑️ '+(lang==='fr'?'Supprimer':'Delete')+'</button>' : '')
-          + '</div>';
-      }
-      out+='<div class="comment" data-cid="'+cid+'">'+quote+'<div class="who">'+escapeHtml(c.name||'Anonyme')+'</div><div class="txt" id="ctxt_'+cid+'">'+escapeHtml(c.text||'')+'</div>'+actions+'<div id="ar_'+cid+'"></div>'+authorBox+'</div>';
-    });
-    list.innerHTML=out;
-    // Charger les réponses de chaque commentaire en UNE lecture chacune (pas de listener).
-    for(const d of snap.docs){
-      const cid=d.id;
-      const rq=query(collection(db,'comments',key,'items',cid,'replies'), orderBy('ts','asc'));
-      try{
-        const rsnap=await getDocs(rq);
-        const el=document.getElementById('ar_'+cid); if(!el) continue;
-        let rout='';
-        rsnap.forEach(function(rd){ const r=rd.data(); var isA = r.admin===true || r.name==='Youlo182';
-          rout+='<div class="'+(isA?'author-reply':'reader-reply')+'"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(r.name||'Anonyme')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
-        el.innerHTML=rout;
-      }catch(e){ /* silencieux : une réponse manquante ne doit pas casser l'affichage */ }
-    }
-    // Surligner les passages commentes dans le texte du chapitre
-    try{ highlightQuotedPassages(__allC); }catch(e){ console.warn('highlight:', e.message); }
+  // Tout charger UNE fois en mémoire (généraux + passages + réponses).
+  var __allC=[];
+  snap.forEach(function(d){ __allC.push({id:d.id, data:d.data(), replies:[]}); });
+  // Charger les réponses de chaque commentaire (une lecture chacune) — gardées en mémoire.
+  for(const item of __allC){
+    const rq=query(collection(db,'comments',key,'items',item.id,'replies'), orderBy('ts','asc'));
+    try{
+      const rsnap=await getDocs(rq);
+      rsnap.forEach(function(rd){ item.replies.push(rd.data()); });
+    }catch(e){ /* silencieux */ }
+  }
+  // Mémoriser pour la popup de passage (aucune relecture Firebase au clic).
+  __chapterComments = __allC;
+  // Séparer : généraux (sans quote) vs commentaires de passage (avec quote).
+  var generals = __allC.filter(function(o){ return !(o.data && o.data.quote); });
+  // Rendu de la liste : uniquement les commentaires généraux, repliés sous un bouton.
+  renderGeneralComments(generals);
+  // Surligner les passages commentés dans le texte (pastilles cliquables → popup).
+  try{ highlightQuotedPassages(__allC); }catch(e){ console.warn('highlight:', e.message); }
+}
+
+// Construit une carte de commentaire (utilisée pour la liste générale ET la popup de passage).
+function commentCardHTML(o){
+  var c=o.data, cid=o.id;
+  var quote = c.quote ? '<div class="cquote">\u201c'+escapeHtml(c.quote)+'\u201d</div>' : '';
+  var ph = isAuthor ? 'R\u00e9pondre en tant qu\'autrice\u2026' : 'R\u00e9pondre\u2026';
+  var authorBox = currentUser ? '<div class="areply-form"><input type="text" id="arin_'+cid+'" placeholder="'+ph+'"><button onclick="postReply(\''+cid+'\')">R\u00e9pondre</button></div>' : '';
+  var isMine = currentUser && c.uid && c.uid===currentUser.uid;
+  var canDelete = isMine || isAuthor;
+  var actions = '';
+  if(isMine || canDelete){
+    actions = '<div class="cmt-actions">'
+      + (isMine ? '<button class="cmt-act" onclick="editComment(\''+cid+'\')">✏️ '+(lang==='fr'?'Modifier':'Edit')+'</button>' : '')
+      + (canDelete ? '<button class="cmt-act cmt-del" onclick="deleteComment(\''+cid+'\','+(isAuthor && !isMine ? 'true':'false')+')">🗑️ '+(lang==='fr'?'Supprimer':'Delete')+'</button>' : '')
+      + '</div>';
+  }
+  var repliesHTML='';
+  (o.replies||[]).forEach(function(r){ var isA = r.admin===true || r.name==='Youlo182';
+    repliesHTML+='<div class="'+(isA?'author-reply':'reader-reply')+'"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(r.name||'Anonyme')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
+  return '<div class="comment" data-cid="'+cid+'">'+quote+'<div class="who">'+escapeHtml(c.name||'Anonyme')+'</div><div class="txt" id="ctxt_'+cid+'">'+escapeHtml(c.text||'')+'</div>'+actions+'<div id="ar_'+cid+'">'+repliesHTML+'</div>'+authorBox+'</div>';
+}
+
+// Affiche les commentaires généraux, repliés derrière un bouton "Voir les commentaires (X)".
+function renderGeneralComments(generals){
+  var list=document.getElementById('commentList');
+  if(!list) return;
+  if(!generals.length){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois le premier à laisser un mot 💌':'Be the first to leave a note 💌')+'</div>'; return; }
+  var label=(lang==='fr'?'Voir les commentaires':'Show comments')+' ('+generals.length+')';
+  var inner=generals.map(commentCardHTML).join('');
+  list.innerHTML='<button class="cmt-act" id="toggleComments" style="margin-bottom:10px;">💬 '+label+'</button>'
+    +'<div id="generalCommentsInner" style="display:none;">'+inner+'</div>';
+  var btn=document.getElementById('toggleComments');
+  var inr=document.getElementById('generalCommentsInner');
+  if(btn && inr){ btn.onclick=function(){
+    var open=(inr.style.display!=='none');
+    inr.style.display=open?'none':'block';
+    btn.textContent='💬 '+(open?((lang==='fr'?'Voir les commentaires':'Show comments')+' ('+generals.length+')'):((lang==='fr'?'Masquer les commentaires':'Hide comments')));
+  }; }
 }
 
 // Regroupe les commentaires par passage cite et surligne le texte + pastille cliquable
@@ -1609,24 +1658,46 @@ function markPassage(root, q, grp){
     bubble.className='cbubble';
     bubble.innerHTML='\ud83d\udcac '+grp.count;
     bubble.title=(grp.count>1?grp.count+' commentaires':'1 commentaire')+' sur ce passage';
-    bubble.addEventListener('click', function(ev){ ev.stopPropagation(); focusComments(grp.ids); });
-    span.addEventListener('click', function(ev){ ev.stopPropagation(); focusComments(grp.ids); });
+    bubble.addEventListener('click', function(ev){ ev.stopPropagation(); focusComments(grp.ids, q); });
+    span.addEventListener('click', function(ev){ ev.stopPropagation(); focusComments(grp.ids, q); });
     if(span.parentNode){ span.parentNode.insertBefore(bubble, span.nextSibling); }
     return; // un seul surlignage par passage (le premier trouve)
   }
 }
 
 // Fait defiler vers la zone commentaires et met en evidence les commentaires du passage
-function focusComments(ids){
-  var list=document.getElementById('commentList');
-  if(list){ list.scrollIntoView({behavior:'smooth', block:'start'}); }
-  setTimeout(function(){
-    (ids||[]).forEach(function(cid){
-      var el=document.getElementById('ar_'+cid);
-      var card = el && el.closest ? el.closest('.comment') : null;
-      if(card){ card.classList.add('hl'); setTimeout(function(){ card.classList.remove('hl'); }, 2500); }
-    });
-  }, 400);
+// Ouvre la POPUP de lecture des commentaires d'un passage (au lieu de scroller vers le bas).
+// Utilise les données déjà en mémoire (__chapterComments) : aucune relecture Firebase.
+function focusComments(ids, quote){
+  openPassageReadPopup(quote, ids);
+}
+function openPassageReadPopup(quote, ids){
+  var ov=document.getElementById('readPassageOverlay');
+  var qEl=document.getElementById('rpQuote');
+  var bodyEl=document.getElementById('rpBody');
+  var replyBtn=document.getElementById('rpReply');
+  if(!ov||!bodyEl) return;
+  // Retrouver les commentaires de ce passage en mémoire.
+  var items;
+  if(ids && ids.length){
+    items=__chapterComments.filter(function(o){ return ids.indexOf(o.id)!==-1; });
+  } else {
+    items=__chapterComments.filter(function(o){ return o.data && String(o.data.quote||'').trim()===String(quote||'').trim(); });
+  }
+  var theQuote = quote || (items[0] && items[0].data && items[0].data.quote) || '';
+  window.__currentPassageQuote = theQuote;
+  if(qEl) qEl.textContent = '\u201c'+theQuote+'\u201d';
+  bodyEl.innerHTML = items.length ? items.map(commentCardHTML).join('') : '<div class="empty-c">'+(lang==='fr'?'Aucun commentaire sur ce passage.':'No comment on this passage.')+'</div>';
+  // Bouton "Commenter ce passage" : visible seulement si connecté.
+  if(replyBtn){
+    if(currentUser){ replyBtn.style.display='inline-block';
+      replyBtn.onclick=function(){ closePassageReadPopup(); window.__selectedQuote=theQuote; openPassagePopup(); };
+    } else { replyBtn.style.display='none'; }
+  }
+  ov.classList.add('show');
+}
+function closePassageReadPopup(){
+  var ov=document.getElementById('readPassageOverlay'); if(ov) ov.classList.remove('show');
 }
 
 function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1770,6 +1841,8 @@ document.addEventListener('click', function(e){
   if(!e.target) return;
   if(e.target.id==='ppSend'){ e.preventDefault(); sendPassageComment(); }
   else if(e.target.id==='ppCancel' || e.target.id==='ppOverlay'){ e.preventDefault(); closePassagePopup(); }
+  // Popup de LECTURE des commentaires d'un passage : fermer via le bouton ou en cliquant hors de la boîte
+  else if(e.target.id==='rpClose' || e.target.id==='readPassageOverlay'){ e.preventDefault(); closePassageReadPopup(); }
 });
 
 // ---- Modifier son propre commentaire ----
