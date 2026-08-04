@@ -638,9 +638,9 @@
     <input type="text" id="authDisplayName" placeholder="Ton pseudo (affiché sur tes commentaires)" style="display:none;">
     <input type="email" id="authEmail" placeholder="Ton email">
     <input type="password" id="authPassword" placeholder="Ton mot de passe">
-    <label id="authNewsletterWrap" style="display:none;width:100%;align-items:flex-start;gap:8px;text-align:left;font-size:13px;color:var(--muted);margin:2px 0 4px;cursor:pointer;box-sizing:border-box;">
-      <input type="checkbox" id="authNewsletter" style="margin-top:3px;flex-shrink:0;">
-      <span id="authNewsletterLabel" style="flex:1;min-width:0;">Je veux recevoir un email quand une nouvelle histoire est publiée 💛</span>
+    <label id="authNewsletterWrap" style="display:none;width:100%;text-align:left;font-size:13px;color:var(--muted);margin:2px 0 4px;cursor:pointer;box-sizing:border-box;overflow-wrap:break-word;word-wrap:break-word;">
+      <input type="checkbox" id="authNewsletter" style="margin-right:8px;vertical-align:middle;">
+      <span id="authNewsletterLabel" style="vertical-align:middle;">Je veux recevoir un email quand une nouvelle histoire est publiée 💛</span>
     </label>
     <button class="auth-main" id="authSubmit">Se connecter</button>
     <div class="auth-toggle" id="authToggle">Pas encore de compte ? <a id="authSwitch">Inscris-toi</a></div>
@@ -1101,7 +1101,7 @@ function renderAuthMode(){
   document.getElementById('authSub').textContent = authMode==='login'?t.authLoginSub:t.authSignupSub;
   document.getElementById('authSubmit').textContent = authMode==='login'?t.authDoLogin:t.authDoSignup;
   document.getElementById('authDisplayName').style.display = authMode==='signup'?'block':'none';
-  var _nlw=document.getElementById('authNewsletterWrap'); if(_nlw) _nlw.style.display = authMode==='signup'?'flex':'none';
+  var _nlw=document.getElementById('authNewsletterWrap'); if(_nlw) _nlw.style.display = authMode==='signup'?'block':'none';
   document.getElementById('authToggle').innerHTML = (authMode==='login'? t.authNoAccount+' <a id="authSwitch">'+t.authSwitchSignup+'</a>' : t.authHasAccount+' <a id="authSwitch">'+t.authSwitchLogin+'</a>');
   document.getElementById('authSwitch').onclick=function(){ authMode = authMode==='login'?'signup':'login'; renderAuthMode(); };
 }

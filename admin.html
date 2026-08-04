@@ -398,9 +398,57 @@ document.getElementById('mailingOverlay').addEventListener('click', function(e){
 
 window.sendReply=async function(key,commentId){
   const inp=document.getElementById('rin_'+commentId); const text=inp.value.trim(); if(!text)return;
-  try{ await addDoc(collection(db,'comments',key,'items',commentId,'replies'),{name:'Youlo182',text:text,admin:true,ts:serverTimestamp()}); inp.value=''; }
+  try{
+    await addDoc(collection(db,'comments',key,'items',commentId,'replies'),{name:'Youlo182',text:text,admin:true,ts:serverTimestamp()});
+    inp.value='';
+    // Notifier les participants du fil (comme le fait le site public quand on répond).
+    try{ await createReplyNotificationAdmin(key, commentId, 'Youlo182', text); }catch(e){ console.warn('notif admin', e.message); }
+  }
   catch(e){ alert('Oops: '+e.message); }
 };
+
+// Crée une notification pour chaque participant du fil quand l'autrice répond depuis l'admin.
+// (Réplique la logique de index.html pour que les lecteurs reçoivent bien la cloche 🔔.)
+async function createReplyNotificationAdmin(key, cid, replierName, text){
+  if(!db) return;
+  var myUid = (auth.currentUser && auth.currentUser.uid) ? auth.currentUser.uid : null;
+  var targets = {};   // uid -> true
+  // 1) Auteur du commentaire parent
+  try{
+    var parentSnap = await getDoc(doc(db,'comments',key,'items',cid));
+    if(parentSnap.exists()){ var pu = parentSnap.data().uid; if(pu) targets[pu] = true; }
+  }catch(e){ console.warn('notif parent', e.message); }
+  // 2) Auteurs des autres réponses du fil
+  try{
+    var repliesSnap = await getDocs(collection(db,'comments',key,'items',cid,'replies'));
+    repliesSnap.forEach(function(rd){ var ru = rd.data().uid; if(ru) targets[ru] = true; });
+  }catch(e){ console.warn('notif replies', e.message); }
+  // Ne pas se notifier soi-même (l'autrice)
+  if(myUid) delete targets[myUid];
+  var uids = Object.keys(targets);
+  if(uids.length===0) return;
+  // 3) Décomposer la clé chapitre : bookId_lang_chIndex (ou "about")
+  var m = key.match(/^(.*)_(fr|en)_(\d+)$/);
+  var isAbout = (key==='about');
+  var bookId = isAbout ? 'about' : (m ? m[1] : key);
+  var nlang = m ? m[2] : 'fr';
+  var ch = m ? parseInt(m[3]) : 0;
+  var payload = {
+    type: 'reply',
+    fromName: replierName,
+    fromAdmin: true,
+    preview: (text.length>80 ? text.slice(0,80)+'…' : text),
+    bookId: bookId, lang: nlang, ch: ch, commentId: cid,
+    isAbout: isAbout,
+    read: false,
+    ts: serverTimestamp()
+  };
+  // 4) Envoyer la notif à chaque participant
+  for(var i=0;i<uids.length;i++){
+    try{ await addDoc(collection(db,'notifications',uids[i],'items'), payload); }
+    catch(e){ console.warn('[notif] échec pour', uids[i], e.message); }
+  }
+}
 </script>
 <div id="mailingOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:none;align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--card);border:1px solid var(--accent-l);border-radius:16px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:24px;">

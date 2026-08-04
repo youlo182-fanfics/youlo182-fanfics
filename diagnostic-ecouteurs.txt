@@ -1,0 +1,50 @@
+=== DIAGNOSTIC : reste-t-il des écouteurs temps réel (onSnapshot) actifs ? ===
+
+À UTILISER SEULEMENT si, dans quelques jours, le pic d'"Écouteurs d'instantanés"
+dans Firebase ne baisse PAS (reste élevé, genre > 100).
+
+But : vérifier en direct, sur le site en ligne, combien de connexions temps réel
+sont ouvertes. Si ton code est bien optimisé, il ne devrait pas y en avoir qui
+s'accumulent quand on lit un chapitre.
+
+------------------------------------------------------------
+COMMENT FAIRE
+------------------------------------------------------------
+1. Ouvre le site public en ligne : https://youlo182-fanfics.pages.dev/
+   (PAS l'admin — le site normal, comme un lecteur)
+2. IMPORTANT : navigation privée (pour avoir la toute dernière version, sans cache)
+3. Ouvre une histoire, lis un chapitre, ouvre les commentaires, change de chapitre...
+   bref, utilise le site normalement pendant 1 minute.
+4. Appuie sur F12 -> onglet "Console"
+5. Colle le code ci-dessous, Entrée
+6. Envoie-moi le résultat de la pop-up.
+
+------------------------------------------------------------
+CODE À COLLER
+------------------------------------------------------------
+
+(() => {
+  // Ce test compte les connexions réseau "Listen" (temps réel) ouvertes vers Firestore.
+  // Sur un code bien optimisé (lectures ponctuelles), ce nombre reste très bas.
+  const entries = performance.getEntriesByType("resource")
+    .filter(e => /firestore.googleapis.com/.test(e.name));
+  const listen = entries.filter(e => /Listen\/channel/.test(e.name));
+  const write  = entries.filter(e => /Write\/channel/.test(e.name));
+  const msg =
+    "Requêtes Firestore observées sur cette page :\n" +
+    "- total: " + entries.length + "\n" +
+    "- canaux temps réel (Listen): " + listen.length + "\n" +
+    "- canaux d'écriture (Write): " + write.length + "\n\n" +
+    (listen.length <= 2
+      ? "OK : très peu de temps réel, ton optimisation tient. ✅"
+      : "A VERIFIER : plusieurs canaux temps réel ouverts. Envoie ce résultat à l'assistant. ⚠️");
+  console.log(msg);
+  alert(msg);
+})();
+
+------------------------------------------------------------
+NOTE
+------------------------------------------------------------
+- 0 à 2 canaux "Listen" = normal (Firebase en ouvre parfois 1 pour l'auth). Tout va bien.
+- Beaucoup de canaux "Listen" qui augmentent quand tu ouvres des chapitres
+  = il reste un onSnapshot quelque part -> préviens l'assistant, on le trouvera.
