@@ -102,7 +102,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, collectionGroup, getDocs, addDoc, doc, getDoc, query, orderBy, onSnapshot, serverTimestamp }
+import { getFirestore, collection, collectionGroup, getDocs, addDoc, doc, getDoc, deleteDoc, updateDoc, query, orderBy, onSnapshot, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -247,7 +247,9 @@ async function loadCommentsAsync(){
     var whereBits = '📖 '+esc(c.storyName);
     if(!c.isSpecial){ whereBits += (c.lang?(' · '+(c.lang==='fr'?'FR':'EN')):'') + ' · '+esc(c.chTitle||('ch.'+(c.ch+1))); }
     return '<div class="cmt">'+(c.quote?('<div style="font-style:italic;font-size:12.5px;color:#b03d5e;border-left:2px solid #b03d5e;padding-left:8px;margin-bottom:8px;opacity:.9;">\u201c'+esc(c.quote)+'\u201d</div>'):'')+'<div class="head"><span class="who">'+esc(c.name)+'</span><span class="where">'+whereBits+'</span></div>'+
-      '<div class="txt">'+esc(c.text)+'</div><div id="reply_'+c.id+'"></div>'+
+      '<div class="txt">'+esc(c.text)+'</div>'+
+      '<div style="margin:4px 0 8px;"><button onclick="deleteComment(\''+c.key+'\',\''+c.id+'\')" style="background:none;border:none;color:#b03d5e;cursor:pointer;font-size:12px;font-weight:700;padding:0;">🗑️ Supprimer ce commentaire</button></div>'+
+      '<div id="reply_'+c.id+'"></div>'+
       '<div class="reply-form"><input type="text" id="rin_'+c.id+'" placeholder="Répondre en tant qu\'autrice…"><button onclick="sendReply(\''+c.key+'\',\''+c.id+'\')">Répondre</button></div></div>';
   }
   if(allComments.length===0){
@@ -258,24 +260,32 @@ async function loadCommentsAsync(){
   }
 }
 
-// Affiche EN TEMPS REEL le fil de reponses sous un commentaire.
-// C'est ce qui garde ta reponse d'autrice visible apres l'avoir postee.
-function loadReplies(key, commentId){
+// Affiche le fil de réponses sous un commentaire — LECTURE PONCTUELLE (plus de
+// listener temps réel : avant, chaque commentaire ouvrait un onSnapshot permanent,
+// ce qui pouvait faire des centaines de connexions temps réel simultanées).
+async function loadReplies(key, commentId){
   const box = document.getElementById('reply_'+commentId);
   if(!box) return;
   try{
     const q = query(collection(db,'comments',key,'items',commentId,'replies'), orderBy('ts','asc'));
-    onSnapshot(q, function(snap){
-      let html='';
-      snap.forEach(function(d){
-        const r=d.data();
-        const isAdmin = r.admin===true || r.name==='Youlo182';
-        html += '<div class="reply"'+(isAdmin?' style="border-left-color:#b03d5e;background:rgba(176,61,94,.18);"':'')+'>'+
-                '<b style="color:'+(isAdmin?'#b03d5e':'#9fb0c6')+';">'+(isAdmin?'\u270d\ufe0f ':'')+esc(r.name||'Anonyme')+'</b> '+
-                esc(r.text||'')+'</div>';
-      });
-      box.innerHTML = html;
-    }, function(err){ console.warn('replies '+commentId+':', err.message); });
+    const snap = await getDocs(q);
+    let html='';
+    snap.forEach(function(d){
+      const r=d.data();
+      const rid=d.id;
+      const isAdmin = r.admin===true || r.name==='Youlo182';
+      // Boutons Modifier/Supprimer uniquement sur MES réponses (admin).
+      var adminActions = isAdmin
+        ? '<div style="margin-top:4px;display:flex;gap:10px;">'
+          + '<button onclick="editReply(\''+key+'\',\''+commentId+'\',\''+rid+'\')" style="background:none;border:none;color:#b03d5e;cursor:pointer;font-size:11px;font-weight:700;padding:0;">✏️ Modifier</button>'
+          + '<button onclick="deleteReply(\''+key+'\',\''+commentId+'\',\''+rid+'\')" style="background:none;border:none;color:#b03d5e;cursor:pointer;font-size:11px;font-weight:700;padding:0;">🗑️ Supprimer</button>'
+          + '</div>'
+        : '';
+      html += '<div class="reply"'+(isAdmin?' style="border-left-color:#b03d5e;background:rgba(176,61,94,.18);"':'')+'>'+
+              '<b style="color:'+(isAdmin?'#b03d5e':'#9fb0c6')+';">'+(isAdmin?'\u270d\ufe0f ':'')+esc(r.name||'Anonyme')+'</b> '+
+              '<span id="rtxt_'+rid+'">'+esc(r.text||'')+'</span>'+adminActions+'</div>';
+    });
+    box.innerHTML = html;
   }catch(e){ console.warn('loadReplies:', e.message); }
 }
 
@@ -401,10 +411,50 @@ window.sendReply=async function(key,commentId){
   try{
     await addDoc(collection(db,'comments',key,'items',commentId,'replies'),{name:'Youlo182',text:text,admin:true,ts:serverTimestamp()});
     inp.value='';
+    // Recharge le fil de réponses (plus de temps réel) pour afficher ta réponse tout de suite.
+    try{ await loadReplies(key, commentId); }catch(e){}
     // Notifier les participants du fil (comme le fait le site public quand on répond).
     try{ await createReplyNotificationAdmin(key, commentId, 'Youlo182', text); }catch(e){ console.warn('notif admin', e.message); }
   }
   catch(e){ alert('Oops: '+e.message); }
+};
+
+// ---- Supprimer un commentaire de lecteur (et tout son fil de réponses) ----
+window.deleteComment=async function(key, commentId){
+  if(!confirm('Supprimer ce commentaire ? Cette action est définitive.\n(Les réponses associées seront aussi supprimées.)')) return;
+  try{
+    // Supprimer d'abord les réponses du fil, puis le commentaire lui-même.
+    try{
+      var reps=await getDocs(collection(db,'comments',key,'items',commentId,'replies'));
+      for(const rd of reps.docs){ try{ await deleteDoc(rd.ref); }catch(e){} }
+    }catch(e){}
+    await deleteDoc(doc(db,'comments',key,'items',commentId));
+    // Retirer la carte du commentaire de l'affichage.
+    var card=document.getElementById('reply_'+commentId);
+    if(card){ var wrap=card.closest('.cmt'); if(wrap) wrap.remove(); }
+  }catch(e){ alert('Oops: '+e.message); }
+};
+
+// ---- Modifier une de MES réponses (correction de faute de frappe) ----
+window.editReply=async function(key, commentId, replyId){
+  var span=document.getElementById('rtxt_'+replyId); if(!span) return;
+  var current=span.textContent;
+  var nv=prompt('Modifier ta réponse :', current);
+  if(nv===null) return;                 // annulé
+  nv=nv.trim(); if(!nv) return;         // vide : on ne fait rien
+  try{
+    await updateDoc(doc(db,'comments',key,'items',commentId,'replies',replyId), { text:nv, edited:true });
+    await loadReplies(key, commentId);  // recharge pour afficher le texte corrigé
+  }catch(e){ alert('Oops: '+e.message); }
+};
+
+// ---- Supprimer une de MES réponses (sans toucher au commentaire de la lectrice) ----
+window.deleteReply=async function(key, commentId, replyId){
+  if(!confirm('Supprimer cette réponse ? (Le commentaire de la lectrice, lui, sera conservé.)')) return;
+  try{
+    await deleteDoc(doc(db,'comments',key,'items',commentId,'replies',replyId));
+    await loadReplies(key, commentId);  // recharge le fil sans la réponse supprimée
+  }catch(e){ alert('Oops: '+e.message); }
 };
 
 // Crée une notification pour chaque participant du fil quand l'autrice répond depuis l'admin.
