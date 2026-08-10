@@ -85,6 +85,7 @@
   </div>
 
   <div id="dash" style="display:none;">
+    <div id="newSinceLast" style="display:none;"></div>
     <div class="kpis" id="kpis"></div>
     <div class="section">
       <h2>📚 Par histoire</h2>
@@ -164,7 +165,16 @@ onAuthStateChanged(auth, function(user){
 });
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function kpi(n,l){ return '<div class="kpi"><div class="num">'+n+'</div><div class="lbl">'+l+'</div></div>'; }
+// KPI avec pastille de nouveautés (delta) depuis la dernière visite.
+function kpi(n,l,delta){
+  var badge = (delta && delta>0)
+    ? '<span style="position:absolute;top:8px;right:10px;background:#00a651;color:#fff;font-size:11px;font-weight:800;border-radius:12px;padding:2px 8px;">+'+delta+'</span>'
+    : '';
+  return '<div class="kpi" style="position:relative;">'+badge+'<div class="num">'+n+'</div><div class="lbl">'+l+'</div></div>';
+}
+// Lecture/écriture de la "dernière visite admin" (en local, aucun coût Firebase).
+function lastSeen(){ try{ return JSON.parse(localStorage.getItem('admin_lastSeen')||'{}'); }catch(e){ return {}; } }
+function saveLastSeen(o){ try{ localStorage.setItem('admin_lastSeen', JSON.stringify(o)); }catch(e){} }
 
 async function loadDashboard(){
   if(STORIES.length===0){ await loadStories(); }
@@ -184,9 +194,35 @@ async function loadDashboard(){
   let userCount=0;
   try{ const us=await getDocs(collection(db,'users')); userCount=us.size; }catch(e){}
 
-  // KPIs (affichage immédiat)
+  // ---- Nouveautés depuis ta dernière visite (comparaison locale, 0 coût Firebase) ----
+  var prev = lastSeen();
+  var dViews = (typeof prev.views==='number') ? Math.max(0, totalViews-prev.views) : 0;
+  var dLikes = (typeof prev.likes==='number') ? Math.max(0, totalLikes-prev.likes) : 0;
+  var dComments = (typeof prev.comments==='number') ? Math.max(0, totalComments-prev.comments) : 0;
+  var dUsers = (typeof prev.users==='number') ? Math.max(0, userCount-prev.users) : 0;
+
+  // KPIs avec pastilles de nouveautés
   document.getElementById('kpis').innerHTML =
-    kpi(totalViews,'Vues totales') + kpi(userCount,'Lecteurs inscrits') + kpi(totalLikes,"J'aime au total") + kpi(totalComments,'Commentaires');
+    kpi(totalViews,'Vues totales',dViews) + kpi(userCount,'Lecteurs inscrits',dUsers) + kpi(totalLikes,"J'aime au total",dLikes) + kpi(totalComments,'Commentaires',dComments);
+
+  // Encart récap en haut : "Depuis ta dernière visite…"
+  var box=document.getElementById('newSinceLast');
+  if(box){
+    var bits=[];
+    if(dLikes>0) bits.push('❤️ <b>+'+dLikes+'</b> j\'aime');
+    if(dComments>0) bits.push('💬 <b>+'+dComments+'</b> commentaire'+(dComments>1?'s':''));
+    if(dUsers>0) bits.push('🧑 <b>+'+dUsers+'</b> lecteur'+(dUsers>1?'s':'')+' inscrit'+(dUsers>1?'s':''));
+    if(dViews>0) bits.push('👁️ <b>+'+dViews+'</b> vue'+(dViews>1?'s':''));
+    var isFirst = (typeof prev.likes!=='number');   // toute première visite : pas de comparaison
+    if(!isFirst && bits.length){
+      box.innerHTML='<div style="background:rgba(0,166,81,.12);border:1px solid rgba(0,166,81,.4);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:14px;color:var(--ink);">✨ <b>Depuis ta dernière visite :</b> '+bits.join(' &nbsp;·&nbsp; ')+'</div>';
+      box.style.display='block';
+    } else {
+      box.style.display='none';
+    }
+  }
+  // Mémorise l'état actuel comme "dernière visite" (pour la prochaine ouverture)
+  saveLastSeen({ views:totalViews, likes:totalLikes, comments:totalComments, users:userCount, at:Date.now() });
 
   // Par histoire (depuis byStory agrégé)
   const idToName={};
