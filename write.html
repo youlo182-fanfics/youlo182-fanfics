@@ -86,7 +86,14 @@ textarea.input{resize:vertical;min-height:60px;}
 .editor-toolbar button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:.12s;}
 .editor-toolbar button:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .editor-toolbar .sep{width:1px;height:24px;background:var(--line);margin:0 4px;}
-.editor-area{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;padding:24px 20px;min-height:50vh;font-size:var(--editor-fs,18px);line-height:1.85;color:var(--ink);outline:none;overflow-wrap:break-word;word-wrap:break-word;padding-bottom:80px;}
+.editor-area{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;padding:24px 20px;height:calc(100vh - 220px);font-size:var(--editor-fs,18px);line-height:1.85;color:var(--ink);outline:none;overflow-wrap:break-word;word-wrap:break-word;overflow-y:auto;padding-bottom:40px;}
+/* Scrollbar large, visible et facile a toucher sur mobile */
+.editor-area::-webkit-scrollbar{width:14px;}
+.editor-area::-webkit-scrollbar-track{background:var(--bg);border-radius:8px;}
+.editor-area::-webkit-scrollbar-thumb{background:var(--accent-l);border-radius:8px;border:2px solid var(--bg);}
+.editor-area::-webkit-scrollbar-thumb:hover{background:var(--accent);}
+/* Firefox */
+.editor-area{scrollbar-width:auto;scrollbar-color:var(--accent-l) var(--bg);}
 .editor-area:focus{border-color:var(--accent-l);}
 .editor-area p{margin-bottom:14px;}
 .save-status{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap;}
@@ -185,6 +192,8 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
 
     <!-- Barre fixe en bas (toujours visible : taille, theme, export, compteur) -->
     <div class="bottom-bar" id="bottomBar" style="display:none;">
+      <button id="goTopBtn" title="Aller au debut">⬆️</button>
+      <button id="goBottomBtn" title="Aller a la fin">⬇️</button>
       <button id="fontDown" title="Texte plus petit">A-</button>
       <button id="fontUp" title="Texte plus grand">A+</button>
       <button id="themeToggle" title="Mode clair/sombre">☀️</button>
@@ -543,6 +552,50 @@ function checkExportReminder(){
   }
 }
 editor.addEventListener('input', checkExportReminder);
+
+// ===== SCROLL : boutons haut/bas + reprise de position =====
+document.getElementById('goTopBtn').onclick=function(){ editor.scrollTo({top:0, behavior:'smooth'}); };
+document.getElementById('goBottomBtn').onclick=function(){ editor.scrollTo({top:editor.scrollHeight, behavior:'smooth'}); };
+
+// Sauvegarde la position de scroll de l'éditeur (locale, debounced)
+var __editorScrollTimer=null;
+function editorScrollKey(){
+  if(!currentStory||!currentChapter) return null;
+  return 'write_scroll_'+currentStory.id+'_'+currentChapter.id;
+}
+function saveEditorScroll(){
+  var key=editorScrollKey(); if(!key) return;
+  var h=editor.scrollHeight-editor.clientHeight;
+  var frac = h>0 ? Math.min(1, editor.scrollTop/h) : 0;
+  try{ localStorage.setItem(key, String(frac)); }catch(e){}
+}
+editor.addEventListener('scroll', function(){
+  if(__editorScrollTimer) clearTimeout(__editorScrollTimer);
+  __editorScrollTimer=setTimeout(saveEditorScroll, 500);
+});
+
+// Reprise de position a l'ouverture d'un chapitre
+var __origLoadEditor2 = loadEditor;
+loadEditor = function(){
+  __origLoadEditor2();
+  // Proposer de reprendre si position sauvegardée > 2%
+  var key=editorScrollKey(); if(!key) return;
+  var frac=0;
+  try{ var v=localStorage.getItem(key); if(v) frac=parseFloat(v); }catch(e){}
+  if(frac>0.02){
+    setTimeout(function(){
+      var pct=Math.round(frac*100);
+      if(confirm('📖 Reprendre ou tu t\'es arretee ? ('+pct+'% du texte)\n\n[OK] = reprendre\n[Annuler] = rester en haut')){
+        var h=editor.scrollHeight-editor.clientHeight;
+        if(h>0) editor.scrollTo({top:h*frac, behavior:'smooth'});
+      } else {
+        try{ localStorage.setItem(key, '0'); }catch(e){}
+      }
+    }, 300);
+  }
+  // Show bottom bar
+  var bb=document.getElementById('bottomBar'); if(bb) bb.style.display=(currentStory&&currentChapter)?'flex':'none';
+};
 
 // ===== IDEAS =====
 function renderIdeas(){
