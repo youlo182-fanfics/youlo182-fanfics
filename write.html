@@ -111,8 +111,13 @@ textarea.input{resize:vertical;min-height:60px;}
 
 /* Ideas */
 .idea-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--card);}
-.idea-item .idea-title{font-weight:700;font-size:14px;color:var(--accent-l);margin-bottom:4px;}
+.idea-item{cursor:pointer;transition:.12s;}
+.idea-item:hover{border-color:var(--accent-l);}
+.idea-item .idea-title{font-weight:700;font-size:14px;color:var(--accent-l);}
 .idea-item .idea-pitch{font-size:13px;color:var(--muted);line-height:1.4;}
+.idea-detail{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);}
+.idea-detail.open{display:block;}
+.idea-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
 
 /* Back link */
 a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700;}
@@ -167,6 +172,13 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" id="backToListBtn">&larr; Retour</button>
           <h2 id="currentStoryTitle" style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--accent-l);flex:1;"></h2>
+        </div>
+
+        <!-- Pitch de référence (affiché quand l'histoire vient d'une idée) -->
+        <div id="pitchRef" style="display:none;background:rgba(176,61,94,.1);border:1px solid var(--accent-l);border-left:4px solid var(--accent-l);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--ink);line-height:1.5;position:relative;">
+          <button id="pitchRefClose" style="position:absolute;top:6px;right:10px;background:none;border:none;color:var(--accent-l);font-size:16px;cursor:pointer;font-weight:700;">✕</button>
+          <div style="font-weight:700;color:var(--accent-l);margin-bottom:4px;">💡 Mon idee :</div>
+          <div id="pitchRefText"></div>
         </div>
 
         <!-- Chapter nav -->
@@ -347,6 +359,13 @@ function openStory(id){
   document.getElementById('storyListView').style.display='none';
   document.getElementById('storyEditorView').style.display='block';
   document.getElementById('currentStoryTitle').textContent=currentStory.title;
+  // Afficher le pitch de référence si l'histoire en a un (venant d'une idée)
+  var pitchRef=document.getElementById('pitchRef');
+  var pitchText=document.getElementById('pitchRefText');
+  if(pitchRef && pitchText){
+    if(currentStory.pitch){ pitchText.textContent=currentStory.pitch; pitchRef.style.display='block'; }
+    else { pitchRef.style.display='none'; }
+  }
   // Pour les OS (pas de chapitres), on crée un chapitre unique invisible pour que l'éditeur fonctionne.
   if(!currentStory.chapters.length){
     var defaultCh={id:'_default', title:'Texte'};
@@ -366,6 +385,11 @@ document.getElementById('backToListBtn').onclick=function(){
   document.getElementById('storyEditorView').style.display='none';
   document.getElementById('storyListView').style.display='block';
   currentStory=null; currentChapter=null;
+};
+document.getElementById('pitchRefClose').onclick=function(){
+  var pitchRef=document.getElementById('pitchRef'); if(pitchRef) pitchRef.style.display='none';
+  // Supprimer le pitch de l'histoire (tu n'en as plus besoin)
+  if(currentStory){ currentStory.pitch=''; saveStories(); }
 };
 
 // ===== CHAPTERS =====
@@ -696,14 +720,47 @@ document.getElementById('searchPrev').onclick=function(){
 };
 
 // ===== IDEAS =====
+// Affichage "squeezé" : seuls les titres sont visibles. Clic = déplier le pitch + actions.
 function renderIdeas(){
   var list=document.getElementById('ideaList');
-  if(!ideas.length){ list.innerHTML='<div style="color:var(--muted);font-style:italic;font-size:13px;padding:10px;">Aucune idée notee pour l\'instant.</div>'; return; }
+  if(!ideas.length){ list.innerHTML='<div style="color:var(--muted);font-style:italic;font-size:13px;padding:10px;">Aucune idee notee pour l\'instant.</div>'; return; }
   list.innerHTML=ideas.map(function(d){
-    return '<div class="idea-item"><div class="idea-title">'+esc(d.title)+'</div><div class="idea-pitch">'+esc(d.pitch||'')+'</div><button class="btn-danger" data-del="'+d.id+'">🗑️ Supprimer</button></div>';
+    return '<div class="idea-item" data-idea="'+d.id+'">'
+      +'<div class="idea-title">'+esc(d.title)+'</div>'
+      +'<div class="idea-detail" id="ideaDetail_'+d.id+'">'
+        +(d.pitch ? '<div class="idea-pitch">'+esc(d.pitch)+'</div>' : '<div class="idea-pitch" style="font-style:italic;">(pas de pitch)</div>')
+        +'<div class="idea-actions">'
+          +'<button class="btn btn-sm" data-write="'+d.id+'">✍️ Ecrire maintenant</button>'
+          +'<button class="btn-danger" data-del="'+d.id+'">🗑️ Supprimer</button>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
   }).join('');
+  // Clic sur le titre = déplier/replier le détail
+  list.querySelectorAll('.idea-item').forEach(function(item){
+    item.querySelector('.idea-title').onclick=function(){
+      var detail=item.querySelector('.idea-detail');
+      if(detail) detail.classList.toggle('open');
+    };
+  });
+  // Bouton supprimer
   list.querySelectorAll('[data-del]').forEach(function(btn){
-    btn.onclick=function(){ ideas=ideas.filter(x=>x.id!==btn.dataset.del); saveIdeas(); renderIdeas(); };
+    btn.onclick=function(e){ e.stopPropagation(); ideas=ideas.filter(x=>x.id!==btn.dataset.del); saveIdeas(); renderIdeas(); };
+  });
+  // Bouton "Ecrire maintenant" : transforme l'idée en histoire
+  list.querySelectorAll('[data-write]').forEach(function(btn){
+    btn.onclick=function(e){
+      e.stopPropagation();
+      var idea=ideas.find(x=>x.id===btn.dataset.write); if(!idea) return;
+      // Créer une histoire avec le titre de l'idée
+      var s={id:uid(), title:idea.title, chapters:[], pitch:idea.pitch||''};
+      stories.push(s); saveStories();
+      // Basculer vers l'onglet histoires + ouvrir l'histoire
+      document.querySelectorAll('.tab').forEach(function(t,i){ t.classList.toggle('active',i===0); });
+      document.querySelectorAll('.tab-panel').forEach(function(p,i){ p.classList.toggle('active',i===0); });
+      renderStoryList();
+      openStory(s.id);
+    };
   });
 }
 document.getElementById('addIdeaBtn').onclick=function(){
