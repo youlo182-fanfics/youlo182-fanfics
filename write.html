@@ -78,15 +78,21 @@ textarea.input{resize:vertical;min-height:60px;}
 .ch-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
 
 /* Editor */
-.editor-toolbar{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px 12px 0 0;align-items:center;}
+.editor-toolbar{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px 12px 0 0;align-items:center;position:sticky;top:0;z-index:40;}
 .editor-toolbar button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:.12s;}
 .editor-toolbar button:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .editor-toolbar .sep{width:1px;height:24px;background:var(--line);margin:0 4px;}
-.editor-area{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;padding:24px 20px;min-height:50vh;font-size:18px;line-height:1.85;color:var(--ink);outline:none;overflow-wrap:break-word;word-wrap:break-word;}
+.editor-area{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;padding:24px 20px;min-height:50vh;font-size:var(--editor-fs,18px);line-height:1.85;color:var(--ink);outline:none;overflow-wrap:break-word;word-wrap:break-word;padding-bottom:80px;}
 .editor-area:focus{border-color:var(--accent-l);}
 .editor-area p{margin-bottom:14px;}
 .save-status{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap;}
 .save-status.saved{color:#00a651;}
+
+/* Bottom bar (fixed) */
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--card);border-top:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 -2px 10px rgba(0,0,0,.2);}
+.bottom-bar button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;padding:6px 10px;transition:.12s;}
+.bottom-bar button:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.bottom-bar .word-count{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap;}
 
 /* Ideas */
 .idea-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--card);}
@@ -167,17 +173,20 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
           <button id="tbLeft" title="Aligner a gauche">⫷</button>
           <button id="tbCenter" title="Centrer">☰</button>
           <button id="tbRight" title="Aligner a droite">⫸</button>
-          <div class="sep"></div>
-          <button id="tbExtract" title="Extraire en .md" style="font-size:13px;width:auto;padding:0 10px;">📥 .md</button>
           <span class="save-status" id="saveStatus">-</span>
         </div>
         <div class="editor-area" id="editor" contenteditable="true" spellcheck="true"></div>
-        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn" id="saveBtn">💾 Enregistrer</button>
-          <button class="btn btn-ghost" id="extractBtn">📥 .md</button>
-          <button class="btn btn-ghost" id="extractDocBtn">📥 Word (.html)</button>
-        </div>
       </div>
+    </div>
+
+    <!-- Barre fixe en bas (toujours visible : taille, theme, export, compteur) -->
+    <div class="bottom-bar" id="bottomBar" style="display:none;">
+      <button id="fontDown" title="Texte plus petit">A-</button>
+      <button id="fontUp" title="Texte plus grand">A+</button>
+      <button id="themeToggle" title="Mode clair/sombre">☀️</button>
+      <button id="saveBtn" title="Enregistrer">💾</button>
+      <button id="extractDocBtn" title="Exporter en Word">📥 Word</button>
+      <span class="word-count" id="wordCount">0 mot</span>
     </div>
 
     <!-- Tab: Ideas -->
@@ -463,8 +472,6 @@ function doExtract(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
 }
-document.getElementById('extractBtn').onclick=doExtract;
-document.getElementById('tbExtract').onclick=doExtract;
 
 // Export Word-compatible (.html que Word ouvre nativement avec formatage)
 function doExtractDoc(){
@@ -486,6 +493,52 @@ function doExtractDoc(){
   URL.revokeObjectURL(a.href);
 }
 document.getElementById('extractDocBtn').onclick=doExtractDoc;
+
+// ===== BOTTOM BAR : compteur de mots, taille, theme =====
+var editorFontSize = parseInt(localStorage.getItem('write_fs')||'18');
+function applyEditorFontSize(){ document.documentElement.style.setProperty('--editor-fs', editorFontSize+'px'); }
+applyEditorFontSize();
+document.getElementById('fontUp').onclick=function(){ editorFontSize=Math.min(30, editorFontSize+2); localStorage.setItem('write_fs', editorFontSize); applyEditorFontSize(); };
+document.getElementById('fontDown').onclick=function(){ editorFontSize=Math.max(12, editorFontSize-2); localStorage.setItem('write_fs', editorFontSize); applyEditorFontSize(); };
+
+// Theme toggle (reuse same localStorage key as admin)
+document.getElementById('themeToggle').onclick=function(){ toggleWriteTheme(); };
+
+// Word counter
+function updateWordCount(){
+  var text=(editor.innerText||editor.textContent||'').trim();
+  var count = text ? text.split(/\s+/).length : 0;
+  var el=document.getElementById('wordCount');
+  if(el) el.textContent = count.toLocaleString('fr-FR')+' mot'+(count>1?'s':'');
+}
+editor.addEventListener('input', function(){
+  updateWordCount();
+});
+// Initial count on load
+var __origLoadEditor = loadEditor;
+loadEditor = function(){
+  __origLoadEditor();
+  updateWordCount();
+  // Show bottom bar when editor is active
+  var bb=document.getElementById('bottomBar'); if(bb) bb.style.display=(currentStory&&currentChapter)?'flex':'none';
+};
+
+// ===== POPUP RAPPEL EXPORT (quand le texte est long) =====
+var __exportReminded = false;
+function checkExportReminder(){
+  if(__exportReminded) return;
+  var text=(editor.innerText||editor.textContent||'').trim();
+  var count = text ? text.split(/\s+/).length : 0;
+  if(count>=3000){
+    __exportReminded=true;
+    setTimeout(function(){
+      if(confirm('💾 Tu as deja '+count.toLocaleString('fr-FR')+' mots, belle avancee !\n\nPense a exporter ton texte de temps en temps (bouton Word en bas) pour garder une copie de secours. 😊\n\nExporter maintenant ?')){
+        doExtractDoc();
+      }
+    }, 500);
+  }
+}
+editor.addEventListener('input', checkExportReminder);
 
 // ===== IDEAS =====
 function renderIdeas(){
