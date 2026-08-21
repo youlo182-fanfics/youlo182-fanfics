@@ -33,7 +33,7 @@ body.light .topbar{ background:linear-gradient(90deg,#12293f,#1a3a5c) !important
 .topbar .sub{font-size:11px;color:rgba(255,255,255,.8);}
 .top-btn{background:rgba(255,255,255,.16);border:none;color:#fff;padding:7px 14px;border-radius:16px;cursor:pointer;font-size:12px;font-weight:700;text-decoration:none;display:inline-block;}
 .top-btn:hover{background:rgba(255,255,255,.3);}
-.wrap{max-width:800px;margin:0 auto;padding:20px 16px 80px;}
+.wrap{max-width:800px;margin:0 auto;padding:20px 16px 120px;}
 
 /* Gate */
 .gate{max-width:400px;margin:60px auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;text-align:center;}
@@ -180,22 +180,19 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
         </div>
         </div>
 
-        <!-- Editor -->
-        <div class="editor-toolbar" id="toolbar">
-          <button id="tbBold" title="Gras"><b>G</b></button>
-          <button id="tbItalic" title="Italique"><i>I</i></button>
-          <div class="sep"></div>
-          <button id="tbLeft" title="Aligner a gauche">⫷</button>
-          <button id="tbCenter" title="Centrer">☰</button>
-          <button id="tbRight" title="Aligner a droite">⫸</button>
-          <span class="save-status" id="saveStatus">-</span>
-        </div>
-        <div class="editor-area" id="editor" contenteditable="true" spellcheck="true"></div>
+        <!-- Editor (toolbar deplacee dans la bottom bar) -->
+        <div class="editor-area" id="editor" contenteditable="true" spellcheck="true" style="border-radius:12px;border-top:1px solid var(--line);"></div>
+        <span class="save-status" id="saveStatus" style="display:block;text-align:right;padding:4px 8px;font-size:11px;">-</span>
       </div>
     </div>
 
     <!-- Barre fixe en bas (toujours visible : taille, theme, export, compteur) -->
     <div class="bottom-bar" id="bottomBar" style="display:none;">
+      <button id="tbBold" title="Gras"><b>G</b></button>
+      <button id="tbItalic" title="Italique"><i>I</i></button>
+      <button id="tbLeft" title="Gauche">⫷</button>
+      <button id="tbCenter" title="Centre">≡</button>
+      <button id="tbRight" title="Droite">⫸</button>
       <button id="goTopBtn" title="Aller au debut">⬆️</button>
       <button id="goBottomBtn" title="Aller a la fin">⬇️</button>
       <button id="fontDown" title="Texte plus petit">A-</button>
@@ -230,7 +227,6 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
       </div>
     </div>
 
-    <p style="margin-top:20px;"><a class="back" href="admin.html">&larr; Retour au dashboard</a></p>
   </div>
 </div>
 
@@ -442,6 +438,11 @@ document.getElementById('saveBtn').onclick=function(){ saveCurrentChapter(); };
 
 // ===== TOOLBAR =====
 function cmd(c, v){ document.execCommand(c, false, v||null); editor.focus(); }
+// Empêcher les boutons de formatage de voler le focus (sinon la sélection est perdue
+// et execCommand ne s'applique a rien). On bloque le mousedown/touchstart.
+['tbBold','tbItalic','tbLeft','tbCenter','tbRight'].forEach(function(id){
+  var el=document.getElementById(id); if(el){ el.addEventListener('mousedown', function(e){ e.preventDefault(); }); el.addEventListener('touchend', function(e){ e.preventDefault(); el.click(); }); }
+});
 document.getElementById('tbBold').onclick=function(){ cmd('bold'); };
 document.getElementById('tbItalic').onclick=function(){ cmd('italic'); };
 document.getElementById('tbLeft').onclick=function(){ cmd('justifyLeft'); };
