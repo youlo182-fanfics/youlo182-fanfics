@@ -66,6 +66,7 @@
 <div class="topbar">
   <div><h1>📊 Dashboard Admin</h1><div class="sub">Youlo182 · Espace privé de l'autrice</div></div>
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+    <a class="logout" href="write.html" style="display:none;background:rgba(176,61,94,.25);text-decoration:none;" id="writeBtn">✍️ Écrire</a>
     <button class="logout" id="mailingBtn" style="display:none;background:rgba(176,61,94,.25);">📧 Ma mailing list</button>
     <button class="logout" id="mailingAllBtn" style="display:none;background:rgba(176,61,94,.15);">📨 Tous les inscrits</button>
     <button class="logout" id="exportBtn" style="display:none;background:rgba(176,61,94,.25);">💾 Sauvegarder mes données</button>
@@ -155,7 +156,7 @@ document.getElementById('logoutBtn').onclick=()=>signOut(auth);
 onAuthStateChanged(auth, function(user){
   if(user && user.email===ADMIN_EMAIL){
     gate.style.display='none'; dash.style.display='block';
-    document.getElementById('logoutBtn').style.display='inline-block'; document.getElementById('exportBtn').style.display='inline-block'; document.getElementById('mailingBtn').style.display='inline-block'; document.getElementById('mailingAllBtn').style.display='inline-block';
+    document.getElementById('logoutBtn').style.display='inline-block'; document.getElementById('exportBtn').style.display='inline-block'; document.getElementById('mailingBtn').style.display='inline-block'; document.getElementById('mailingAllBtn').style.display='inline-block'; document.getElementById('writeBtn').style.display='inline-block';
     loadDashboard();
   } else {
     gate.style.display='block'; dash.style.display='none';

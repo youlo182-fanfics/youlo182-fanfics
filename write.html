@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Ecrire - Youlo182</title>
+<link rel="manifest" href="manifest-admin.json">
+<meta name="theme-color" content="#8B1E3F">
+<link rel="icon" type="image/png" href="assets/icon-admin-192.png">
+<link rel="apple-touch-icon" href="assets/icon-admin-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ecrire">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#0a1628; --card:#122138; --ink:#e8eef6; --muted:#9fb0c6; --accent:#8B1E3F; --accent-d:#6d1730; --accent-l:#b03d5e; --line:#1e3050; }
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Nunito Sans',sans-serif;}
+body{background:var(--bg);color:var(--ink);min-height:100vh;max-width:100%;overflow-x:hidden;}
+.topbar{background:linear-gradient(90deg,var(--accent-d),var(--accent));padding:14px 20px;box-shadow:0 2px 14px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.topbar h1{font-family:'Cormorant Garamond',serif;font-size:22px;color:#fff;font-weight:600;}
+.topbar .sub{font-size:11px;color:rgba(255,255,255,.8);}
+.top-btn{background:rgba(255,255,255,.16);border:none;color:#fff;padding:7px 14px;border-radius:16px;cursor:pointer;font-size:12px;font-weight:700;text-decoration:none;display:inline-block;}
+.top-btn:hover{background:rgba(255,255,255,.3);}
+.wrap{max-width:800px;margin:0 auto;padding:20px 16px 80px;}
+
+/* Gate */
+.gate{max-width:400px;margin:60px auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;text-align:center;}
+.gate h2{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--accent-l);margin-bottom:10px;}
+.gate p{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+.gate input{width:100%;background:#0d1c30;border:1px solid var(--line);color:var(--ink);padding:12px;border-radius:10px;font-size:14px;margin-bottom:10px;}
+.gate button{width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:22px;font-weight:700;cursor:pointer;font-size:15px;}
+.gate .err{background:rgba(176,61,94,.15);color:var(--accent-l);border:1px solid rgba(176,61,94,.3);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px;display:none;}
+.gate .err.show{display:block;}
+
+/* Tabs */
+.tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--line);}
+.tab{flex:1;text-align:center;padding:12px 8px;cursor:pointer;font-weight:700;font-size:14px;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;transition:.15s;}
+.tab:hover{color:var(--ink);}
+.tab.active{color:var(--accent-l);border-bottom-color:var(--accent-l);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+/* Section cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;}
+.card h3{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--accent-l);margin-bottom:10px;}
+
+/* Buttons */
+.btn{background:var(--accent);color:#fff;border:none;padding:9px 18px;border-radius:20px;font-weight:700;cursor:pointer;font-size:13px;}
+.btn:hover{background:var(--accent-l);}
+.btn-sm{padding:6px 14px;font-size:12px;border-radius:16px;}
+.btn-ghost{background:none;border:1px solid var(--accent-l);color:var(--accent-l);}
+.btn-ghost:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-danger{background:none;border:none;color:#e05555;cursor:pointer;font-size:12px;font-weight:700;padding:4px 8px;}
+.btn-danger:hover{text-decoration:underline;}
+
+/* Input */
+.input{background:#0d1c30;border:1px solid var(--line);color:var(--ink);padding:10px 12px;border-radius:10px;font-size:14px;width:100%;font-family:inherit;}
+textarea.input{resize:vertical;min-height:60px;}
+
+/* Story list */
+.story-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#0d1c30;cursor:pointer;transition:.12s;gap:8px;}
+.story-item:hover{border-color:var(--accent-l);}
+.story-item .title{font-weight:700;font-size:14px;flex:1;}
+.story-item .meta{font-size:12px;color:var(--muted);}
+
+/* Chapter nav */
+.ch-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.ch-btn{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:6px 13px;border-radius:16px;cursor:pointer;font-size:13px;font-weight:600;transition:.12s;}
+.ch-btn:hover{border-color:var(--accent-l);}
+.ch-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+/* Editor */
+.editor-toolbar{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px 12px 0 0;align-items:center;}
+.editor-toolbar button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:.12s;}
+.editor-toolbar button:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.editor-toolbar .sep{width:1px;height:24px;background:var(--line);margin:0 4px;}
+.editor-area{background:#0d1c30;border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;padding:24px 20px;min-height:50vh;font-size:18px;line-height:1.85;color:var(--ink);outline:none;overflow-wrap:break-word;word-wrap:break-word;}
+.editor-area:focus{border-color:var(--accent-l);}
+.editor-area p{margin-bottom:14px;}
+.save-status{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap;}
+.save-status.saved{color:#00a651;}
+
+/* Ideas */
+.idea-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#0d1c30;}
+.idea-item .idea-title{font-weight:700;font-size:14px;color:var(--accent-l);margin-bottom:4px;}
+.idea-item .idea-pitch{font-size:13px;color:var(--muted);line-height:1.4;}
+
+/* Back link */
+a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div><h1>✍️ Mon espace d'ecriture</h1><div class="sub">Youlo182 - Privé</div></div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <a class="top-btn" href="admin.html">📊 Dashboard</a>
+    <button class="top-btn" id="logoutBtn" style="display:none;">Se deconnecter</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- Gate -->
+  <div class="gate" id="gate">
+    <h2>🔒 Espace d'ecriture</h2>
+    <p>Cet espace est reserve a l'autrice. Connecte-toi avec ton compte admin.</p>
+    <div class="err" id="gateErr"></div>
+    <input type="email" id="admEmail" placeholder="Email admin">
+    <input type="password" id="admPass" placeholder="Mot de passe">
+    <button id="admLogin">Se connecter</button>
+    <p style="margin-top:14px;"><a class="back" href="admin.html">&larr; Dashboard admin</a></p>
+  </div>
+
+  <!-- Main app (hidden until auth) -->
+  <div id="app" style="display:none;">
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="stories">📖 Mes histoires</div>
+      <div class="tab" data-tab="ideas">💡 Mes idées</div>
+    </div>
+
+    <!-- Tab: Stories -->
+    <div class="tab-panel active" id="panelStories">
+      <!-- Story list view -->
+      <div id="storyListView">
+        <div class="card">
+          <h3>📖 Mes histoires en cours</h3>
+          <div id="storyList"></div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <input type="text" class="input" id="newStoryTitle" placeholder="Titre de la nouvelle histoire..." style="flex:1;min-width:160px;">
+            <button class="btn btn-sm" id="addStoryBtn">+ Creer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Story editor view (hidden by default) -->
+      <div id="storyEditorView" style="display:none;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" id="backToListBtn">&larr; Retour</button>
+          <h2 id="currentStoryTitle" style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--accent-l);flex:1;"></h2>
+        </div>
+
+        <!-- Chapter nav -->
+        <div class="ch-list" id="chapterNav"></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+          <input type="text" class="input" id="newChTitle" placeholder="Nouveau chapitre..." style="flex:1;min-width:140px;padding:8px 12px;font-size:13px;">
+          <button class="btn btn-sm" id="addChBtn">+ Chapitre</button>
+          <button class="btn btn-sm btn-ghost" id="renameChBtn">✏️ Renommer</button>
+          <button class="btn-danger" id="deleteChBtn">🗑️ Suppr. chapitre</button>
+        </div>
+
+        <!-- Editor -->
+        <div class="editor-toolbar" id="toolbar">
+          <button id="tbBold" title="Gras"><b>G</b></button>
+          <button id="tbItalic" title="Italique"><i>I</i></button>
+          <div class="sep"></div>
+          <button id="tbLeft" title="Aligner a gauche">⫷</button>
+          <button id="tbCenter" title="Centrer">☰</button>
+          <button id="tbRight" title="Aligner a droite">⫸</button>
+          <div class="sep"></div>
+          <button id="tbExtract" title="Extraire en .md" style="font-size:13px;width:auto;padding:0 10px;">📥 .md</button>
+          <span class="save-status" id="saveStatus">-</span>
+        </div>
+        <div class="editor-area" id="editor" contenteditable="true" spellcheck="true"></div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn" id="saveBtn">💾 Enregistrer</button>
+          <button class="btn btn-ghost" id="extractBtn">📥 .md</button>
+          <button class="btn btn-ghost" id="extractDocBtn">📥 Word (.html)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Ideas -->
+    <div class="tab-panel" id="panelIdeas">
+      <div class="card">
+        <h3>💡 Mes idées</h3>
+        <div id="ideaList"></div>
+        <div style="margin-top:14px;">
+          <input type="text" class="input" id="newIdeaTitle" placeholder="Titre de l'idée..." style="margin-bottom:8px;">
+          <textarea class="input" id="newIdeaPitch" placeholder="Pitch / description courte..."></textarea>
+          <button class="btn btn-sm" id="addIdeaBtn" style="margin-top:8px;">+ Ajouter l'idée</button>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin-top:20px;"><a class="back" href="admin.html">&larr; Retour au dashboard</a></p>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDCXtXM-F_AoqwlUTk_trk3Ny9dxy-7q-g",
+  authDomain: "youlo182-fanfics.firebaseapp.com",
+  projectId: "youlo182-fanfics",
+  storageBucket: "youlo182-fanfics.firebasestorage.app",
+  messagingSenderId: "254835522518",
+  appId: "1:254835522518:web:c309ed0c14ff24a19c0277"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const ADMIN_EMAIL = "julie.cacciola@gmail.com";
+
+// ===== AUTH =====
+const gate=document.getElementById('gate'), appEl=document.getElementById('app'), gateErr=document.getElementById('gateErr');
+document.getElementById('admLogin').onclick=async function(){
+  gateErr.classList.remove('show');
+  try{ await signInWithEmailAndPassword(auth, document.getElementById('admEmail').value.trim(), document.getElementById('admPass').value); }
+  catch(e){ gateErr.textContent=e.message.replace('Firebase: ',''); gateErr.classList.add('show'); }
+};
+document.getElementById('logoutBtn').onclick=()=>signOut(auth);
+onAuthStateChanged(auth, function(user){
+  if(user && user.email===ADMIN_EMAIL){
+    gate.style.display='none'; appEl.style.display='block';
+    document.getElementById('logoutBtn').style.display='inline-block';
+    initApp();
+  } else {
+    gate.style.display='block'; appEl.style.display='none';
+    document.getElementById('logoutBtn').style.display='none';
+    if(user && user.email!==ADMIN_EMAIL){ gateErr.textContent="Ce compte n'a pas acces."; gateErr.classList.add('show'); signOut(auth); }
+  }
+});
+
+// ===== LOCAL STORAGE HELPERS =====
+function loadJSON(key, fallback){ try{ var v=localStorage.getItem(key); return v?JSON.parse(v):fallback; }catch(e){ return fallback; } }
+function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+// ===== DATA =====
+let stories = [];   // [{id, title, chapters:[{id, title}]}]
+let ideas = [];     // [{id, title, pitch}]
+let currentStory = null;
+let currentChapter = null;
+let autoSaveTimer = null;
+
+function loadData(){
+  stories = loadJSON('write_stories', []);
+  ideas = loadJSON('write_ideas', []);
+}
+function saveStories(){ saveJSON('write_stories', stories); }
+function saveIdeas(){ saveJSON('write_ideas', ideas); }
+function chapterContentKey(storyId, chId){ return 'write_chapter_'+storyId+'_'+chId; }
+function getChapterContent(storyId, chId){ return localStorage.getItem(chapterContentKey(storyId, chId)) || ''; }
+function setChapterContent(storyId, chId, html){ try{ localStorage.setItem(chapterContentKey(storyId, chId), html); }catch(e){} }
+
+// ===== TABS =====
+document.querySelectorAll('.tab').forEach(function(t){
+  t.onclick=function(){
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel'+t.dataset.tab.charAt(0).toUpperCase()+t.dataset.tab.slice(1)).classList.add('active');
+  };
+});
+
+// ===== STORIES LIST =====
+function renderStoryList(){
+  var list=document.getElementById('storyList');
+  if(!stories.length){ list.innerHTML='<div style="color:var(--muted);font-style:italic;font-size:13px;padding:10px;">Aucune histoire pour l\'instant. Cree-en une !</div>'; return; }
+  list.innerHTML=stories.map(function(s){
+    return '<div class="story-item" data-id="'+s.id+'"><span class="title">'+esc(s.title)+'</span><span class="meta">'+s.chapters.length+' ch.</span><button class="btn-danger" data-del="'+s.id+'">🗑️</button></div>';
+  }).join('');
+  list.querySelectorAll('.story-item').forEach(function(el){
+    el.querySelector('.title').onclick=function(){ openStory(el.dataset.id); };
+    var del=el.querySelector('[data-del]');
+    if(del) del.onclick=function(e){ e.stopPropagation(); deleteStory(del.dataset.del); };
+  });
+}
+document.getElementById('addStoryBtn').onclick=function(){
+  var inp=document.getElementById('newStoryTitle');
+  var title=inp.value.trim(); if(!title) return;
+  var s={id:uid(), title:title, chapters:[]};
+  stories.push(s); saveStories(); inp.value='';
+  renderStoryList();
+};
+function deleteStory(id){
+  if(!confirm('Supprimer cette histoire et tous ses chapitres ?')) return;
+  var s=stories.find(x=>x.id===id); if(!s) return;
+  s.chapters.forEach(function(ch){ try{ localStorage.removeItem(chapterContentKey(id, ch.id)); }catch(e){} });
+  stories=stories.filter(x=>x.id!==id); saveStories();
+  renderStoryList();
+}
+
+// ===== OPEN STORY =====
+function openStory(id){
+  currentStory=stories.find(x=>x.id===id); if(!currentStory) return;
+  document.getElementById('storyListView').style.display='none';
+  document.getElementById('storyEditorView').style.display='block';
+  document.getElementById('currentStoryTitle').textContent=currentStory.title;
+  currentChapter=currentStory.chapters.length?currentStory.chapters[0]:null;
+  renderChapterNav();
+  loadEditor();
+}
+document.getElementById('backToListBtn').onclick=function(){
+  saveCurrentChapter();
+  document.getElementById('storyEditorView').style.display='none';
+  document.getElementById('storyListView').style.display='block';
+  currentStory=null; currentChapter=null;
+};
+
+// ===== CHAPTERS =====
+function renderChapterNav(){
+  var nav=document.getElementById('chapterNav');
+  if(!currentStory){ nav.innerHTML=''; return; }
+  nav.innerHTML=currentStory.chapters.map(function(ch, i){
+    return '<button class="ch-btn'+(currentChapter&&currentChapter.id===ch.id?' active':'')+'" data-chid="'+ch.id+'">'+(ch.title||('Ch.'+(i+1)))+'</button>';
+  }).join('');
+  nav.querySelectorAll('.ch-btn').forEach(function(btn){
+    btn.onclick=function(){ switchChapter(btn.dataset.chid); };
+  });
+}
+function switchChapter(chId){
+  saveCurrentChapter();
+  currentChapter=currentStory.chapters.find(x=>x.id===chId)||null;
+  renderChapterNav();
+  loadEditor();
+}
+document.getElementById('addChBtn').onclick=function(){
+  if(!currentStory) return;
+  var inp=document.getElementById('newChTitle');
+  var title=inp.value.trim()||('Chapitre '+(currentStory.chapters.length+1));
+  var ch={id:uid(), title:title};
+  currentStory.chapters.push(ch); saveStories(); inp.value='';
+  currentChapter=ch; renderChapterNav(); loadEditor();
+};
+document.getElementById('renameChBtn').onclick=function(){
+  if(!currentChapter) return;
+  var nv=prompt('Renommer le chapitre :', currentChapter.title);
+  if(nv===null||!nv.trim()) return;
+  currentChapter.title=nv.trim(); saveStories(); renderChapterNav();
+};
+document.getElementById('deleteChBtn').onclick=function(){
+  if(!currentChapter||!currentStory) return;
+  if(!confirm('Supprimer "'+currentChapter.title+'" ?')) return;
+  try{ localStorage.removeItem(chapterContentKey(currentStory.id, currentChapter.id)); }catch(e){}
+  currentStory.chapters=currentStory.chapters.filter(x=>x.id!==currentChapter.id);
+  saveStories();
+  currentChapter=currentStory.chapters.length?currentStory.chapters[0]:null;
+  renderChapterNav(); loadEditor();
+};
+
+// ===== EDITOR =====
+var editor=document.getElementById('editor');
+var saveStatus=document.getElementById('saveStatus');
+
+function loadEditor(){
+  if(!currentStory||!currentChapter){ editor.innerHTML='<p style="color:var(--muted);font-style:italic;">Selectionne ou cree un chapitre pour commencer a ecrire.</p>'; editor.contentEditable='false'; return; }
+  editor.contentEditable='true';
+  var html=getChapterContent(currentStory.id, currentChapter.id);
+  editor.innerHTML=html||'<p><br></p>';
+  saveStatus.textContent='-'; saveStatus.className='save-status';
+}
+function saveCurrentChapter(){
+  if(!currentStory||!currentChapter) return;
+  setChapterContent(currentStory.id, currentChapter.id, editor.innerHTML);
+  saveStatus.textContent='Sauvegarde ✓'; saveStatus.className='save-status saved';
+}
+// Auto-save (debounced 2s)
+editor.addEventListener('input', function(){
+  saveStatus.textContent='...'; saveStatus.className='save-status';
+  if(autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer=setTimeout(function(){ saveCurrentChapter(); }, 2000);
+});
+// Manual save
+document.getElementById('saveBtn').onclick=function(){ saveCurrentChapter(); };
+
+// ===== TOOLBAR =====
+function cmd(c, v){ document.execCommand(c, false, v||null); editor.focus(); }
+document.getElementById('tbBold').onclick=function(){ cmd('bold'); };
+document.getElementById('tbItalic').onclick=function(){ cmd('italic'); };
+document.getElementById('tbLeft').onclick=function(){ cmd('justifyLeft'); };
+document.getElementById('tbCenter').onclick=function(){ cmd('justifyCenter'); };
+document.getElementById('tbRight').onclick=function(){ cmd('justifyRight'); };
+
+// ===== EXTRACT TO MARKDOWN =====
+function htmlToMarkdown(html){
+  var tmp=document.createElement('div');
+  tmp.innerHTML=html;
+  var md='';
+  tmp.querySelectorAll('p, div, br').forEach(function(el){
+    if(el.tagName==='BR'){ md+='\n'; return; }
+  });
+  // Walk block-level children
+  function walk(node){
+    var out='';
+    if(node.nodeType===3) return node.textContent;
+    if(node.nodeType!==1) return '';
+    var tag=node.tagName.toLowerCase();
+    // Block elements: p, div, h1-h6
+    var isBlock = /^(p|div|h[1-6]|blockquote)$/.test(tag);
+    var children='';
+    for(var i=0;i<node.childNodes.length;i++) children+=walk(node.childNodes[i]);
+    // Inline formatting
+    if(tag==='b'||tag==='strong') return '**'+children+'**';
+    if(tag==='i'||tag==='em') return '*'+children+'*';
+    if(tag==='br') return '\n';
+    // Alignment
+    var align='';
+    var s=node.style&&node.style.textAlign;
+    if(s==='center') align='<center>';
+    var alignEnd=(s==='center')?'</center>':'';
+    if(isBlock){
+      return '\n'+align+children.trim()+alignEnd+'\n';
+    }
+    return children;
+  }
+  md=walk(tmp);
+  // Clean up: collapse multiple blank lines into max 2
+  md=md.replace(/\n{3,}/g,'\n\n').trim();
+  return md;
+}
+function doExtract(){
+  if(!currentStory||!currentChapter) return;
+  saveCurrentChapter();
+  var html=getChapterContent(currentStory.id, currentChapter.id);
+  var md=htmlToMarkdown(html);
+  // Build filename
+  var chIndex=currentStory.chapters.indexOf(currentChapter)+1;
+  var filename=currentStory.title.replace(/[^a-zA-Z0-9_\- ]/g,'').replace(/\s+/g,'_')+'_ch'+chIndex+'.md';
+  // Download
+  var blob=new Blob([md],{type:'text/markdown;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById('extractBtn').onclick=doExtract;
+document.getElementById('tbExtract').onclick=doExtract;
+
+// Export Word-compatible (.html que Word ouvre nativement avec formatage)
+function doExtractDoc(){
+  if(!currentStory||!currentChapter) return;
+  saveCurrentChapter();
+  var html=getChapterContent(currentStory.id, currentChapter.id);
+  var chIndex=currentStory.chapters.indexOf(currentChapter)+1;
+  var title=esc(currentStory.title)+' - Chapitre '+chIndex;
+  // Wrap dans un HTML complet avec meta charset pour que Word lise bien les accents
+  var full='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+title+'</title>'
+    +'<style>body{font-family:Georgia,serif;font-size:14pt;line-height:1.8;max-width:700px;margin:40px auto;padding:20px;}'
+    +'h1,h2{font-family:Georgia,serif;} p{margin-bottom:12px;}</style></head><body>'
+    +'<h1>'+title+'</h1>'+html+'</body></html>';
+  var filename=currentStory.title.replace(/[^a-zA-Z0-9_\- ]/g,'').replace(/\s+/g,'_')+'_ch'+chIndex+'.html';
+  var blob=new Blob([full],{type:'text/html;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById('extractDocBtn').onclick=doExtractDoc;
+
+// ===== IDEAS =====
+function renderIdeas(){
+  var list=document.getElementById('ideaList');
+  if(!ideas.length){ list.innerHTML='<div style="color:var(--muted);font-style:italic;font-size:13px;padding:10px;">Aucune idée notee pour l\'instant.</div>'; return; }
+  list.innerHTML=ideas.map(function(d){
+    return '<div class="idea-item"><div class="idea-title">'+esc(d.title)+'</div><div class="idea-pitch">'+esc(d.pitch||'')+'</div><button class="btn-danger" data-del="'+d.id+'">🗑️ Supprimer</button></div>';
+  }).join('');
+  list.querySelectorAll('[data-del]').forEach(function(btn){
+    btn.onclick=function(){ ideas=ideas.filter(x=>x.id!==btn.dataset.del); saveIdeas(); renderIdeas(); };
+  });
+}
+document.getElementById('addIdeaBtn').onclick=function(){
+  var t=document.getElementById('newIdeaTitle').value.trim();
+  var p=document.getElementById('newIdeaPitch').value.trim();
+  if(!t) return;
+  ideas.push({id:uid(), title:t, pitch:p});
+  saveIdeas();
+  document.getElementById('newIdeaTitle').value='';
+  document.getElementById('newIdeaPitch').value='';
+  renderIdeas();
+};
+
+// ===== INIT =====
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function initApp(){
+  loadData();
+  renderStoryList();
+  renderIdeas();
+}
+</script>
+</body>
+</html>
