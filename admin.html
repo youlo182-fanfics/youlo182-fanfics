@@ -19,9 +19,9 @@
 <style>
   body{ --bg:#0a1628; --card:#122138; --ink:#e8eef6; --muted:#9fb0c6; --accent:#8B1E3F; --accent-d:#6d1730; --accent-l:#b03d5e; --line:#1e3050; background:var(--bg);color:var(--ink);min-height:100vh;max-width:100%;overflow-x:hidden;transition:.3s; }
   body.light{
-    --bg:#f8f6f3; --card:#ffffff; --ink:#2c2c2c; --muted:#6b6b6b;
-    --accent:#8B1E3F; --accent-d:#6d1730; --accent-l:#b03d5e;
-    --line:#e0dcd8;
+    --bg:#eef2f8; --card:#ffffff; --ink:#1a2b42; --muted:#5f7085;
+    --accent:#1a3a5c; --accent-d:#12293f; --accent-l:#2e5a86;
+    --line:#d6e0ee;
   }
   *{box-sizing:border-box;margin:0;padding:0;font-family:'Nunito Sans',sans-serif;}
   .topbar{background:linear-gradient(90deg,var(--accent-d),var(--accent));padding:16px 24px;box-shadow:0 2px 14px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
@@ -109,7 +109,7 @@
 // Mode clair/sombre (mémorisé en localStorage)
 var adminLight = (localStorage.getItem('admin_light')==='1');
 function applyAdminTheme(){
-  document.body.className = adminLight ? 'light' : '';
+  if(document.body) document.body.className = adminLight ? 'light' : '';
   var btn=document.getElementById('themeBtn'); if(btn) btn.textContent = adminLight ? '🌙' : '☀️';
 }
 function toggleAdminTheme(){
@@ -117,7 +117,7 @@ function toggleAdminTheme(){
   localStorage.setItem('admin_light', adminLight ? '1' : '0');
   applyAdminTheme();
 }
-applyAdminTheme();
+if(document.body){ applyAdminTheme(); } else { document.addEventListener('DOMContentLoaded', applyAdminTheme); }
 </script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
