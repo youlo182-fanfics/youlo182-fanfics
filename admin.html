@@ -33,7 +33,7 @@
   .gate{max-width:400px;margin:60px auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;text-align:center;}
   .gate h2{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--accent-l);margin-bottom:10px;}
   .gate p{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
-  .gate input{width:100%;background:#0d1c30;border:1px solid var(--line);color:var(--ink);padding:12px;border-radius:10px;font-size:14px;margin-bottom:10px;}
+  .gate input{width:100%;background:var(--card);border:1px solid var(--line);color:var(--ink);padding:12px;border-radius:10px;font-size:14px;margin-bottom:10px;}
   .gate button{width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:22px;font-weight:700;cursor:pointer;font-size:15px;}
   .gate .err{background:rgba(176,61,94,.15);color:var(--accent-l);border:1px solid rgba(176,61,94,.3);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px;display:none;}
   .gate .err.show{display:block;}
@@ -43,18 +43,18 @@
   .kpi .lbl{font-size:12px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
   .section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:20px;}
   .section h2{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--accent-l);margin-bottom:14px;}
-  .story-stat{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#0d1c30;flex-wrap:wrap;gap:8px;}
+  .story-stat{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--card);flex-wrap:wrap;gap:8px;}
   .story-stat .name{font-weight:700;font-size:14px;}
   .story-stat .nums{font-size:13px;color:var(--muted);display:flex;gap:14px;}
   .story-stat .nums b{color:var(--accent-l);}
-  .cmt{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:#0d1c30;}
+  .cmt{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--card);}
   .cmt .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;}
   .cmt .who{font-weight:700;color:var(--accent-l);font-size:14px;}
   .cmt .where{font-size:11px;color:var(--muted);}
   .cmt .txt{font-size:14px;line-height:1.5;margin-bottom:10px;}
   .cmt .reply{margin-left:16px;padding:10px 14px;background:rgba(176,61,94,.12);border-left:3px solid var(--accent-l);border-radius:8px;font-size:13px;margin-top:8px;}
   .reply-form{display:flex;gap:8px;margin-top:8px;}
-  .reply-form input{flex:1;background:#0d1c30;border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:8px;font-size:13px;}
+  .reply-form input{flex:1;background:var(--card);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:8px;font-size:13px;}
   .reply-form button{background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:16px;font-weight:700;cursor:pointer;font-size:12px;}
   .empty{color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:20px;}
   a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700;}
@@ -562,7 +562,7 @@ async function createReplyNotificationAdmin(key, cid, replierName, text){
     <h2 id="mailingTitle" style="font-family:'Cormorant Garamond',serif;color:var(--accent-l);margin-bottom:6px;">📧 Ma mailing list</h2>
     <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Personnes ayant coché « recevoir les nouveautés » à l'inscription. Copie ces adresses en <strong>Cci</strong> dans ton mail (jamais en destinataire visible, pour respecter la vie privée). 💛</p>
     <div id="mailingCount" style="font-size:14px;font-weight:700;color:var(--accent-l);margin-bottom:10px;"></div>
-    <textarea id="mailingList" readonly style="width:100%;min-height:160px;background:#0d1c30;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:12px;font-size:13px;font-family:monospace;box-sizing:border-box;resize:vertical;"></textarea>
+    <textarea id="mailingList" readonly style="width:100%;min-height:160px;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:12px;font-size:13px;font-family:monospace;box-sizing:border-box;resize:vertical;"></textarea>
     <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
       <button id="mailingCopy" class="logout" style="background:var(--accent);">📋 Copier les adresses</button>
       <button id="mailingClose" class="logout">Fermer</button>
