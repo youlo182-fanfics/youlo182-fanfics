@@ -17,8 +17,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{ --bg:#0a1628; --card:#122138; --ink:#e8eef6; --muted:#9fb0c6; --accent:#8B1E3F; --accent-d:#6d1730; --accent-l:#b03d5e; --line:#1e3050; }
+body.light{
+  --bg:#eef2f8; --card:#ffffff; --ink:#1a2b42; --muted:#5f7085;
+  --accent:#1a3a5c; --accent-d:#12293f; --accent-l:#2e5a86;
+  --line:#d6e0ee;
+}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Nunito Sans',sans-serif;}
-body{background:var(--bg);color:var(--ink);min-height:100vh;max-width:100%;overflow-x:hidden;}
+body{background:var(--bg);color:var(--ink);min-height:100vh;max-width:100%;overflow-x:hidden;transition:.3s;}
 .topbar{background:linear-gradient(90deg,var(--accent-d),var(--accent));padding:14px 20px;box-shadow:0 2px 14px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
 .topbar h1{font-family:'Cormorant Garamond',serif;font-size:22px;color:#fff;font-weight:600;}
 .topbar .sub{font-size:11px;color:rgba(255,255,255,.8);}
@@ -97,6 +102,7 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
   <div><h1>✍️ Mon espace d'ecriture</h1><div class="sub">Youlo182 - Privé</div></div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <a class="top-btn" href="admin.html">📊 Dashboard</a>
+    <button class="top-btn" id="themeBtn" onclick="toggleWriteTheme()">☀️</button>
     <button class="top-btn" id="logoutBtn" style="display:none;">Se deconnecter</button>
   </div>
 </div>
@@ -143,12 +149,14 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
         </div>
 
         <!-- Chapter nav -->
+        <div id="chapterUI" style="display:flex;flex-direction:column;gap:0;">
         <div class="ch-list" id="chapterNav"></div>
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
           <input type="text" class="input" id="newChTitle" placeholder="Nouveau chapitre..." style="flex:1;min-width:140px;padding:8px 12px;font-size:13px;">
           <button class="btn btn-sm" id="addChBtn">+ Chapitre</button>
           <button class="btn btn-sm btn-ghost" id="renameChBtn">✏️ Renommer</button>
           <button class="btn-danger" id="deleteChBtn">🗑️ Suppr. chapitre</button>
+        </div>
         </div>
 
         <!-- Editor -->
@@ -189,6 +197,20 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
   </div>
 </div>
 
+<script>
+// Mode clair/sombre (mémorisé, partagé avec l'admin)
+var writeLight = (localStorage.getItem('admin_light')==='1');
+function applyWriteTheme(){
+  document.body.className = writeLight ? 'light' : '';
+  var btn=document.getElementById('themeBtn'); if(btn) btn.textContent = writeLight ? '🌙' : '☀️';
+}
+function toggleWriteTheme(){
+  writeLight = !writeLight;
+  localStorage.setItem('admin_light', writeLight ? '1' : '0');
+  applyWriteTheme();
+}
+applyWriteTheme();
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut }
@@ -292,8 +314,18 @@ function openStory(id){
   document.getElementById('storyListView').style.display='none';
   document.getElementById('storyEditorView').style.display='block';
   document.getElementById('currentStoryTitle').textContent=currentStory.title;
-  currentChapter=currentStory.chapters.length?currentStory.chapters[0]:null;
-  renderChapterNav();
+  // Pour les OS (pas de chapitres), on crée un chapitre unique invisible pour que l'éditeur fonctionne.
+  if(!currentStory.chapters.length){
+    var defaultCh={id:'_default', title:'Texte'};
+    currentStory.chapters.push(defaultCh);
+    saveStories();
+  }
+  currentChapter=currentStory.chapters[0];
+  // Masquer l'interface chapitres si c'est un OS (un seul chapitre nommé "Texte" ou "_default")
+  var isOS = (currentStory.chapters.length===1 && (currentStory.chapters[0].id==='_default' || currentStory.chapters[0].title==='Texte'));
+  var chapUI=document.getElementById('chapterUI');
+  if(chapUI) chapUI.style.display = isOS ? 'none' : 'flex';
+  if(!isOS) renderChapterNav();
   loadEditor();
 }
 document.getElementById('backToListBtn').onclick=function(){
@@ -327,6 +359,8 @@ document.getElementById('addChBtn').onclick=function(){
   var ch={id:uid(), title:title};
   currentStory.chapters.push(ch); saveStories(); inp.value='';
   currentChapter=ch; renderChapterNav(); loadEditor();
+  // Montrer l'UI chapitres (si c'etait un OS transforme en saga)
+  var chapUI=document.getElementById('chapterUI'); if(chapUI) chapUI.style.display='flex';
 };
 document.getElementById('renameChBtn').onclick=function(){
   if(!currentChapter) return;
