@@ -454,6 +454,7 @@
           <div class="notif-list" id="notifList"></div>
         </div>
       </div>
+      <a class="account-btn" id="adminLink" href="admin.html" style="display:none;text-decoration:none;" title="Dashboard Admin">📊</a>
       <button class="account-btn" id="accountBtn">👤 <span id="accountLabel">Se connecter</span></button>
     </div>
   </div>
@@ -709,6 +710,7 @@ async function initFirebase(){
     onAuthStateChanged(auth, async function(user){
       currentUser=user; isAuthor = !!(user && user.email===AUTHOR_EMAIL); updateAccountLabel(); updateCommentForm(); loadViewStats().then(function(){ renderLibrary(); }); renderLibrary();
       if(user){ try{ startNotifications(); }catch(e){console.warn(e);} } else { try{ stopNotifications(); }catch(e){} }
+      var _adminLink=document.getElementById('adminLink'); if(_adminLink) _adminLink.style.display=isAuthor?'inline-block':'none';
       if(currentBook && document.getElementById('reader').style.display!=='none'){ renderChapter(); }
     });
   }catch(e){
