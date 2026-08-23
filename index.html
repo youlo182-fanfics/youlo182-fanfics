@@ -1186,9 +1186,17 @@ async function setProgress(bookId,ch){
 // (pas en continu) — donc au plus 1 écriture, pas des centaines.
 function scrollKey(){ return 'scroll_'+currentBook.id+'_'+lang+'_'+currentCh; }
 // Fraction de lecture (0..1) actuellement atteinte dans la page.
+// On mesure la position par rapport au TEXTE DU CHAPITRE (#readerBody),
+// pas par rapport a la page entiere (qui inclut les commentaires, la nav, etc.).
+// Comme ca la position sauvegardée est stable même si les commentaires sont repliés.
 function currentScrollFrac(){
-  var h=document.documentElement.scrollHeight-window.innerHeight;
-  return h>0 ? Math.min(1, Math.max(0, window.scrollY/h)) : 0;
+  var body=document.getElementById('readerBody');
+  if(!body) return 0;
+  var rect=body.getBoundingClientRect();
+  var bodyTop=-rect.top;   // combien on a scrollé dans le reader
+  var bodyH=body.offsetHeight-window.innerHeight;
+  if(bodyH<=0) return 0;
+  return Math.min(1, Math.max(0, bodyTop/bodyH));
 }
 // Position MAXIMALE atteinte dans le chapitre courant (le point le plus loin où
 // le lecteur est descendu). On mémorise ça, PAS la position à l'instant où il
@@ -1228,8 +1236,14 @@ function getSavedScrollFrac(cloudFrac){
 // fois car la hauteur change au fur et à mesure que les images se chargent.
 function scrollToFrac(frac){
   function place(smooth){
-    var h=document.documentElement.scrollHeight-window.innerHeight;
-    if(h>0){ window.scrollTo({top:h*frac, behavior: smooth?'smooth':'auto'}); }
+    // Calcule la position par rapport au #readerBody (meme reference que currentScrollFrac)
+    var body=document.getElementById('readerBody');
+    if(!body) return;
+    var bodyTop=body.offsetTop;   // distance du haut de la page au debut du texte
+    var bodyH=body.offsetHeight-window.innerHeight;
+    if(bodyH<=0) return;
+    var target=bodyTop + (bodyH*frac);
+    window.scrollTo({top:target, behavior: smooth?'smooth':'auto'});
   }
   setTimeout(function(){ place(false); }, 150);
   setTimeout(function(){ place(true); }, 650);
@@ -1244,7 +1258,9 @@ function scrollToFrac(frac){
 function restoreScroll(cloudFrac){
   var frac=getSavedScrollFrac(cloudFrac);
   window.__resumeFrac = frac;
-  if(frac<=0.02){ window.scrollTo(0,0); return; }   // début de lecture : rien à proposer
+  if(frac<=0.02){ window.scrollTo(0,0); return; }   // debut de lecture : rien a proposer
+  // Ignorer les positions >= 95% qui viennent probablement de l'ancien calcul (page entiere)
+  if(frac>=0.95){ try{ safeSet(scrollKey(), '0'); }catch(e){} window.scrollTo(0,0); return; }
   var ov=document.getElementById('resumeOverlay');
   var pct=Math.round(frac*100);
   var txt=document.getElementById('resumeText');
