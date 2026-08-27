@@ -558,11 +558,21 @@ function doExtractDoc(){
   var html=getChapterContent(currentStory.id, currentChapter.id);
   var chIndex=currentStory.chapters.indexOf(currentChapter)+1;
   var title=esc(currentStory.title)+' - Chapitre '+chIndex;
+  // Ajouter les notes si elles existent
+  var notesHtml='';
+  var storyNotes=localStorage.getItem('write_notes_'+currentStory.id)||'';
+  var chapterNotes=localStorage.getItem('write_notes_'+currentStory.id+'_'+currentChapter.id)||'';
+  if(storyNotes||chapterNotes){
+    notesHtml+='<hr style="margin:40px 0;border:none;border-top:2px solid #ccc;">';
+    notesHtml+='<h2 style="color:#888;">💡 Mes notes</h2>';
+    if(storyNotes) notesHtml+='<h3 style="color:#888;">Notes pour l\'histoire</h3><p style="white-space:pre-wrap;color:#555;">'+esc(storyNotes)+'</p>';
+    if(chapterNotes) notesHtml+='<h3 style="color:#888;">Notes pour ce chapitre</h3><p style="white-space:pre-wrap;color:#555;">'+esc(chapterNotes)+'</p>';
+  }
   // Wrap dans un HTML complet avec meta charset pour que Word lise bien les accents
   var full='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+title+'</title>'
     +'<style>body{font-family:Georgia,serif;font-size:14pt;line-height:1.8;max-width:700px;margin:40px auto;padding:20px;}'
     +'h1,h2{font-family:Georgia,serif;} p{margin-bottom:12px;}</style></head><body>'
-    +'<h1>'+title+'</h1>'+html+'</body></html>';
+    +'<h1>'+title+'</h1>'+html+notesHtml+'</body></html>';
   var filename=currentStory.title.replace(/[^a-zA-Z0-9_\- ]/g,'').replace(/\s+/g,'_')+'_ch'+chIndex+'.html';
   var blob=new Blob([full],{type:'text/html;charset=utf-8'});
   var a=document.createElement('a');
