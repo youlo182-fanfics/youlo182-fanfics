@@ -213,6 +213,7 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
       <button id="saveBtn" title="Enregistrer">💾</button>
       <button id="extractDocBtn" title="Exporter en Word">📥 Word</button>
       <button id="searchBtn" title="Rechercher dans le texte">🔍</button>
+      <button id="notesBtn" title="Notes et idees pour cette histoire">💡</button>
       <span class="word-count" id="wordCount">0 mot</span>
     </div>
     <!-- Panneau de recherche (apparait au-dessus de la bottom bar) -->
@@ -224,6 +225,25 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
         <span id="searchCount" style="font-size:12px;color:var(--muted);white-space:nowrap;">0/0</span>
         <button id="searchClose" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px;">✕</button>
       </div>
+    </div>
+
+    <!-- Panneau Notes/Idees (apparait au-dessus de la bottom bar) -->
+    <div id="notesPanel" style="display:none;position:fixed;bottom:52px;left:0;right:0;z-index:52;background:var(--card);border-top:1px solid var(--line);padding:12px 16px;box-shadow:0 -4px 16px rgba(0,0,0,.3);max-height:55vh;overflow-y:auto;border-radius:16px 16px 0 0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-weight:700;font-size:15px;">💡 Notes</span>
+        <button id="notesClose" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px;">✕</button>
+      </div>
+      <!-- Notes globales (histoire) -->
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;color:var(--muted);font-weight:600;" id="notesStoryLabel">📖 Pour l'histoire</label>
+        <textarea id="notesStoryArea" placeholder="Idees, arcs, notes pour toute l'histoire..." style="width:100%;min-height:80px;max-height:150px;margin-top:4px;background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:10px;border-radius:8px;font-size:13px;line-height:1.5;resize:vertical;font-family:inherit;"></textarea>
+      </div>
+      <!-- Notes par chapitre -->
+      <div>
+        <label style="font-size:12px;color:var(--muted);font-weight:600;" id="notesChapterLabel">📝 Pour ce chapitre</label>
+        <textarea id="notesChapterArea" placeholder="Notes specifiques a ce chapitre..." style="width:100%;min-height:80px;max-height:150px;margin-top:4px;background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:10px;border-radius:8px;font-size:13px;line-height:1.5;resize:vertical;font-family:inherit;"></textarea>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);text-align:center;">Sauvegarde automatique en temps reel</div>
     </div>
 
     <!-- Tab: Ideas -->
@@ -385,6 +405,8 @@ document.getElementById('backToListBtn').onclick=function(){
   saveCurrentChapter();
   document.getElementById('storyEditorView').style.display='none';
   document.getElementById('storyListView').style.display='block';
+  // Fermer les panneaux flottants
+  var np=document.getElementById('notesPanel'); if(np) np.style.display='none';
   currentStory=null; currentChapter=null;
 };
 document.getElementById('pitchRefClose').onclick=function(){
@@ -446,6 +468,8 @@ function loadEditor(){
   var html=getChapterContent(currentStory.id, currentChapter.id);
   editor.innerHTML=html||'<p><br></p>';
   saveStatus.textContent='-'; saveStatus.className='save-status';
+  // Rafraichir les notes si le panneau est ouvert
+  var np=document.getElementById('notesPanel'); if(np && np.style.display!=='none') loadNotes();
 }
 function saveCurrentChapter(){
   if(!currentStory||!currentChapter) return;
@@ -701,6 +725,8 @@ document.getElementById('searchBtn').onclick=function(){
   var panel=document.getElementById('searchPanel');
   var isOpen=(panel.style.display!=='none');
   panel.style.display=isOpen?'none':'block';
+  // Fermer les notes si ouvertes
+  if(!isOpen){ var np=document.getElementById('notesPanel'); if(np) np.style.display='none'; }
   if(!isOpen){ document.getElementById('searchInput').focus(); }
   else { clearSearchHighlights(); }
 };
@@ -756,6 +782,8 @@ function renderIdeas(){
       // Créer une histoire avec le titre de l'idée
       var s={id:uid(), title:idea.title, chapters:[], pitch:idea.pitch||''};
       stories.push(s); saveStories();
+      // Transferer le pitch dans les notes globales de la nouvelle histoire
+      if(idea.pitch) localStorage.setItem('write_notes_'+s.id, '💡 Pitch original :\n'+idea.pitch);
       // Basculer vers l'onglet histoires + ouvrir l'histoire
       document.querySelectorAll('.tab').forEach(function(t,i){ t.classList.toggle('active',i===0); });
       document.querySelectorAll('.tab-panel').forEach(function(p,i){ p.classList.toggle('active',i===0); });
@@ -798,6 +826,66 @@ document.getElementById('exportIdeasBtn').onclick=function(){
   a.href=URL.createObjectURL(blob); a.download=filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
+};
+
+// ===== NOTES (ampoule) =====
+// localStorage : write_notes_{storyId} (global) + write_notes_{storyId}_{chapterId} (par chapitre)
+function notesStoryKey(){ return currentStory ? 'write_notes_'+currentStory.id : null; }
+function notesChapterKey(){ return (currentStory && currentChapter) ? 'write_notes_'+currentStory.id+'_'+currentChapter.id : null; }
+
+function loadNotes(){
+  var sa=document.getElementById('notesStoryArea');
+  var ca=document.getElementById('notesChapterArea');
+  var sl=document.getElementById('notesStoryLabel');
+  var cl=document.getElementById('notesChapterLabel');
+  if(!currentStory){ if(sa) sa.value=''; if(ca) ca.value=''; return; }
+  // Labels
+  if(sl) sl.textContent='📖 Pour "'+currentStory.title+'"';
+  if(cl){
+    var isOS=(currentStory.chapters.length===1 && (currentStory.chapters[0].id==='_default'||currentStory.chapters[0].title==='Texte'));
+    cl.textContent=isOS ? '📝 Notes de scene / details' : '📝 Pour ce chapitre'+(currentChapter ? ' ('+currentChapter.title+')' : '');
+  }
+  // Charger les valeurs
+  var sk=notesStoryKey();
+  var ck=notesChapterKey();
+  if(sa) sa.value = sk ? (localStorage.getItem(sk)||'') : '';
+  if(ca) ca.value = ck ? (localStorage.getItem(ck)||'') : '';
+}
+
+function saveNoteStory(){
+  var sk=notesStoryKey(); if(!sk) return;
+  var sa=document.getElementById('notesStoryArea');
+  if(sa) localStorage.setItem(sk, sa.value);
+}
+function saveNoteChapter(){
+  var ck=notesChapterKey(); if(!ck) return;
+  var ca=document.getElementById('notesChapterArea');
+  if(ca) localStorage.setItem(ck, ca.value);
+}
+
+// Auto-save sur chaque frappe (debounced)
+var __noteStoryTimer=null, __noteChapterTimer=null;
+document.getElementById('notesStoryArea').addEventListener('input', function(){
+  clearTimeout(__noteStoryTimer);
+  __noteStoryTimer=setTimeout(saveNoteStory, 300);
+});
+document.getElementById('notesChapterArea').addEventListener('input', function(){
+  clearTimeout(__noteChapterTimer);
+  __noteChapterTimer=setTimeout(saveNoteChapter, 300);
+});
+
+// Ouvrir / fermer le panneau
+document.getElementById('notesBtn').onclick=function(){
+  var panel=document.getElementById('notesPanel');
+  var visible=panel.style.display!=='none';
+  if(visible){ panel.style.display='none'; return; }
+  // Fermer la recherche si ouverte
+  var sp=document.getElementById('searchPanel'); if(sp) sp.style.display='none';
+  loadNotes();
+  panel.style.display='block';
+};
+document.getElementById('notesClose').onclick=function(){
+  document.getElementById('notesPanel').style.display='none';
 };
 
 // ===== INIT =====
