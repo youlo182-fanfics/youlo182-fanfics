@@ -74,6 +74,7 @@ textarea.input{resize:vertical;min-height:60px;}
 .story-item:hover{border-color:var(--accent-l);}
 .story-item .title{font-weight:700;font-size:14px;flex:1;}
 .story-item .meta{font-size:12px;color:var(--muted);}
+.btn-move{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;cursor:pointer;font-size:11px;padding:2px 6px;transition:.12s;} .btn-move:hover{color:var(--accent);border-color:var(--accent);}
 
 /* Chapter nav */
 .ch-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
@@ -103,6 +104,7 @@ textarea.input{resize:vertical;min-height:60px;}
 .bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--card);border-top:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 -2px 10px rgba(0,0,0,.2);}
 .bottom-bar button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;padding:6px 10px;transition:.12s;}
 .bottom-bar button:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.fmt-btn{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;padding:8px 14px;transition:.12s;} .fmt-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .bottom-bar .word-count{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap;}
 
 /* Surlignage des résultats de recherche */
@@ -121,6 +123,20 @@ textarea.input{resize:vertical;min-height:60px;}
 
 /* Back link */
 a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700;}
+
+/* Split-screen focus mode */
+.split-overlay{display:none;position:fixed;inset:0;z-index:200;background:var(--bg);flex-direction:column;}
+.split-overlay.active{display:flex;}
+.split-ref{flex:0 0 38%;overflow-y:auto;padding:12px 16px;border-bottom:2px solid var(--accent-l);font-size:var(--editor-fs,16px);line-height:1.8;color:var(--ink);opacity:.85;}
+.split-ref .split-ref-label{font-size:11px;font-weight:700;color:var(--accent-l);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+.split-editor{flex:1;overflow-y:auto;padding:12px 16px;font-size:var(--editor-fs,16px);line-height:1.8;color:var(--ink);}
+.split-editor [contenteditable]{outline:none;min-height:100%;}
+.split-bar{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:10px;padding:6px 12px;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -2px 8px rgba(0,0,0,.2);}
+.split-bar button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;padding:6px 10px;transition:.12s;}
+.split-bar button:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.split-fmt{display:none;flex:0 0 auto;justify-content:center;gap:8px;padding:6px 12px;background:var(--card);border-top:1px solid var(--line);}
+.split-fmt.open{display:flex;}
+.split-fmt button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;padding:8px 14px;transition:.12s;} .split-fmt button:hover{background:var(--accent);color:#fff;}
 </style>
 </head>
 <body>
@@ -188,6 +204,9 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
           <input type="text" class="input" id="newChTitle" placeholder="Nouveau chapitre..." style="flex:1;min-width:140px;padding:8px 12px;font-size:13px;">
           <button class="btn btn-sm" id="addChBtn">+ Chapitre</button>
           <button class="btn btn-sm btn-ghost" id="renameChBtn">✏️ Renommer</button>
+          <button class="btn btn-sm btn-ghost" id="moveChLeftBtn" title="Deplacer avant">◀</button>
+          <button class="btn btn-sm btn-ghost" id="moveChRightBtn" title="Deplacer apres">▶</button>
+          <button class="btn btn-sm btn-ghost" id="dupChBtn" title="Dupliquer ce chapitre">📋 Dupliquer</button>
           <button class="btn-danger" id="deleteChBtn">🗑️ Suppr. chapitre</button>
         </div>
         </div>
@@ -200,11 +219,9 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
 
     <!-- Barre fixe en bas (toujours visible : taille, theme, export, compteur) -->
     <div class="bottom-bar" id="bottomBar" style="display:none;">
-      <button id="tbBold" title="Gras"><b>G</b></button>
-      <button id="tbItalic" title="Italique"><i>I</i></button>
-      <button id="tbLeft" title="Gauche">⫷</button>
-      <button id="tbCenter" title="Centre">≡</button>
-      <button id="tbRight" title="Droite">⫸</button>
+      <button id="fmtToggle" title="Formatage">✏️</button>
+      <button id="undoBtn" title="Annuler">↩️</button>
+      <button id="redoBtn" title="Retablir">↪️</button>
       <button id="goTopBtn" title="Aller au debut">⬆️</button>
       <button id="goBottomBtn" title="Aller a la fin">⬇️</button>
       <button id="fontDown" title="Texte plus petit">A-</button>
@@ -214,7 +231,20 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
       <button id="extractDocBtn" title="Exporter en Word">📥 Word</button>
       <button id="searchBtn" title="Rechercher dans le texte">🔍</button>
       <button id="notesBtn" title="Notes et idees pour cette histoire">💡</button>
+      <button id="quickIdeaBtn" title="Noter une idee rapide (onglet Idees)">💭</button>
+      <button id="splitBtn" title="Mode ecran partage (reference + ecriture)">📖</button>
       <span class="word-count" id="wordCount">0 mot</span>
+    </div>
+    <!-- Sous-barre formatage (apparait au-dessus de la bottom bar) -->
+    <div id="fmtPanel" style="display:none;position:fixed;bottom:52px;left:0;right:0;z-index:51;background:var(--card);border-top:1px solid var(--line);padding:8px 12px;box-shadow:0 -2px 8px rgba(0,0,0,.2);">
+      <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;">
+        <button class="fmt-btn" id="tbBold" title="Gras" style="font-weight:700;">G</button>
+        <button class="fmt-btn" id="tbItalic" title="Italique" style="font-style:italic;">I</button>
+        <button class="fmt-btn" id="tbLeft" title="Gauche">⫷</button>
+        <button class="fmt-btn" id="tbCenter" title="Centre">≡</button>
+        <button class="fmt-btn" id="tbRight" title="Droite">⫸</button>
+        <button class="fmt-btn" id="tbLineBreak" title="Saut de ligne simple (texte serre)" style="font-size:13px;">↵</button>
+      </div>
     </div>
     <!-- Panneau de recherche (apparait au-dessus de la bottom bar) -->
     <div id="searchPanel" style="display:none;position:fixed;bottom:52px;left:0;right:0;z-index:51;background:var(--card);border-top:1px solid var(--line);padding:8px 12px;box-shadow:0 -2px 8px rgba(0,0,0,.2);">
@@ -224,6 +254,10 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
         <button id="searchNext" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-weight:700;cursor:pointer;">▶</button>
         <span id="searchCount" style="font-size:12px;color:var(--muted);white-space:nowrap;">0/0</span>
         <button id="searchClose" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px;">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <label style="font-size:12px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="searchGlobal"> Tous les chapitres</label>
+        <div id="globalSearchResults" style="font-size:12px;color:var(--muted);flex:1;overflow-x:auto;white-space:nowrap;"></div>
       </div>
     </div>
 
@@ -246,6 +280,12 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
       <div style="margin-top:8px;font-size:11px;color:var(--muted);text-align:center;">Sauvegarde automatique en temps reel</div>
     </div>
 
+    <!-- Toast "Annuler la suppression" -->
+    <div id="undoToast" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:100;background:#b03d5e;color:#fff;padding:10px 18px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.4);align-items:center;gap:12px;">
+      <span>Chapitre supprime</span>
+      <button onclick="undoDeleteChapter()" style="background:#fff;color:#b03d5e;border:none;border-radius:8px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:13px;">↩️ Annuler (10s)</button>
+    </div>
+
     <!-- Tab: Ideas -->
     <div class="tab-panel" id="panelIdeas">
       <div class="card">
@@ -260,6 +300,36 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Mode ecran partage (focus) -->
+<div class="split-overlay" id="splitOverlay">
+  <!-- Zone reference (lecture seule, haut) -->
+  <div class="split-ref" id="splitRef">
+    <div class="split-ref-label" id="splitRefLabel">📖 Reference</div>
+    <div id="splitRefContent" style="pointer-events:none;"></div>
+  </div>
+  <!-- Zone editeur (bas) -->
+  <div class="split-editor" id="splitEditor">
+    <div id="splitEditArea" contenteditable="true" spellcheck="true" style="outline:none;min-height:200px;"></div>
+  </div>
+  <!-- Mini-barre de formatage (cachee par defaut) -->
+  <div class="split-fmt" id="splitFmt">
+    <button data-cmd="bold" style="font-weight:700;">G</button>
+    <button data-cmd="italic" style="font-style:italic;">I</button>
+    <button data-cmd="justifyLeft">⫷</button>
+    <button data-cmd="justifyCenter">≡</button>
+    <button data-cmd="justifyRight">⫸</button>
+    <button data-cmd="insertLineBreak" style="font-size:13px;">↵</button>
+  </div>
+  <!-- Mini-barre (toujours visible) -->
+  <div class="split-bar">
+    <button id="splitFmtToggle">✏️</button>
+    <button id="splitUndo">↩️</button>
+    <button id="splitRedo">↪️</button>
+    <button id="splitSave">💾</button>
+    <button id="splitClose" style="margin-left:auto;">✕ Quitter</button>
   </div>
 </div>
 
@@ -350,14 +420,46 @@ document.querySelectorAll('.tab').forEach(function(t){
 function renderStoryList(){
   var list=document.getElementById('storyList');
   if(!stories.length){ list.innerHTML='<div style="color:var(--muted);font-style:italic;font-size:13px;padding:10px;">Aucune histoire pour l\'instant. Cree-en une !</div>'; return; }
-  list.innerHTML=stories.map(function(s){
-    return '<div class="story-item" data-id="'+s.id+'"><span class="title">'+esc(s.title)+'</span><span class="meta">'+s.chapters.length+' ch.</span><button class="btn-danger" data-del="'+s.id+'">🗑️</button></div>';
+  list.innerHTML=stories.map(function(s, idx){
+    // Compter les mots de tous les chapitres
+    var totalWords=0;
+    s.chapters.forEach(function(ch){
+      var html=getChapterContent(s.id, ch.id);
+      if(html){ var tmp=document.createElement('div'); tmp.innerHTML=html; var txt=tmp.textContent||''; totalWords+=txt.trim().split(/\s+/).filter(Boolean).length; }
+    });
+    var wordStr=totalWords>0 ? totalWords.toLocaleString('fr-FR')+' mots' : '0 mot';
+    var isOS=(s.chapters.length===1 && (s.chapters[0].id==='_default'||s.chapters[0].title==='Texte'));
+    var chStr=isOS ? 'One-shot' : s.chapters.length+' ch.';
+    return '<div class="story-item" data-id="'+s.id+'">'
+      +'<span class="title" style="flex:1;">'+esc(s.title)+'</span>'
+      +'<span class="meta" style="font-size:11px;opacity:.7;">'+chStr+' · '+wordStr+'</span>'
+      +'<div style="display:flex;gap:2px;">'
+        +(idx>0 ? '<button class="btn-move" data-up="'+s.id+'" title="Monter">▲</button>' : '<span style="width:28px;"></span>')
+        +(idx<stories.length-1 ? '<button class="btn-move" data-down="'+s.id+'" title="Descendre">▼</button>' : '<span style="width:28px;"></span>')
+      +'</div>'
+      +'<button class="btn-danger" data-del="'+s.id+'">🗑️</button>'
+    +'</div>';
   }).join('');
   list.querySelectorAll('.story-item').forEach(function(el){
     el.querySelector('.title').onclick=function(){ openStory(el.dataset.id); };
     var del=el.querySelector('[data-del]');
     if(del) del.onclick=function(e){ e.stopPropagation(); deleteStory(del.dataset.del); };
   });
+  // Boutons monter/descendre histoires
+  list.querySelectorAll('[data-up]').forEach(function(btn){
+    btn.onclick=function(e){ e.stopPropagation(); moveStory(btn.dataset.up, -1); };
+  });
+  list.querySelectorAll('[data-down]').forEach(function(btn){
+    btn.onclick=function(e){ e.stopPropagation(); moveStory(btn.dataset.down, 1); };
+  });
+}
+function moveStory(id, dir){
+  var idx=stories.findIndex(function(s){ return s.id===id; });
+  if(idx<0) return;
+  var newIdx=idx+dir;
+  if(newIdx<0||newIdx>=stories.length) return;
+  var tmp=stories[idx]; stories[idx]=stories[newIdx]; stories[newIdx]=tmp;
+  saveStories(); renderStoryList();
 }
 document.getElementById('addStoryBtn').onclick=function(){
   var inp=document.getElementById('newStoryTitle');
@@ -394,11 +496,9 @@ function openStory(id){
     saveStories();
   }
   currentChapter=currentStory.chapters[0];
-  // Masquer l'interface chapitres si c'est un OS (un seul chapitre nommé "Texte" ou "_default")
-  var isOS = (currentStory.chapters.length===1 && (currentStory.chapters[0].id==='_default' || currentStory.chapters[0].title==='Texte'));
   var chapUI=document.getElementById('chapterUI');
-  if(chapUI) chapUI.style.display = isOS ? 'none' : 'flex';
-  if(!isOS) renderChapterNav();
+  if(chapUI) chapUI.style.display = 'flex';
+  renderChapterNav();
   loadEditor();
 }
 document.getElementById('backToListBtn').onclick=function(){
@@ -407,6 +507,7 @@ document.getElementById('backToListBtn').onclick=function(){
   document.getElementById('storyListView').style.display='block';
   // Fermer les panneaux flottants
   var np=document.getElementById('notesPanel'); if(np) np.style.display='none';
+  var fp=document.getElementById('fmtPanel'); if(fp) fp.style.display='none';
   currentStory=null; currentChapter=null;
 };
 document.getElementById('pitchRefClose').onclick=function(){
@@ -448,14 +549,70 @@ document.getElementById('renameChBtn').onclick=function(){
   if(nv===null||!nv.trim()) return;
   currentChapter.title=nv.trim(); saveStories(); renderChapterNav();
 };
+// Corbeille temporaire pour la derniere suppression de chapitre
+var __deletedChapter = null;
+var __deleteTimer = null;
 document.getElementById('deleteChBtn').onclick=function(){
   if(!currentChapter||!currentStory) return;
   if(!confirm('Supprimer "'+currentChapter.title+'" ?')) return;
+  // Sauvegarder en corbeille temporaire
+  var content=getChapterContent(currentStory.id, currentChapter.id);
+  var idx=currentStory.chapters.indexOf(currentChapter);
+  __deletedChapter={storyId:currentStory.id, chapter:currentChapter, content:content, index:idx};
+  // Supprimer
   try{ localStorage.removeItem(chapterContentKey(currentStory.id, currentChapter.id)); }catch(e){}
   currentStory.chapters=currentStory.chapters.filter(x=>x.id!==currentChapter.id);
   saveStories();
   currentChapter=currentStory.chapters.length?currentStory.chapters[0]:null;
   renderChapterNav(); loadEditor();
+  // Afficher le toast "Annuler"
+  var toast=document.getElementById('undoToast');
+  if(toast){ toast.style.display='flex'; }
+  clearTimeout(__deleteTimer);
+  __deleteTimer=setTimeout(function(){ __deletedChapter=null; if(toast) toast.style.display='none'; }, 10000);
+};
+window.undoDeleteChapter=function(){
+  if(!__deletedChapter) return;
+  var d=__deletedChapter;
+  var story=stories.find(function(s){ return s.id===d.storyId; });
+  if(!story) return;
+  // Reinsérer le chapitre a sa position d'origine
+  story.chapters.splice(d.index, 0, d.chapter);
+  saveStories();
+  setChapterContent(d.storyId, d.chapter.id, d.content);
+  // Si on est toujours sur cette histoire, rafraichir
+  if(currentStory && currentStory.id===d.storyId){
+    currentChapter=d.chapter; renderChapterNav(); loadEditor();
+  }
+  __deletedChapter=null; clearTimeout(__deleteTimer);
+  var toast=document.getElementById('undoToast'); if(toast) toast.style.display='none';
+};
+
+// Deplacer un chapitre (gauche = avant, droite = apres)
+function moveChapter(dir){
+  if(!currentStory||!currentChapter) return;
+  var chs=currentStory.chapters;
+  var idx=chs.indexOf(currentChapter);
+  if(idx<0) return;
+  var newIdx=idx+dir;
+  if(newIdx<0||newIdx>=chs.length) return;
+  var tmp=chs[idx]; chs[idx]=chs[newIdx]; chs[newIdx]=tmp;
+  saveStories(); renderChapterNav();
+}
+document.getElementById('moveChLeftBtn').onclick=function(){ moveChapter(-1); };
+document.getElementById('moveChRightBtn').onclick=function(){ moveChapter(1); };
+
+// Dupliquer le chapitre en cours
+document.getElementById('dupChBtn').onclick=function(){
+  if(!currentStory||!currentChapter) return;
+  saveCurrentChapter();
+  var html=getChapterContent(currentStory.id, currentChapter.id);
+  var newCh={id:uid(), title:currentChapter.title+' (copie)'};
+  var idx=currentStory.chapters.indexOf(currentChapter);
+  currentStory.chapters.splice(idx+1, 0, newCh);
+  saveStories();
+  setChapterContent(currentStory.id, newCh.id, html);
+  currentChapter=newCh; renderChapterNav(); loadEditor();
 };
 
 // ===== EDITOR =====
@@ -489,14 +646,57 @@ document.getElementById('saveBtn').onclick=function(){ saveCurrentChapter(); };
 function cmd(c, v){ document.execCommand(c, false, v||null); editor.focus(); }
 // Empêcher les boutons de formatage de voler le focus (sinon la sélection est perdue
 // et execCommand ne s'applique a rien). On bloque le mousedown/touchstart.
-['tbBold','tbItalic','tbLeft','tbCenter','tbRight'].forEach(function(id){
+['tbBold','tbItalic','tbLeft','tbCenter','tbRight','undoBtn','redoBtn','fmtToggle','tbLineBreak'].forEach(function(id){
   var el=document.getElementById(id); if(el){ el.addEventListener('mousedown', function(e){ e.preventDefault(); }); el.addEventListener('touchend', function(e){ e.preventDefault(); el.click(); }); }
 });
 document.getElementById('tbBold').onclick=function(){ cmd('bold'); };
 document.getElementById('tbItalic').onclick=function(){ cmd('italic'); };
+document.getElementById('undoBtn').onclick=function(){ cmd('undo'); };
+document.getElementById('redoBtn').onclick=function(){ cmd('redo'); };
 document.getElementById('tbLeft').onclick=function(){ cmd('justifyLeft'); };
 document.getElementById('tbCenter').onclick=function(){ cmd('justifyCenter'); };
 document.getElementById('tbRight').onclick=function(){ cmd('justifyRight'); };
+
+// Saut de ligne simple (Shift+Enter) - insere un <br> au lieu d'un nouveau <p>
+// Si du texte est selectionne : transforme les paragraphes en lignes serrees
+// Si pas de selection : insere un simple saut de ligne
+document.getElementById('tbLineBreak').onclick=function(){
+  var sel=window.getSelection();
+  if(sel && !sel.isCollapsed && editor.contains(sel.anchorNode)){
+    // Mode "resserrer la selection" : remplacer les <p> par des <br>
+    var range=sel.getRangeAt(0);
+    // Trouver tous les <p> dans la selection
+    var container=document.createElement('div');
+    container.appendChild(range.cloneContents());
+    var ps=container.querySelectorAll('p');
+    if(ps.length>1){
+      // Reconstruire : chaque <p> devient son contenu + <br>
+      var frag=document.createDocumentFragment();
+      var wrapper=document.createElement('p');
+      ps.forEach(function(p, i){
+        wrapper.innerHTML+=p.innerHTML;
+        if(i<ps.length-1) wrapper.innerHTML+='<br>';
+      });
+      frag.appendChild(wrapper);
+      range.deleteContents();
+      range.insertNode(frag);
+      editor.focus();
+    }
+  } else {
+    // Mode "inserer un saut de ligne" (pas de selection)
+    document.execCommand('insertLineBreak', false, null);
+    editor.focus();
+  }
+};
+
+// Toggle panneau formatage
+document.getElementById('fmtToggle').onclick=function(){
+  var panel=document.getElementById('fmtPanel');
+  var visible=panel.style.display!=='none';
+  panel.style.display=visible?'none':'flex';
+  // Fermer les autres panneaux si ouverts
+  if(!visible){ var sp=document.getElementById('searchPanel'); if(sp) sp.style.display='none'; var np=document.getElementById('notesPanel'); if(np) np.style.display='none'; }
+};
 
 // ===== EXTRACT TO MARKDOWN =====
 function htmlToMarkdown(html){
@@ -580,7 +780,42 @@ function doExtractDoc(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
 }
-document.getElementById('extractDocBtn').onclick=doExtractDoc;
+// Export de toute l'histoire (tous les chapitres en un fichier)
+function doExtractFullStory(){
+  if(!currentStory) return;
+  saveCurrentChapter();
+  var body='';
+  currentStory.chapters.forEach(function(ch, i){
+    var html=getChapterContent(currentStory.id, ch.id);
+    if(currentStory.chapters.length>1) body+='<h2>'+esc(ch.title||('Chapitre '+(i+1)))+'</h2>';
+    body+=(html||'<p><em>(vide)</em></p>');
+    if(i<currentStory.chapters.length-1) body+='<hr style="margin:30px 0;border:none;border-top:1px solid #ccc;">';
+  });
+  // Notes globales
+  var storyNotes=localStorage.getItem('write_notes_'+currentStory.id)||'';
+  if(storyNotes){
+    body+='<hr style="margin:40px 0;border:none;border-top:2px solid #ccc;">';
+    body+='<h2 style="color:#888;">💡 Mes notes</h2><p style="white-space:pre-wrap;color:#555;">'+esc(storyNotes)+'</p>';
+  }
+  var full='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(currentStory.title)+'</title>'
+    +'<style>body{font-family:Georgia,serif;font-size:14pt;line-height:1.8;max-width:700px;margin:40px auto;padding:20px;}'
+    +'h1,h2{font-family:Georgia,serif;} p{margin-bottom:12px;}</style></head><body>'
+    +'<h1>'+esc(currentStory.title)+'</h1>'+body+'</body></html>';
+  var filename=currentStory.title.replace(/[^a-zA-Z0-9_\- ]/g,'').replace(/\s+/g,'_')+'_complet.html';
+  var blob=new Blob([full],{type:'text/html;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById('extractDocBtn').onclick=function(){
+  if(!currentStory) return;
+  var isOS=(currentStory.chapters.length===1 && (currentStory.chapters[0].id==='_default'||currentStory.chapters[0].title==='Texte'));
+  if(isOS){ doExtractDoc(); return; }
+  // Histoire multi-chapitres : proposer le choix
+  var choice=confirm('Exporter TOUTE l\'histoire ?\n\n[OK] = Toute l\'histoire (tous les chapitres)\n[Annuler] = Seulement le chapitre en cours');
+  if(choice) doExtractFullStory(); else doExtractDoc();
+};
 
 // ===== BOTTOM BAR : compteur de mots, taille, theme =====
 var editorFontSize = parseInt(localStorage.getItem('write_fs')||'18');
@@ -689,6 +924,7 @@ function clearSearchHighlights(){
 
 function doSearch(){
   clearSearchHighlights();
+  var gsr=document.getElementById('globalSearchResults'); if(gsr) gsr.innerHTML='';
   var query=document.getElementById('searchInput').value.trim();
   if(!query) return;
   var lowerQuery=query.toLowerCase();
@@ -720,6 +956,30 @@ function doSearch(){
   __searchMatches=Array.from(editor.querySelectorAll('.search-hl'));
   __searchCurrent=__searchMatches.length>0 ? 0 : -1;
   updateSearchUI();
+  // Recherche globale si la checkbox est cochee
+  var globalCb=document.getElementById('searchGlobal');
+  if(globalCb && globalCb.checked && currentStory){
+    var results=[];
+    currentStory.chapters.forEach(function(ch){
+      if(currentChapter && ch.id===currentChapter.id) return;   // deja cherche dans l'editeur
+      var html=getChapterContent(currentStory.id, ch.id);
+      if(!html) return;
+      var tmp=document.createElement('div'); tmp.innerHTML=html;
+      var txt=(tmp.textContent||'').toLowerCase();
+      var count=0; var pos=txt.indexOf(lowerQuery);
+      while(pos!==-1){ count++; pos=txt.indexOf(lowerQuery, pos+lowerQuery.length); }
+      if(count>0) results.push({ch:ch, count:count});
+    });
+    if(gsr){
+      if(results.length){
+        gsr.innerHTML=results.map(function(r){
+          return '<span style="background:var(--accent);color:#fff;border-radius:6px;padding:2px 8px;margin-right:4px;cursor:pointer;font-size:11px;" onclick="switchChapter(\''+r.ch.id+'\');setTimeout(doSearch,100);">'+esc(r.ch.title)+' ('+r.count+')</span>';
+        }).join('');
+      } else {
+        gsr.innerHTML='<span style="font-style:italic;">Aucun autre chapitre</span>';
+      }
+    }
+  }
 }
 
 function updateSearchUI(){
@@ -737,6 +997,7 @@ document.getElementById('searchBtn').onclick=function(){
   panel.style.display=isOpen?'none':'block';
   // Fermer les notes si ouvertes
   if(!isOpen){ var np=document.getElementById('notesPanel'); if(np) np.style.display='none'; }
+  if(!isOpen){ var fp=document.getElementById('fmtPanel'); if(fp) fp.style.display='none'; }
   if(!isOpen){ document.getElementById('searchInput').focus(); }
   else { clearSearchHighlights(); }
 };
@@ -745,6 +1006,7 @@ document.getElementById('searchClose').onclick=function(){
   clearSearchHighlights();
 };
 document.getElementById('searchInput').addEventListener('input', doSearch);
+document.getElementById('searchGlobal').addEventListener('change', doSearch);
 document.getElementById('searchNext').onclick=function(){
   if(__searchMatches.length===0) return;
   __searchCurrent=(__searchCurrent+1)%__searchMatches.length;
@@ -768,6 +1030,7 @@ function renderIdeas(){
         +(d.pitch ? '<div class="idea-pitch">'+esc(d.pitch)+'</div>' : '<div class="idea-pitch" style="font-style:italic;">(pas de pitch)</div>')
         +'<div class="idea-actions">'
           +'<button class="btn btn-sm" data-write="'+d.id+'">✍️ Ecrire maintenant</button>'
+          +'<button class="btn btn-sm" data-edit="'+d.id+'">✏️ Modifier</button>'
           +'<button class="btn-danger" data-del="'+d.id+'">🗑️ Supprimer</button>'
         +'</div>'
       +'</div>'
@@ -783,6 +1046,21 @@ function renderIdeas(){
   // Bouton supprimer
   list.querySelectorAll('[data-del]').forEach(function(btn){
     btn.onclick=function(e){ e.stopPropagation(); ideas=ideas.filter(x=>x.id!==btn.dataset.del); saveIdeas(); renderIdeas(); };
+  });
+  // Bouton "Modifier" : editer titre et/ou pitch
+  list.querySelectorAll('[data-edit]').forEach(function(btn){
+    btn.onclick=function(e){
+      e.stopPropagation();
+      var idea=ideas.find(x=>x.id===btn.dataset.edit); if(!idea) return;
+      var newTitle=prompt('Titre :', idea.title);
+      if(newTitle===null) return;   // annulé
+      if(newTitle.trim()) idea.title=newTitle.trim();
+      var newPitch=prompt('Pitch / description :', idea.pitch||'');
+      if(newPitch===null) return;   // annulé
+      idea.pitch=newPitch.trim();
+      saveIdeas();
+      renderIdeas();
+    };
   });
   // Bouton "Ecrire maintenant" : transforme l'idée en histoire
   list.querySelectorAll('[data-write]').forEach(function(btn){
@@ -891,12 +1169,160 @@ document.getElementById('notesBtn').onclick=function(){
   if(visible){ panel.style.display='none'; return; }
   // Fermer la recherche si ouverte
   var sp=document.getElementById('searchPanel'); if(sp) sp.style.display='none';
+  var fp=document.getElementById('fmtPanel'); if(fp) fp.style.display='none';
   loadNotes();
   panel.style.display='block';
 };
 document.getElementById('notesClose').onclick=function(){
   document.getElementById('notesPanel').style.display='none';
 };
+
+// ===== IDEE RAPIDE (depuis l'editeur) =====
+document.getElementById('quickIdeaBtn').onclick=function(){
+  var t=prompt('💭 Titre de ton idee :');
+  if(!t||!t.trim()) return;
+  var p=prompt('Pitch / description (optionnel) :');
+  ideas.push({id:uid(), title:t.trim(), pitch:(p||'').trim()});
+  saveIdeas();
+  alert('Idee ajoutee ! 💡\nTu la retrouveras dans l\'onglet "Mes idees".');
+};
+
+// ===== MODE ECRAN PARTAGE (SPLIT / FOCUS) =====
+var __splitActive = false;
+var __splitRefChapterId = null;
+
+// Ouvrir : proposer quel chapitre afficher en reference
+document.getElementById('splitBtn').onclick=function(){
+  if(!currentStory||!currentChapter) return;
+  if(currentStory.chapters.length<2){ alert('Il faut au moins 2 chapitres pour utiliser le mode ecran partage.'); return; }
+  // Construire la liste des chapitres (sauf le courant)
+  var others=currentStory.chapters.filter(function(ch){ return ch.id!==currentChapter.id; });
+  var msg='Quel chapitre afficher en reference ?\n\n';
+  others.forEach(function(ch, i){ msg+=(i+1)+'. '+ch.title+'\n'; });
+  msg+='\nTape le numero :';
+  var choice=prompt(msg);
+  if(!choice) return;
+  var idx=parseInt(choice)-1;
+  if(isNaN(idx)||idx<0||idx>=others.length){ alert('Numero invalide.'); return; }
+  openSplitMode(others[idx].id);
+};
+
+function openSplitMode(refChId){
+  if(!currentStory||!currentChapter) return;
+  saveCurrentChapter();
+  __splitRefChapterId=refChId;
+  __splitActive=true;
+
+  // Charger le texte de reference
+  var refCh=currentStory.chapters.find(function(ch){ return ch.id===refChId; });
+  var refHtml=getChapterContent(currentStory.id, refChId);
+  document.getElementById('splitRefLabel').textContent='📖 '+((refCh&&refCh.title)||'Reference');
+  document.getElementById('splitRefContent').innerHTML=refHtml||'<p style="opacity:.5;font-style:italic;">(vide)</p>';
+
+  // Charger le texte de l'editeur
+  var editArea=document.getElementById('splitEditArea');
+  var html=getChapterContent(currentStory.id, currentChapter.id);
+  editArea.innerHTML=html||'<p><br></p>';
+
+  // Afficher l'overlay
+  document.getElementById('splitOverlay').classList.add('active');
+  // Cacher la barre normale
+  document.getElementById('bottomBar').style.display='none';
+  // Fermer tous les panneaux
+  ['fmtPanel','searchPanel','notesPanel'].forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
+
+  // Auto-save dans le split
+  editArea.oninput=function(){
+    clearTimeout(__splitSaveTimer);
+    __splitSaveTimer=setTimeout(function(){
+      if(currentStory&&currentChapter){
+        setChapterContent(currentStory.id, currentChapter.id, editArea.innerHTML);
+      }
+    }, 2000);
+  };
+}
+var __splitSaveTimer=null;
+
+function closeSplitMode(){
+  if(!__splitActive) return;
+  // Sauvegarder le contenu du split dans le chapitre
+  var editArea=document.getElementById('splitEditArea');
+  if(currentStory&&currentChapter){
+    setChapterContent(currentStory.id, currentChapter.id, editArea.innerHTML);
+  }
+  __splitActive=false;
+  __splitRefChapterId=null;
+  document.getElementById('splitOverlay').classList.remove('active');
+  document.getElementById('splitFmt').classList.remove('open');
+  // Remettre la barre normale
+  if(currentStory&&currentChapter) document.getElementById('bottomBar').style.display='flex';
+  // Recharger l'editeur principal avec le contenu mis a jour
+  loadEditor();
+}
+
+// Boutons de la mini-barre split
+document.getElementById('splitClose').onclick=closeSplitMode;
+
+document.getElementById('splitSave').onclick=function(){
+  var editArea=document.getElementById('splitEditArea');
+  if(currentStory&&currentChapter){
+    setChapterContent(currentStory.id, currentChapter.id, editArea.innerHTML);
+  }
+};
+
+document.getElementById('splitUndo').onclick=function(){
+  document.getElementById('splitEditArea').focus();
+  document.execCommand('undo', false, null);
+};
+document.getElementById('splitRedo').onclick=function(){
+  document.getElementById('splitEditArea').focus();
+  document.execCommand('redo', false, null);
+};
+
+// Toggle formatage split
+document.getElementById('splitFmtToggle').onclick=function(){
+  document.getElementById('splitFmt').classList.toggle('open');
+};
+
+// Boutons de formatage du split (empecher vol de focus)
+document.querySelectorAll('#splitFmt button').forEach(function(btn){
+  btn.addEventListener('mousedown', function(e){ e.preventDefault(); });
+  btn.addEventListener('touchend', function(e){ e.preventDefault(); btn.click(); });
+  btn.onclick=function(){
+    var editArea=document.getElementById('splitEditArea');
+    editArea.focus();
+    if(btn.dataset.cmd==='insertLineBreak'){
+      // Meme logique que l'editeur principal
+      var sel=window.getSelection();
+      if(sel && !sel.isCollapsed && editArea.contains(sel.anchorNode)){
+        var range=sel.getRangeAt(0);
+        var container=document.createElement('div');
+        container.appendChild(range.cloneContents());
+        var ps=container.querySelectorAll('p');
+        if(ps.length>1){
+          var frag=document.createDocumentFragment();
+          var wrapper=document.createElement('p');
+          ps.forEach(function(p, i){
+            wrapper.innerHTML+=p.innerHTML;
+            if(i<ps.length-1) wrapper.innerHTML+='<br>';
+          });
+          frag.appendChild(wrapper);
+          range.deleteContents();
+          range.insertNode(frag);
+        }
+      } else {
+        document.execCommand('insertLineBreak', false, null);
+      }
+    } else {
+      document.execCommand(btn.dataset.cmd, false, null);
+    }
+  };
+});
+// Empecher vol de focus sur les boutons de la mini-barre split
+['splitFmtToggle','splitUndo','splitRedo','splitSave','splitClose'].forEach(function(id){
+  var el=document.getElementById(id);
+  if(el) el.addEventListener('mousedown', function(e){ e.preventDefault(); });
+});
 
 // ===== INIT =====
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
