@@ -413,6 +413,15 @@ document.querySelectorAll('.tab').forEach(function(t){
     document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
     t.classList.add('active');
     document.getElementById('panel'+t.dataset.tab.charAt(0).toUpperCase()+t.dataset.tab.slice(1)).classList.add('active');
+    // Si on quitte l'onglet histoires, cacher la barre du bas et fermer les panneaux
+    if(t.dataset.tab!=='stories' || !currentStory || !currentChapter){
+      var bb=document.getElementById('bottomBar'); if(bb) bb.style.display='none';
+      ['fmtPanel','searchPanel','notesPanel'].forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
+    }
+    // Si on revient sur l'onglet histoires et qu'on etait en train d'ecrire, remettre la barre
+    if(t.dataset.tab==='stories' && currentStory && currentChapter){
+      var bb=document.getElementById('bottomBar'); if(bb) bb.style.display='flex';
+    }
   };
 });
 
@@ -506,6 +515,8 @@ document.getElementById('backToListBtn').onclick=function(){
   document.getElementById('storyEditorView').style.display='none';
   document.getElementById('storyListView').style.display='block';
   // Fermer les panneaux flottants
+  var bb=document.getElementById('bottomBar'); if(bb) bb.style.display='none';
+  var sp=document.getElementById('searchPanel'); if(sp) sp.style.display='none';
   var np=document.getElementById('notesPanel'); if(np) np.style.display='none';
   var fp=document.getElementById('fmtPanel'); if(fp) fp.style.display='none';
   currentStory=null; currentChapter=null;
