@@ -101,8 +101,8 @@ textarea.input{resize:vertical;min-height:60px;}
 .save-status.saved{color:#00a651;}
 
 /* Bottom bar (fixed) */
-.bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--card);border-top:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 -2px 10px rgba(0,0,0,.2);}
-.bottom-bar button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;padding:6px 10px;transition:.12s;}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--card);border-top:1px solid var(--line);padding:6px 10px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;box-shadow:0 -2px 10px rgba(0,0,0,.2);}
+.bottom-bar button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:7px;cursor:pointer;font-size:13px;font-weight:700;padding:5px 8px;transition:.12s;}
 .bottom-bar button:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .fmt-btn{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;padding:8px 14px;transition:.12s;} .fmt-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .bottom-bar .word-count{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap;}
@@ -228,7 +228,7 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
       <button id="fontUp" title="Texte plus grand">A+</button>
       <button id="themeToggle" title="Mode clair/sombre">☀️</button>
       <button id="saveBtn" title="Enregistrer">💾</button>
-      <button id="extractDocBtn" title="Exporter en Word">📥 Word</button>
+      <button id="extractDocBtn" title="Exporter en Word">📥</button>
       <button id="searchBtn" title="Rechercher dans le texte">🔍</button>
       <button id="notesBtn" title="Notes et idees pour cette histoire">💡</button>
       <button id="quickIdeaBtn" title="Noter une idee rapide (onglet Idees)">💭</button>
@@ -244,6 +244,7 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
         <button class="fmt-btn" id="tbCenter" title="Centre">≡</button>
         <button class="fmt-btn" id="tbRight" title="Droite">⫸</button>
         <button class="fmt-btn" id="tbLineBreak" title="Saut de ligne simple (texte serre)" style="font-size:13px;">↵</button>
+        <button class="fmt-btn" id="tbClean" title="Nettoyer le formatage (police/taille de Word)" style="font-size:13px;">🧹</button>
       </div>
     </div>
     <!-- Panneau de recherche (apparait au-dessus de la bottom bar) -->
@@ -652,6 +653,74 @@ editor.addEventListener('input', function(){
 });
 // Manual save
 document.getElementById('saveBtn').onclick=function(){ saveCurrentChapter(); };
+
+// ===== COLLAGE PROPRE (nettoie le formatage de Word) =====
+// Quand on colle depuis Word, ca amene des polices et tailles imposees.
+// On nettoie pour ne garder que le texte + gras/italique + paragraphes,
+// et le texte prend automatiquement le style de l'editeur.
+function cleanPastedHTML(html){
+  var tmp=document.createElement('div');
+  tmp.innerHTML=html;
+  // Retirer tous les styles inline, classes, et attributs de police
+  tmp.querySelectorAll('*').forEach(function(el){
+    el.removeAttribute('style');
+    el.removeAttribute('class');
+    el.removeAttribute('face');
+    el.removeAttribute('size');
+    el.removeAttribute('color');
+    el.removeAttribute('align');
+    el.removeAttribute('lang');
+    // Retirer les balises inutiles de Word (o:p, span vides...) en gardant le contenu
+    if(el.tagName==='SPAN' || el.tagName==='FONT' || el.tagName.indexOf(':')>-1){
+      var parent=el.parentNode;
+      while(el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+    }
+  });
+  return tmp.innerHTML;
+}
+function handleCleanPaste(e, targetEl){
+  e.preventDefault();
+  var clip=(e.clipboardData || window.clipboardData);
+  var html=clip ? clip.getData('text/html') : '';
+  var text=clip ? clip.getData('text/plain') : '';
+  if(html){
+    var cleaned=cleanPastedHTML(html);
+    document.execCommand('insertHTML', false, cleaned);
+  } else if(text){
+    // Texte brut : convertir les sauts de ligne en paragraphes
+    var htmlText=text.split(/\n\s*\n/).map(function(block){
+      return '<p>'+block.replace(/\n/g,'<br>').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</p>';
+    }).join('');
+    document.execCommand('insertHTML', false, htmlText);
+  }
+  targetEl.focus();
+}
+editor.addEventListener('paste', function(e){ handleCleanPaste(e, editor); });
+
+// Bouton "Nettoyer le formatage" : remet tout le chapitre (ou la selection) au style de l'editeur
+document.getElementById('tbClean').onclick=function(){
+  var target=(__splitActive ? document.getElementById('splitEditArea') : editor);
+  var sel=window.getSelection();
+  if(sel && !sel.isCollapsed && target.contains(sel.anchorNode)){
+    // Nettoyer seulement la selection
+    var range=sel.getRangeAt(0);
+    var container=document.createElement('div');
+    container.appendChild(range.cloneContents());
+    var cleaned=cleanPastedHTML(container.innerHTML);
+    range.deleteContents();
+    document.execCommand('insertHTML', false, cleaned);
+  } else {
+    // Nettoyer tout le chapitre
+    if(!confirm('Nettoyer le formatage de tout le chapitre ? (garde le gras/italique, enleve les polices et tailles de Word)')) return;
+    target.innerHTML=cleanPastedHTML(target.innerHTML);
+    if(!__splitActive && currentStory && currentChapter){ saveCurrentChapter(); }
+    if(__splitActive && currentStory && currentChapter){ setChapterContent(currentStory.id, currentChapter.id, target.innerHTML); }
+  }
+  target.focus();
+};
+document.getElementById('tbClean').addEventListener('mousedown', function(e){ e.preventDefault(); });
+document.getElementById('tbClean').addEventListener('touchend', function(e){ e.preventDefault(); document.getElementById('tbClean').click(); });
 
 // ===== TOOLBAR =====
 function cmd(c, v){ document.execCommand(c, false, v||null); editor.focus(); }
@@ -1251,6 +1320,8 @@ function openSplitMode(refChId){
       }
     }, 2000);
   };
+  // Collage propre dans le mode split aussi
+  editArea.onpaste=function(e){ handleCleanPaste(e, editArea); };
 }
 var __splitSaveTimer=null;
 
