@@ -661,7 +661,23 @@ document.getElementById('saveBtn').onclick=function(){ saveCurrentChapter(); };
 function cleanPastedHTML(html){
   var tmp=document.createElement('div');
   tmp.innerHTML=html;
-  // Retirer tous les styles inline, classes, et attributs de police
+  // 1) D'ABORD : preserver le gras/italique que Word met via le style CSS
+  //    (font-weight:bold / font-style:italic) en le convertissant en vraies
+  //    balises <b> / <i> AVANT de tout nettoyer.
+  tmp.querySelectorAll('*').forEach(function(el){
+    var st=(el.getAttribute('style')||'').toLowerCase();
+    var fw=st.match(/font-weight\s*:\s*(bold|[6-9]00)/);
+    var fi=st.match(/font-style\s*:\s*italic/);
+    if(fw || fi){
+      var inner=el.innerHTML;
+      if(fi) inner='<i>'+inner+'</i>';
+      if(fw) inner='<b>'+inner+'</b>';
+      el.innerHTML=inner;
+    }
+  });
+  // 2) ENSUITE : retirer styles/classes/attributs de police, et deballer
+  //    les span/font, MAIS garder les vraies balises de formatage.
+  var KEEP={B:1,STRONG:1,I:1,EM:1,U:1,BR:1,P:1,DIV:1};
   tmp.querySelectorAll('*').forEach(function(el){
     el.removeAttribute('style');
     el.removeAttribute('class');
@@ -670,8 +686,8 @@ function cleanPastedHTML(html){
     el.removeAttribute('color');
     el.removeAttribute('align');
     el.removeAttribute('lang');
-    // Retirer les balises inutiles de Word (o:p, span vides...) en gardant le contenu
-    if(el.tagName==='SPAN' || el.tagName==='FONT' || el.tagName.indexOf(':')>-1){
+    // Deballer les balises non voulues (span, font, o:p...) en gardant le contenu
+    if(!KEEP[el.tagName] && (el.tagName==='SPAN' || el.tagName==='FONT' || el.tagName.indexOf(':')>-1)){
       var parent=el.parentNode;
       while(el.firstChild) parent.insertBefore(el.firstChild, el);
       parent.removeChild(el);
