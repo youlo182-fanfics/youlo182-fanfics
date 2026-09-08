@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -97,8 +97,11 @@ textarea.input{resize:vertical;min-height:60px;}
 .editor-area{scrollbar-width:auto;scrollbar-color:var(--accent-l) var(--bg);}
 .editor-area:focus{border-color:var(--accent-l);}
 .editor-area p{margin-bottom:14px;}
-.save-status{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap;}
+.save-status{font-size:11px;color:var(--muted);margin-left:auto;white-space:nowrap;padding:1px 8px 2px;margin:0;}
 .save-status.saved{color:#00a651;}
+/* Quand le clavier est actif : editeur reduit + moins d'espace autour */
+body.kb-open .editor-area{height:var(--kb-editor-h, 38vh) !important;}
+body.kb-open .save-status{padding:0 8px;}
 
 /* Bottom bar (fixed) */
 .bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--card);border-top:1px solid var(--line);padding:6px 10px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;box-shadow:0 -2px 10px rgba(0,0,0,.2);}
@@ -1421,6 +1424,69 @@ document.querySelectorAll('#splitFmt button').forEach(function(btn){
   var el=document.getElementById(id);
   if(el) el.addEventListener('mousedown', function(e){ e.preventDefault(); });
 });
+
+// ===== CLAVIER MOBILE : barre au-dessus du clavier + editeur reduit =====
+// Utilise l'API visualViewport pour detecter l'ouverture du clavier et sa hauteur.
+(function(){
+  var vv = window.visualViewport;
+  if(!vv) return;   // navigateur trop ancien : on ne fait rien (comportement normal)
+  var bar = document.getElementById('bottomBar');
+
+  function onViewportChange(){
+    // Hauteur cachee par le clavier = hauteur fenetre - hauteur viewport visible - offset
+    var kbHeight = window.innerHeight - vv.height - vv.offsetTop;
+    var keyboardOpen = kbHeight > 120;   // seuil : au-dela de 120px c'est le clavier
+    var barH = bar ? bar.offsetHeight : 90;
+
+    if(keyboardOpen){
+      document.body.classList.add('kb-open');
+      if(bar){
+        // On positionne la barre en TOP absolu, ancre au bas de la zone visible.
+        // Plus fiable que "bottom" sur Android quand la page est poussee au lieu
+        // d'etre redimensionnee.
+        bar.style.position='fixed';
+        bar.style.top = (vv.offsetTop + vv.height - barH) + 'px';
+        bar.style.bottom = 'auto';
+      }
+      // L'editeur occupe l'espace visible au-dessus de la barre
+      var editorH = Math.max(110, vv.height - barH - 60);
+      document.documentElement.style.setProperty('--kb-editor-h', editorH + 'px');
+    } else {
+      document.body.classList.remove('kb-open');
+      if(bar){
+        bar.style.top = 'auto';
+        bar.style.bottom = '0px';
+      }
+    }
+    // Repositionner aussi les panneaux flottants (formatage, recherche, notes) au-dessus de la barre
+    ['fmtPanel','searchPanel','notesPanel'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el && el.style.display!=='none'){
+        if(keyboardOpen){
+          // Juste au-dessus de la barre, ancre au top
+          el.style.top = (vv.offsetTop + vv.height - barH - el.offsetHeight) + 'px';
+          el.style.bottom = 'auto';
+        } else {
+          el.style.top = 'auto';
+          el.style.bottom = barH + 'px';
+        }
+      }
+    });
+  }
+
+  vv.addEventListener('resize', onViewportChange);
+  vv.addEventListener('scroll', onViewportChange);
+  // Recalcul quand l'editeur prend le focus (le clavier s'ouvre)
+  document.addEventListener('focusin', function(e){
+    if(e.target && (e.target.id==='editor' || e.target.id==='splitEditArea' || e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA')){
+      setTimeout(onViewportChange, 100);
+      setTimeout(onViewportChange, 400);
+    }
+  });
+  document.addEventListener('focusout', function(){
+    setTimeout(onViewportChange, 100);
+  });
+})();
 
 // ===== INIT =====
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
