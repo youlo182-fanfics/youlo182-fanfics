@@ -101,7 +101,7 @@ textarea.input{resize:vertical;min-height:60px;}
 .save-status.saved{color:#00a651;}
 /* Quand le clavier est actif : editeur reduit + moins d'espace autour */
 body.kb-open .editor-area{height:var(--kb-editor-h, 38vh) !important;}
-body.kb-open .save-status{padding:0 8px;}
+body.kb-open .save-status{padding:0 8px;font-size:10px;line-height:1;margin:0;}
 
 /* Bottom bar (fixed) */
 .bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--card);border-top:1px solid var(--line);padding:6px 10px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;box-shadow:0 -2px 10px rgba(0,0,0,.2);}
@@ -1448,8 +1448,8 @@ document.querySelectorAll('#splitFmt button').forEach(function(btn){
         bar.style.top = (vv.offsetTop + vv.height - barH) + 'px';
         bar.style.bottom = 'auto';
       }
-      // L'editeur occupe l'espace visible au-dessus de la barre
-      var editorH = Math.max(110, vv.height - barH - 60);
+      // L'editeur occupe l'espace visible au-dessus de la barre (marge reduite au minimum)
+      var editorH = Math.max(110, vv.height - barH - 24);
       document.documentElement.style.setProperty('--kb-editor-h', editorH + 'px');
     } else {
       document.body.classList.remove('kb-open');
