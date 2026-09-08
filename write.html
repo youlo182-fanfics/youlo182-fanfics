@@ -108,7 +108,9 @@ body.kb-open .save-status{padding:0 8px;font-size:10px;line-height:1;margin:0;}
 .bottom-bar button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:7px;cursor:pointer;font-size:13px;font-weight:700;padding:5px 8px;transition:.12s;}
 .bottom-bar button:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .fmt-btn{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;padding:8px 14px;transition:.12s;} .fmt-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
-.bottom-bar .word-count{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap;}
+.bottom-bar #saveStatusBar{margin-left:auto;color:var(--muted);}
+.bottom-bar #saveStatusBar.saved{color:#00a651;}
+.bottom-bar .word-count{font-size:12px;color:var(--muted);white-space:nowrap;}
 
 /* Surlignage des résultats de recherche */
 .search-hl{background:rgba(255,200,0,.4);border-radius:2px;}
@@ -216,7 +218,7 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
 
         <!-- Editor (toolbar deplacee dans la bottom bar) -->
         <div class="editor-area" id="editor" contenteditable="true" spellcheck="true" style="border-radius:12px;border-top:1px solid var(--line);"></div>
-        <span class="save-status" id="saveStatus" style="display:block;text-align:right;padding:4px 8px;font-size:11px;">-</span>
+        <span class="save-status" id="saveStatus" style="display:none;">-</span>
       </div>
     </div>
 
@@ -236,6 +238,7 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
       <button id="notesBtn" title="Notes et idees pour cette histoire">💡</button>
       <button id="quickIdeaBtn" title="Noter une idee rapide (onglet Idees)">💭</button>
       <button id="splitBtn" title="Mode ecran partage (reference + ecriture)">📖</button>
+      <span class="save-status" id="saveStatusBar" style="font-size:11px;white-space:nowrap;">-</span>
       <span class="word-count" id="wordCount">0 mot</span>
     </div>
     <!-- Sous-barre formatage (apparait au-dessus de la bottom bar) -->
@@ -632,7 +635,21 @@ document.getElementById('dupChBtn').onclick=function(){
 
 // ===== EDITOR =====
 var editor=document.getElementById('editor');
-var saveStatus=document.getElementById('saveStatus');
+// Le statut de sauvegarde est maintenant affiche dans la barre du bas (saveStatusBar),
+// a cote du compteur de mots. On garde un proxy qui met a jour la box de la barre
+// (et l'ancien element cache, par securite) via textContent / className.
+var __saveStatusBar=document.getElementById('saveStatusBar');
+var __saveStatusOld=document.getElementById('saveStatus');
+var saveStatus={
+  set textContent(v){ if(__saveStatusBar) __saveStatusBar.textContent=v; if(__saveStatusOld) __saveStatusOld.textContent=v; },
+  get textContent(){ return __saveStatusBar ? __saveStatusBar.textContent : ''; },
+  set className(v){
+    // Reporter l'etat "saved" sur la box de la barre (garde son style de barre)
+    if(__saveStatusBar) __saveStatusBar.className = (v.indexOf('saved')>-1 ? 'saved' : '');
+    if(__saveStatusOld) __saveStatusOld.className=v;
+  },
+  get className(){ return __saveStatusBar ? __saveStatusBar.className : ''; }
+};
 
 function loadEditor(){
   if(!currentStory||!currentChapter){ editor.innerHTML='<p style="color:var(--muted);font-style:italic;">Selectionne ou cree un chapitre pour commencer a ecrire.</p>'; editor.contentEditable='false'; return; }
@@ -996,7 +1013,9 @@ loadEditor = function(){
       var pct=Math.round(frac*100);
       if(confirm('📖 Reprendre ou tu t\'es arretee ? ('+pct+'% du texte)\n\n[OK] = reprendre\n[Annuler] = rester en haut')){
         var h=editor.scrollHeight-editor.clientHeight;
-        if(h>0) editor.scrollTo({top:h*frac, behavior:'smooth'});
+        // On vise un peu au-dessus de la position exacte pour que ta derniere
+        // ligne apparaisse vers le HAUT de la zone (et pas collee en bas).
+        if(h>0) editor.scrollTo({top:Math.max(0, h*frac - 40), behavior:'smooth'});
       } else {
         try{ localStorage.setItem(key, '0'); }catch(e){}
       }
@@ -1481,11 +1500,41 @@ document.querySelectorAll('#splitFmt button').forEach(function(btn){
     if(e.target && (e.target.id==='editor' || e.target.id==='splitEditArea' || e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA')){
       setTimeout(onViewportChange, 100);
       setTimeout(onViewportChange, 400);
+      // Apres l'ouverture du clavier (la vue a retreci), replacer la ligne du
+      // curseur pres du haut de la zone visible pour ne pas la perdre.
+      if(e.target.id==='editor' || e.target.id==='splitEditArea'){
+        setTimeout(function(){ keepCaretInView(e.target); }, 450);
+      }
     }
   });
   document.addEventListener('focusout', function(){
     setTimeout(onViewportChange, 100);
   });
+
+  // Amene la ligne ou se trouve le curseur pres du haut de la zone d'edition visible.
+  function keepCaretInView(area){
+    try{
+      var sel=window.getSelection();
+      if(!sel || sel.rangeCount===0) return;
+      var range=sel.getRangeAt(0).cloneRange();
+      // Un rect fiable meme si le curseur est colle a un bord : on insere un marqueur temporaire
+      var rects=range.getClientRects();
+      var caretTop;
+      if(rects && rects.length){ caretTop=rects[0].top; }
+      else {
+        var span=document.createElement('span'); span.textContent='\u200b';
+        range.insertNode(span);
+        caretTop=span.getBoundingClientRect().top;
+        var p=span.parentNode; p.removeChild(span); p.normalize();
+      }
+      var areaRect=area.getBoundingClientRect();
+      // On vise a placer la ligne du curseur a ~60px sous le haut de l'editeur
+      var target=area.scrollTop + (caretTop - areaRect.top) - 60;
+      area.scrollTo({top: Math.max(0, target), behavior:'smooth'});
+    }catch(err){}
+  }
+  // Exposer pour reutilisation eventuelle
+  window.__keepCaretInView = keepCaretInView;
 })();
 
 // ===== INIT =====
