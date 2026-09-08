@@ -1468,7 +1468,7 @@ document.querySelectorAll('#splitFmt button').forEach(function(btn){
         bar.style.bottom = 'auto';
       }
       // L'editeur occupe l'espace visible au-dessus de la barre (marge reduite au minimum)
-      var editorH = Math.max(110, vv.height - barH - 24);
+      var editorH = Math.max(110, vv.height - barH - 6);
       document.documentElement.style.setProperty('--kb-editor-h', editorH + 'px');
     } else {
       document.body.classList.remove('kb-open');
