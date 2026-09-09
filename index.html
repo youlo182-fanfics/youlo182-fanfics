@@ -1012,22 +1012,9 @@ function applyUILang(){
   updateAccountLabel();
   updateCommentForm();
   var _al=document.getElementById('aboutLabel'); if(_al) _al.textContent=ABOUT[lang].label;
-  // Bannière teaser bilingue
-  var _tb=document.getElementById('teaserBadge'), _tt=document.getElementById('teaserTitle'),
-      _tx=document.getElementById('teaserText'), _ts=document.getElementById('teaserSmall');
-  if(_tb){
-    if(lang==='fr'){
-      _tb.textContent='✨ Bientôt';
-      _tt.textContent='Nouvelle histoire à venir !';
-      _tx.textContent='Pensez à revenir vérifier les mises à jour, ou suivez-moi sur X / Instagram pour savoir dès qu\'elle est disponible. 💛';
-      _ts.textContent='Cette histoire sortira en avant-première ici, avant Wattpad et AO3. 🌟';
-    } else {
-      _tb.textContent='✨ Coming soon';
-      _tt.textContent='A new story is coming!';
-      _tx.textContent='Remember to check back for updates, or follow me on X / Instagram to know as soon as it\'s available. 💛';
-      _ts.textContent='This story will be released here first, before Wattpad and AO3. 🌟';
-    }
-  }
+  // Bannière teaser : gérée entièrement par initTeaser() (titre = titre de l'histoire,
+  // texte = synopsis, badge + décompte bilingues). On la rafraîchit ici pour suivre la langue.
+  try{ if(typeof initTeaser==='function') initTeaser(); }catch(e){}
 }
 
 // ---- THEME / FONT ----
@@ -1346,8 +1333,9 @@ function renderLibrary(){
   });
   // Cartes simples (one-shots / stand-alones)
   out+=singles.map(function(b){
-    const d=b[lang];
-    const total=d.chapters.length;
+    // Secours : si la langue courante n'a pas de contenu, on retombe sur l'autre
+    const d=(b[lang] && b[lang].chapters) ? b[lang] : (b.fr && b.fr.chapters ? b.fr : (b.en||{chapters:[],title:'',summary:''}));
+    const total=(d.chapters||[]).length;
     return '<div class="book" onclick="openBook(\''+b.id+'\')">'+
       '<div class="cover">'+coverImg(b)+'</div>'+
       '<div class="book-info" style="flex:1">'+
@@ -2353,17 +2341,22 @@ function initTeaser(){
   var t = (story[lang]&&story[lang].title) || story.fr.title;
   if(title) title.textContent = t;
 
+  // Texte de la banniere = synopsis de l'histoire (langue courante, sinon FR en secours)
+  var syn = (story[lang]&&story[lang].summary) || (story.fr&&story.fr.summary) || '';
+  if(txt && syn) txt.textContent = syn;
+  window.__teaserSynopsis = syn;   // memorise pour le reafficher apres showLive/showSoon
+
   function showLive(){
     if(badge) badge.textContent = isEN ? '🔥 New' : '🔥 Nouveau';
-    if(txt) txt.textContent = isEN
-      ? 'It’s here! The new story is now available. Dive in 💛'
-      : 'Ça y est ! La nouvelle histoire est disponible. Bonne lecture 💛';
+    // Garde le synopsis affiche
+    if(txt && window.__teaserSynopsis) txt.textContent = window.__teaserSynopsis;
     if(cd) cd.style.display='none';
     if(btn){ btn.style.display='inline-block'; btn.textContent = isEN ? '📖 Read now' : '📖 Lire maintenant'; }
-    if(small) small.style.display='none';
+    if(small) small.style.display='';
   }
   function showSoon(){
     if(badge) badge.textContent = isEN ? '✨ Coming soon' : '✨ Bientôt';
+    if(txt && window.__teaserSynopsis) txt.textContent = window.__teaserSynopsis;
     if(cd) cd.style.display='flex';
     if(btn) btn.style.display='none';
   }
