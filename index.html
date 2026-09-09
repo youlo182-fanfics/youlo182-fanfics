@@ -19,12 +19,12 @@
 <meta property="og:site_name" content="Youlo182 — Fanfictions">
 <meta property="og:title" content="Youlo182 — Fanfictions Marina & Station 19">
 <meta property="og:description" content="Les fanfictions de Julie Cacciola (Youlo182) — Carina & Maya, en avant-première ici. 💛">
-<meta property="og:image" content="https://youlo182-fanfics.pages.dev/assets/tainted-love-banner.jpeg">
+<meta property="og:image" content="https://youlo182-fanfics.pages.dev/assets/girls-like-girls-banner.jpeg">
 <meta property="og:url" content="https://youlo182-fanfics.pages.dev/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Youlo182 — Fanfictions Marina & Station 19">
 <meta name="twitter:description" content="Les fanfictions de Julie Cacciola (Youlo182) — Carina & Maya, en avant-première ici. 💛">
-<meta name="twitter:image" content="https://youlo182-fanfics.pages.dev/assets/tainted-love-banner.jpeg">
+<meta name="twitter:image" content="https://youlo182-fanfics.pages.dev/assets/girls-like-girls-banner.jpeg">
 <title>Julie Cacciola — Youlo182 · Fanfictions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -507,10 +507,10 @@
 
     <!-- Bannière teaser : prochaine histoire (avec décompte + bouton) -->
     <div id="teaser" class="teaser">
-      <img class="teaser-img" src="assets/tainted-love-banner.jpeg" alt="Tainted Love" id="teaserImg">
+      <img class="teaser-img" src="assets/girls-like-girls-banner.jpeg" alt="Girls Like Girls" id="teaserImg">
       <div class="teaser-text">
         <div class="teaser-badge" id="teaserBadge">✨ Bientôt</div>
-        <h3 id="teaserTitle">Tainted Love</h3>
+        <h3 id="teaserTitle">Girls Like Girls</h3>
         <p id="teaserText">Une nouvelle histoire arrive très bientôt. Reste dans les parages, elle se dévoile ici en avant-première. 💛</p>
         <div id="teaserCountdown" class="teaser-countdown">
           <div class="cd-box"><span id="cdD">0</span><small id="cdDL">j</small></div>
@@ -1489,6 +1489,18 @@ async function countView(bookId){
 }
 window.openBook=async function(id){
   currentBook=BOOKS.find(b=>b.id===id);
+  // 🔒 Verrou de sortie : une histoire programmée reste inaccessible tant que sa date
+  // de sortie n'est pas atteinte (même via lien direct ?story=ID). L'autrice (isAuthor)
+  // peut la consulter en avance pour vérification.
+  if(currentBook && currentBook.releaseAt && Date.now() < new Date(currentBook.releaseAt).getTime() && !isAuthor){
+    var msg = (lang==='en'
+      ? 'This story is not available yet. Come back at the release date! 💛'
+      : "Cette histoire n'est pas encore disponible. Reviens à la date de sortie ! 💛");
+    try{ alert(msg); }catch(e){}
+    document.getElementById('reader').style.display='none';
+    document.getElementById('library').style.display='block';
+    return;
+  }
   let p={ch:0};
   try{ p=await getProgress(id+'_'+lang); }catch(e){}
   currentCh=(p&&p.ch)||0;
@@ -2286,7 +2298,7 @@ async function loadRealStories(){
 
 // ==================== BANNIÈRE LANCEMENT : décompte + confettis ====================
 // Histoire mise en avant dans la bannière (doit avoir un "releaseAt" dans stories.json)
-var TEASER_STORY_ID = "os-tainted-love";
+var TEASER_STORY_ID = "os-girls-like-girls";
 
 // ---- Confettis (léger, sans dépendance) ----
 function launchConfetti(duration){
