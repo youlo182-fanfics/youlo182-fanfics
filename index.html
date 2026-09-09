@@ -2387,7 +2387,10 @@ function initTeaser(){
   }
 
   tick();
-  if(!__teaserTimer && releaseTs>Date.now()){ __teaserTimer=setInterval(tick,1000); }
+  // On tue l'ancien timer avant d'en recreer un : sinon, apres un changement de
+  // langue, l'ancien tick() continue avec l'ancienne langue (badge fige).
+  if(__teaserTimer){ clearInterval(__teaserTimer); __teaserTimer=null; }
+  if(releaseTs>Date.now()){ __teaserTimer=setInterval(tick,1000); }
 }
 
 // Confettis une seule fois par personne après le lancement
