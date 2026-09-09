@@ -2346,6 +2346,11 @@ function initTeaser(){
   if(txt && syn) txt.textContent = syn;
   window.__teaserSynopsis = syn;   // memorise pour le reafficher apres showLive/showSoon
 
+  // Petit texte du bas (bilingue)
+  if(small) small.textContent = isEN
+    ? 'Available here first, before Wattpad and AO3. 🌟'
+    : 'En avant-première ici, avant Wattpad et AO3. 🌟';
+
   function showLive(){
     if(badge) badge.textContent = isEN ? '🔥 New' : '🔥 Nouveau';
     // Garde le synopsis affiche
