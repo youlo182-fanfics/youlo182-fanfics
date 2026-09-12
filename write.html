@@ -279,12 +279,35 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
         <label style="font-size:12px;color:var(--muted);font-weight:600;" id="notesStoryLabel">📖 Pour l'histoire</label>
         <textarea id="notesStoryArea" placeholder="Idees, arcs, notes pour toute l'histoire..." style="width:100%;min-height:80px;max-height:150px;margin-top:4px;background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:10px;border-radius:8px;font-size:13px;line-height:1.5;resize:vertical;font-family:inherit;"></textarea>
       </div>
-      <!-- Notes par chapitre -->
+      <!-- Scenes a venir (notes-scenes individuelles, formatables) -->
       <div>
-        <label style="font-size:12px;color:var(--muted);font-weight:600;" id="notesChapterLabel">📝 Pour ce chapitre</label>
-        <textarea id="notesChapterArea" placeholder="Notes specifiques a ce chapitre..." style="width:100%;min-height:80px;max-height:150px;margin-top:4px;background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:10px;border-radius:8px;font-size:13px;line-height:1.5;resize:vertical;font-family:inherit;"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:12px;color:var(--muted);font-weight:600;">🎬 Mes scenes a venir</label>
+          <button id="addSceneBtn" class="btn btn-sm" style="font-size:12px;padding:4px 10px;">+ Nouvelle scene</button>
+        </div>
+        <div id="sceneList" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
       <div style="margin-top:8px;font-size:11px;color:var(--muted);text-align:center;">Sauvegarde automatique en temps reel</div>
+    </div>
+
+    <!-- Editeur de scene (box riche qui s'ouvre par-dessus) -->
+    <div id="sceneEditorOverlay" style="display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;width:100%;max-width:640px;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.5);">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);">
+          <span style="font-weight:700;font-size:15px;">🎬 Ecrire une scene</span>
+          <button id="sceneEditorClose" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;">✕</button>
+        </div>
+        <div style="display:flex;gap:6px;padding:8px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;">
+          <button class="fmt-btn" id="sceneBold" title="Gras" style="font-weight:700;padding:6px 12px;">G</button>
+          <button class="fmt-btn" id="sceneItalic" title="Italique" style="font-style:italic;padding:6px 12px;">I</button>
+          <button class="fmt-btn" id="sceneBreak" title="Saut de ligne serre" style="font-size:13px;padding:6px 12px;">↵</button>
+        </div>
+        <div id="sceneEditArea" contenteditable="true" spellcheck="true" style="flex:1;overflow-y:auto;padding:16px;font-size:var(--editor-fs,16px);line-height:1.7;color:var(--ink);outline:none;min-height:180px;"></div>
+        <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);justify-content:flex-end;">
+          <button id="sceneInsertBtn" class="btn btn-sm" style="background:var(--accent);color:#fff;">⬇️ Inserer dans l'histoire</button>
+          <button id="sceneSaveClose" class="btn btn-sm btn-ghost">💾 Garder la note</button>
+        </div>
+      </div>
     </div>
 
     <!-- Toast "Annuler la suppression" -->
@@ -1235,27 +1258,20 @@ document.getElementById('exportIdeasBtn').onclick=function(){
 };
 
 // ===== NOTES (ampoule) =====
-// localStorage : write_notes_{storyId} (global) + write_notes_{storyId}_{chapterId} (par chapitre)
+// localStorage : write_notes_{storyId} (texte libre global) + write_scenes_{storyId} (liste de scenes)
 function notesStoryKey(){ return currentStory ? 'write_notes_'+currentStory.id : null; }
-function notesChapterKey(){ return (currentStory && currentChapter) ? 'write_notes_'+currentStory.id+'_'+currentChapter.id : null; }
+function scenesKey(){ return currentStory ? 'write_scenes_'+currentStory.id : null; }
 
 function loadNotes(){
   var sa=document.getElementById('notesStoryArea');
-  var ca=document.getElementById('notesChapterArea');
   var sl=document.getElementById('notesStoryLabel');
-  var cl=document.getElementById('notesChapterLabel');
-  if(!currentStory){ if(sa) sa.value=''; if(ca) ca.value=''; return; }
+  if(!currentStory){ if(sa) sa.value=''; renderScenes(); return; }
   // Labels
   if(sl) sl.textContent='📖 Pour "'+currentStory.title+'"';
-  if(cl){
-    var isOS=(currentStory.chapters.length===1 && (currentStory.chapters[0].id==='_default'||currentStory.chapters[0].title==='Texte'));
-    cl.textContent=isOS ? '📝 Notes de scene / details' : '📝 Pour ce chapitre'+(currentChapter ? ' ('+currentChapter.title+')' : '');
-  }
   // Charger les valeurs
   var sk=notesStoryKey();
-  var ck=notesChapterKey();
   if(sa) sa.value = sk ? (localStorage.getItem(sk)||'') : '';
-  if(ca) ca.value = ck ? (localStorage.getItem(ck)||'') : '';
+  renderScenes();
 }
 
 function saveNoteStory(){
@@ -1263,22 +1279,128 @@ function saveNoteStory(){
   var sa=document.getElementById('notesStoryArea');
   if(sa) localStorage.setItem(sk, sa.value);
 }
-function saveNoteChapter(){
-  var ck=notesChapterKey(); if(!ck) return;
-  var ca=document.getElementById('notesChapterArea');
-  if(ca) localStorage.setItem(ck, ca.value);
-}
 
-// Auto-save sur chaque frappe (debounced)
-var __noteStoryTimer=null, __noteChapterTimer=null;
+// Auto-save de la note globale (debounced)
+var __noteStoryTimer=null;
 document.getElementById('notesStoryArea').addEventListener('input', function(){
   clearTimeout(__noteStoryTimer);
   __noteStoryTimer=setTimeout(saveNoteStory, 300);
 });
-document.getElementById('notesChapterArea').addEventListener('input', function(){
-  clearTimeout(__noteChapterTimer);
-  __noteChapterTimer=setTimeout(saveNoteChapter, 300);
+
+// ---- Scenes a venir (notes-scenes riches, rattachees a l'histoire) ----
+// Stockage : write_scenes_{storyId} = JSON [{id, html}]
+var __scenes = [];
+var __editingSceneId = null;
+
+function loadScenesData(){
+  var k=scenesKey();
+  if(!k){ __scenes=[]; return; }
+  try{ __scenes = JSON.parse(localStorage.getItem(k)||'[]'); }catch(e){ __scenes=[]; }
+  if(!Array.isArray(__scenes)) __scenes=[];
+}
+function saveScenesData(){
+  var k=scenesKey(); if(!k) return;
+  try{ localStorage.setItem(k, JSON.stringify(__scenes)); }catch(e){}
+}
+function scenePreview(html){
+  var tmp=document.createElement('div'); tmp.innerHTML=html||'';
+  var txt=(tmp.textContent||'').trim().replace(/\s+/g,' ');
+  return txt ? (txt.length>90 ? txt.slice(0,90)+'…' : txt) : '(scene vide)';
+}
+function renderScenes(){
+  var list=document.getElementById('sceneList'); if(!list) return;
+  loadScenesData();
+  if(!currentStory){ list.innerHTML='<div style="color:var(--muted);font-style:italic;font-size:12px;">Ouvre une histoire pour gerer tes scenes.</div>'; return; }
+  if(!__scenes.length){ list.innerHTML='<div style="color:var(--muted);font-style:italic;font-size:12px;">Aucune scene notee. Clique "+ Nouvelle scene" pour en creer une.</div>'; return; }
+  list.innerHTML=__scenes.map(function(s){
+    return '<div class="scene-item" data-id="'+s.id+'" style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;">'
+      +'<div style="font-size:12.5px;color:var(--ink);line-height:1.4;margin-bottom:6px;">'+esc(scenePreview(s.html))+'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+        +'<button class="btn btn-sm" data-edit="'+s.id+'" style="font-size:11px;padding:3px 8px;">✏️ Editer</button>'
+        +'<button class="btn btn-sm" data-insert="'+s.id+'" style="font-size:11px;padding:3px 8px;background:var(--accent);color:#fff;">⬇️ Inserer</button>'
+        +'<button class="btn-danger" data-del="'+s.id+'" style="font-size:11px;padding:3px 8px;">🗑️</button>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+  list.querySelectorAll('[data-edit]').forEach(function(b){ b.onclick=function(){ openSceneEditor(b.dataset.edit); }; });
+  list.querySelectorAll('[data-insert]').forEach(function(b){ b.onclick=function(){ insertScene(b.dataset.insert); }; });
+  list.querySelectorAll('[data-del]').forEach(function(b){ b.onclick=function(){
+    if(!confirm('Supprimer cette scene ?')) return;
+    __scenes=__scenes.filter(function(x){ return x.id!==b.dataset.del; }); saveScenesData(); renderScenes();
+  }; });
+}
+
+// Ouvrir l'editeur de scene (box riche). id null = nouvelle scene.
+function openSceneEditor(id){
+  __editingSceneId = id || null;
+  var area=document.getElementById('sceneEditArea');
+  var sc = id ? __scenes.find(function(x){ return x.id===id; }) : null;
+  area.innerHTML = sc ? (sc.html||'<p><br></p>') : '<p><br></p>';
+  document.getElementById('sceneEditorOverlay').style.display='flex';
+  setTimeout(function(){ area.focus(); }, 50);
+}
+function saveSceneFromEditor(){
+  var area=document.getElementById('sceneEditArea');
+  var html=area.innerHTML.trim();
+  if(!html || html==='<p><br></p>' || area.textContent.trim()===''){ return null; }
+  if(__editingSceneId){
+    var sc=__scenes.find(function(x){ return x.id===__editingSceneId; });
+    if(sc){ sc.html=html; }
+  } else {
+    __editingSceneId=uid();
+    __scenes.push({id:__editingSceneId, html:html});
+  }
+  saveScenesData();
+  return __editingSceneId;
+}
+function closeSceneEditor(){
+  document.getElementById('sceneEditorOverlay').style.display='none';
+  __editingSceneId=null;
+  renderScenes();
+}
+// Inserer une scene dans l'histoire a la position du curseur, puis la retirer de l'ampoule
+function insertScene(id){
+  var sc=__scenes.find(function(x){ return x.id===id; }); if(!sc) return;
+  if(!currentStory || !currentChapter){ alert('Ouvre un chapitre pour inserer la scene.'); return; }
+  editor.focus();
+  var sel=window.getSelection();
+  var range=null;
+  if(sel && sel.rangeCount>0 && editor.contains(sel.anchorNode)){ range=sel.getRangeAt(0); }
+  if(range){
+    var tmp=document.createElement('div'); tmp.innerHTML=sc.html;
+    var frag=document.createDocumentFragment();
+    while(tmp.firstChild) frag.appendChild(tmp.firstChild);
+    range.deleteContents(); range.insertNode(frag);
+  } else {
+    editor.insertAdjacentHTML('beforeend', sc.html);
+  }
+  saveCurrentChapter();
+  updateWordCount();
+  __scenes=__scenes.filter(function(x){ return x.id!==id; });
+  saveScenesData();
+  renderScenes();
+  document.getElementById('notesPanel').style.display='none';
+}
+
+// Boutons de l'editeur de scene
+document.getElementById('addSceneBtn').onclick=function(){ openSceneEditor(null); };
+document.getElementById('sceneEditorClose').onclick=function(){ saveSceneFromEditor(); closeSceneEditor(); };
+document.getElementById('sceneSaveClose').onclick=function(){ saveSceneFromEditor(); closeSceneEditor(); };
+document.getElementById('sceneInsertBtn').onclick=function(){
+  var sid=saveSceneFromEditor();
+  document.getElementById('sceneEditorOverlay').style.display='none';
+  __editingSceneId=null;
+  if(sid) insertScene(sid); else document.getElementById('notesPanel').style.display='none';
+};
+// Formatage dans l'editeur de scene (empeche le vol de focus)
+['sceneBold','sceneItalic','sceneBreak'].forEach(function(bid){
+  var el=document.getElementById(bid); if(!el) return;
+  el.addEventListener('mousedown', function(e){ e.preventDefault(); });
+  el.addEventListener('touchend', function(e){ e.preventDefault(); el.click(); });
 });
+document.getElementById('sceneBold').onclick=function(){ document.getElementById('sceneEditArea').focus(); document.execCommand('bold'); };
+document.getElementById('sceneItalic').onclick=function(){ document.getElementById('sceneEditArea').focus(); document.execCommand('italic'); };
+document.getElementById('sceneBreak').onclick=function(){ document.getElementById('sceneEditArea').focus(); document.execCommand('insertLineBreak'); };
 
 // Ouvrir / fermer le panneau
 document.getElementById('notesBtn').onclick=function(){
