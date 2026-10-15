@@ -263,6 +263,20 @@
   }
   .teaser p{ font-size:14px; line-height:1.5; color:var(--ink); }
   .teaser .teaser-small{ font-size:12.5px; color:#FED20D; margin-top:8px; font-style:italic; }
+
+  /* ===== Carte "Reprendre ta lecture" (sous la banniere) ===== */
+  #resumeLastWrap{ display:none; margin:0 0 20px; }
+  .resume-last{
+    display:flex; align-items:center; gap:14px; cursor:pointer;
+    background:var(--card); border:1px solid var(--accent-l); border-left:4px solid var(--accent-l);
+    border-radius:14px; padding:14px 16px; transition:.15s;
+  }
+  .resume-last:hover{ transform:translateY(-2px); box-shadow:0 8px 22px rgba(0,0,0,.28); }
+  .resume-last .rl-ico{ font-size:26px; flex-shrink:0; }
+  .resume-last .rl-txt{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .resume-last .rl-label{ font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-weight:700; }
+  .resume-last .rl-title{ font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:600; color:var(--accent-l); line-height:1.15; }
+  .resume-last .rl-go{ margin-left:auto; flex-shrink:0; color:var(--accent-l); font-size:20px; font-weight:800; }
   @media (max-width:600px){
     .teaser{ flex-direction:column; }
     .teaser-img{ width:100%; height:auto; max-height:none; object-fit:contain; background:#0a1628; }
@@ -409,6 +423,31 @@
 .notif-item .n-preview{ color:var(--ink); font-style:italic; opacity:.85; }
 .notif-empty{ padding:22px 16px; text-align:center; color:var(--muted); font-size:13px; font-style:italic; }
 
+/* ===== Barre flottante de lecture (A-/A+/theme/cloche), visible seulement en mode lecture ===== */
+#floatBar{
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index:9998; display:none; gap:10px;
+  background:linear-gradient(90deg,var(--accent-d),var(--accent));
+  padding:8px 12px; border-radius:30px;
+  box-shadow:0 6px 22px rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.14);
+  align-items:center;
+}
+#floatBar.show{ display:flex; }
+#floatBar .fb-btn{
+  position:relative; background:rgba(255,255,255,.18); border:none; color:#fff;
+  width:40px; height:40px; border-radius:50%; cursor:pointer; font-size:15px; font-weight:700;
+  transition:.15s; display:flex; align-items:center; justify-content:center;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation; line-height:1;
+}
+#floatBar .fb-btn:hover{ background:rgba(255,255,255,.42); }
+#floatBar .fb-badge{
+  position:absolute; top:-3px; right:-3px; background:#e63950; color:#fff;
+  font-size:10px; font-weight:800; min-width:17px; height:17px; line-height:17px;
+  text-align:center; border-radius:9px; padding:0 4px; box-shadow:0 1px 4px rgba(0,0,0,.4);
+}
+#floatBar .fb-sep{ width:1px; height:24px; background:rgba(255,255,255,.22); }
+
 /* ===== Actions commentaire (modifier/supprimer) ===== */
 .cmt-actions{ display:flex; gap:8px; margin-top:6px; }
 .cmt-act{ background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:4px 10px; font-size:12px; cursor:pointer; font-weight:600; }
@@ -442,8 +481,6 @@
         <a href="https://open.spotify.com/playlist/4q7nZ7O9VJvyIiJ2J0eT8i" target="_blank" title="Ma playlist d'inspiration">🎵</a>
       </div>
       <div class="controls">
-        <button class="ctrl" id="fontDown" title="Texte plus petit">A−</button>
-        <button class="ctrl" id="fontUp" title="Texte plus grand">A+</button>
         <button class="ctrl" id="themeBtn" title="Mode clair / sombre">☀️</button>
       </div>
       <button class="account-btn" id="aboutBtn">💛 <span id="aboutLabel">À propos</span></button>
@@ -523,10 +560,22 @@
       </div>
     </div>
 
+    <!-- Reprendre la derniere histoire ouverte (rempli par renderResumeLast) -->
+    <div id="resumeLastWrap">
+      <div class="resume-last" id="resumeLastCard" onclick="resumeLastBook()">
+        <div class="rl-ico">📖</div>
+        <div class="rl-txt">
+          <span class="rl-label" id="resumeLastLabel">Reprendre ta lecture</span>
+          <span class="rl-title" id="resumeLastTitle"></span>
+        </div>
+        <span class="rl-go">→</span>
+      </div>
+    </div>
+
     <div class="filters">
       <div class="filter-group" style="flex:1;min-width:200px;">
         <span class="flabel" id="searchLabel">Recherche</span>
-        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Rechercher une histoire…">
+        <input type="search" id="searchInput" class="search-input" name="story-search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" placeholder="🔍 Rechercher une histoire…">
       </div>
       <div class="filter-group">
         <span class="flabel" id="typeLabel">Type d'histoire</span>
@@ -600,6 +649,15 @@
       <button class="rp-close" id="rpClose">Fermer</button>
     </div>
   </div>
+</div>
+
+<!-- Barre flottante de lecture : suit l'ecran, visible seulement en mode lecture -->
+<div id="floatBar">
+  <button class="fb-btn" id="fbFontDown" title="Texte plus petit" aria-label="Texte plus petit">A−</button>
+  <button class="fb-btn" id="fbFontUp" title="Texte plus grand" aria-label="Texte plus grand">A+</button>
+  <button class="fb-btn" id="fbTheme" title="Mode clair / sombre" aria-label="Mode clair / sombre">☀️</button>
+  <span class="fb-sep" id="fbSep" style="display:none;"></span>
+  <button class="fb-btn" id="fbBell" title="Notifications" aria-label="Notifications" style="display:none;">🔔<span class="fb-badge" id="fbBadge" style="display:none;">0</span></button>
 </div>
 
 <footer>
@@ -1021,8 +1079,12 @@ function applyUILang(){
 let isLight = safeGet('fanfic_light','0')==='1';
 function applyTheme(){ document.body.className = isLight?'light':''; document.getElementById('themeBtn').textContent = isLight?'🌙':'☀️'; safeSet('fanfic_light', isLight?'1':'0'); }
 document.getElementById('themeBtn').onclick=()=>{ isLight=!isLight; applyTheme(); };
-document.getElementById('fontUp').onclick=()=>{ fontSize=Math.min(26,fontSize+1); document.documentElement.style.setProperty('--fs',fontSize+'px'); safeSet('fanfic_fs',fontSize); };
-document.getElementById('fontDown').onclick=()=>{ fontSize=Math.max(14,fontSize-1); document.documentElement.style.setProperty('--fs',fontSize+'px'); safeSet('fanfic_fs',fontSize); };
+// Taille du texte de lecture : fonction autonome (reutilisee par la barre flottante).
+function bumpFont(delta){
+  fontSize=Math.min(26,Math.max(14,fontSize+delta));
+  document.documentElement.style.setProperty('--fs',fontSize+'px');
+  safeSet('fanfic_fs',fontSize);
+}
 applyTheme();
 fontSize=parseInt(safeGet('fanfic_fs','19')); document.documentElement.style.setProperty('--fs',fontSize+'px');
 
@@ -1281,6 +1343,8 @@ function renderLibrary(){
   // Bannière teaser : visible seulement sur "Tout" sans recherche active
   var _tz=document.getElementById('teaser');
   if(_tz) _tz.style.display = (typeFilter==='all' && !searchQuery) ? 'flex' : 'none';
+  // Carte "Reprendre ta lecture" : mêmes conditions que la bannière.
+  try{ renderResumeLast(typeFilter==='all' && !searchQuery); }catch(e){ console.warn('resumeLast', e&&e.message); }
   if(unsubComments){ unsubComments(); unsubComments=null; }
   if(unsubLikes){ unsubLikes(); unsubLikes=null; }
   currentSaga=null;
@@ -1475,6 +1539,44 @@ async function countView(bookId){
     bumpTotals('views', 1, bookId);
   }catch(e){ /* silencieux : le comptage ne doit jamais gêner la lecture */ }
 }
+// ===== Reprendre la derniere histoire ouverte =====
+// Lit le marqueur local (fanfic_last_book) et affiche une carte sous la banniere.
+// Titre affiche dans la langue courante du site. Aucun appel reseau.
+function getLastBook(){
+  try{ var v=safeGet('fanfic_last_book', null); if(!v) return null; var o=JSON.parse(v); return (o && o.id) ? o : null; }
+  catch(e){ return null; }
+}
+function renderResumeLast(allowed){
+  var wrap=document.getElementById('resumeLastWrap');
+  if(!wrap) return;
+  var last=getLastBook();
+  // Verifier que l'histoire existe toujours ET est bien visible (sortie, bonne langue).
+  var ok=false, title='';
+  if(allowed && last){
+    var b=BOOKS.find(function(x){ return x.id===last.id; });
+    if(b){
+      var released = !(b.releaseAt && Date.now() < new Date(b.releaseAt).getTime());
+      var langOk = !(b.onlyLang && b.onlyLang!==lang);
+      if(released && langOk){
+        title = (lang==='en' ? (last.en||last.fr) : (last.fr||last.en)) || (b[lang]&&b[lang].title) || '';
+        ok = !!title;
+      }
+    }
+  }
+  if(ok){
+    var lbl=document.getElementById('resumeLastLabel');
+    var ttl=document.getElementById('resumeLastTitle');
+    if(lbl) lbl.textContent = (lang==='en' ? 'Resume your reading' : 'Reprendre ta lecture');
+    if(ttl) ttl.textContent = title;
+    wrap.style.display='block';
+  } else {
+    wrap.style.display='none';
+  }
+}
+window.resumeLastBook=function(){
+  var last=getLastBook(); if(!last||!last.id) return;
+  try{ openBook(last.id); }catch(e){ console.warn('resumeLastBook', e&&e.message); }
+};
 window.openBook=async function(id){
   currentBook=BOOKS.find(b=>b.id===id);
   // 🔒 Verrou de sortie : une histoire programmée reste inaccessible tant que sa date
@@ -1489,6 +1591,14 @@ window.openBook=async function(id){
     document.getElementById('library').style.display='block';
     return;
   }
+  // Mémoriser la dernière histoire ouverte (local, 0 appel réseau) pour la reprise rapide.
+  try{
+    safeSet('fanfic_last_book', JSON.stringify({
+      id: id,
+      fr: (currentBook && currentBook.fr && currentBook.fr.title) || '',
+      en: (currentBook && currentBook.en && currentBook.en.title) || ''
+    }));
+  }catch(e){}
   let p={ch:0};
   try{ p=await getProgress(id+'_'+lang); }catch(e){}
   currentCh=(p&&p.ch)||0;
@@ -2087,13 +2197,21 @@ async function refreshNotifs(){
 }
 function startNotifications(){
   var wrap=document.getElementById('bellWrap');
-  if(!firebaseReady||!db||!currentUser){ if(wrap) wrap.style.display='none'; return; }
+  if(!firebaseReady||!db||!currentUser){ if(wrap) wrap.style.display='none'; setFloatBellVisible(false); return; }
   if(wrap) wrap.style.display='inline-block';
+  setFloatBellVisible(true);
   refreshNotifs();
 }
 function stopNotifications(){
   __notifs=[];
   var wrap=document.getElementById('bellWrap'); if(wrap) wrap.style.display='none';
+  setFloatBellVisible(false);
+}
+// Affiche/masque la cloche de la barre flottante (connecté seulement) + son séparateur.
+function setFloatBellVisible(on){
+  var b=document.getElementById('fbBell'); var s=document.getElementById('fbSep');
+  if(b) b.style.display = on ? 'flex' : 'none';
+  if(s) s.style.display = on ? 'block' : 'none';
 }
 function renderNotifs(){
   var badge=document.getElementById('bellBadge');
@@ -2102,6 +2220,8 @@ function renderNotifs(){
   var isEN=(lang==='en');
   var unread=__notifs.filter(function(n){ return !n.read; }).length;
   if(badge){ if(unread>0){ badge.style.display='block'; badge.textContent=unread>9?'9+':String(unread); } else { badge.style.display='none'; } }
+  var fbb=document.getElementById('fbBadge');
+  if(fbb){ if(unread>0){ fbb.style.display='block'; fbb.textContent=unread>9?'9+':String(unread); } else { fbb.style.display='none'; } }
   if(head) head.textContent = isEN ? 'Notifications' : 'Notifications';
   if(!list) return;
   if(__notifs.length===0){ list.innerHTML='<div class="notif-empty">'+(isEN?'No notifications yet 🔔':'Aucune notification pour l\'instant 🔔')+'</div>'; return; }
@@ -2137,24 +2257,69 @@ window.openNotif=async function(nid){
     var b=BOOKS.find(function(x){return x.id===n.bookId;});
     if(b){
       if(n.lang && n.lang!==lang){ /* garder la langue courante, le commentaire reste accessible */ }
-      currentBook=b; currentCh=(typeof n.ch==='number'?n.ch:0);
+      var targetCh=(typeof n.ch==='number'?n.ch:0);
+      var readerVisible=(document.getElementById('reader').style.display==='block');
+      // CAS A : la lectrice lit DÉJÀ ce chapitre -> ne rien recharger, garder sa place.
+      // On ouvre juste la popup / on surligne par-dessus : sa position de lecture est intacte.
+      if(readerVisible && currentBook && currentBook.id===n.bookId && currentCh===targetCh){
+        focusNotifComment(n.commentId);
+        return;
+      }
+      // CAS B : autre chapitre (ou autre histoire). Avant de partir, on mémorise la
+      // position de lecture en cours pour qu'elle puisse « reprendre où elle en était »
+      // via la popup de reprise quand elle reviendra. (localStorage d'abord : 0 appel Firebase en plus.)
+      try{ if(readerVisible && currentBook){ flushScrollToCloud(); } }catch(e){}
+      currentBook=b; currentCh=targetCh;
       document.getElementById('library').style.display='none';
       var ab=document.getElementById('about'); if(ab) ab.style.display='none';
       document.getElementById('reader').style.display='block';
-      window.__pendingScrollFrac = undefined;   // pas de reprise ici : on va scroller vers le commentaire
+      window.__pendingScrollFrac = undefined;   // on ouvre le commentaire : pas de reprise auto ici
       renderChapter();
-      // après rendu, défiler vers les commentaires + surligner
-      setTimeout(function(){
-        var cl=document.getElementById('commentList'); if(cl) cl.scrollIntoView({behavior:'smooth',block:'start'});
-        setTimeout(function(){
-          var el=document.getElementById('ar_'+n.commentId);
-          var card=el&&el.closest?el.closest('.comment'):null;
-          if(card){ card.classList.add('hl'); setTimeout(function(){ card.classList.remove('hl'); },2600); }
-        }, 800);
-      }, 500);
+      // Après rendu + chargement des commentaires en mémoire, ouvrir le bon endroit.
+      // renderChapter() -> loadComments() peuple __chapterComments de façon asynchrone :
+      // on attend qu'il soit prêt (sans AUCUNE relecture Firebase supplémentaire).
+      focusNotifComment(n.commentId);
     }
   }
 };
+// Ouvre le commentaire visé par une notification au bon endroit :
+//  - commentaire de passage (avec citation) -> la POPUP du thread de ce passage
+//  - commentaire général (sans citation)    -> déplie la liste + surligne la carte
+// N'engendre AUCUN appel Firebase : réutilise __chapterComments déjà en mémoire.
+function focusNotifComment(commentId, tries){
+  tries = (typeof tries==='number') ? tries : 0;
+  var ready = Array.isArray(__chapterComments) && __chapterComments.length;
+  // Les commentaires ne sont pas encore chargés : réessayer un court instant (max ~3s).
+  if(!ready){
+    if(tries<20){ setTimeout(function(){ focusNotifComment(commentId, tries+1); }, 150); return; }
+    // Fallback ultime : au moins amener vers la zone commentaires.
+    var clf=document.getElementById('commentList'); if(clf) clf.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+  var target=__chapterComments.find(function(o){ return o.id===commentId; });
+  // Le commentaire a peut-être été supprimé entre-temps : fallback doux.
+  if(!target){
+    var cl0=document.getElementById('commentList'); if(cl0) cl0.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+  var theQuote = target.data && target.data.quote ? String(target.data.quote).trim() : '';
+  if(theQuote){
+    // Commentaire sur un passage précis -> ouvrir la popup du thread.
+    try{ openPassageReadPopup(theQuote, null); return; }
+    catch(e){ console.warn('openPassageReadPopup', e&&e.message); }
+  }
+  // Commentaire général -> déplier la liste puis surligner la bonne carte.
+  var inr=document.getElementById('generalCommentsInner');
+  var btn=document.getElementById('toggleComments');
+  if(inr && inr.style.display==='none' && btn){ btn.click(); }   // ouvre la liste repliée
+  setTimeout(function(){
+    var cl=document.getElementById('commentList'); if(cl) cl.scrollIntoView({behavior:'smooth',block:'start'});
+    var el=document.getElementById('ar_'+commentId);
+    var card=el&&el.closest?el.closest('.comment'):null;
+    if(!card){ var dc=document.querySelector('.comment[data-cid="'+commentId+'"]'); if(dc) card=dc; }
+    if(card){ card.scrollIntoView({behavior:'smooth',block:'center'}); card.classList.add('hl'); setTimeout(function(){ card.classList.remove('hl'); },2600); }
+  }, 250);
+}
 // Ouvrir/fermer le panneau au clic sur la cloche
 document.addEventListener('click', function(e){
   var bell=document.getElementById('bellBtn');
@@ -2166,15 +2331,65 @@ document.addEventListener('click', function(e){
     panel.style.display = willShow ? 'block' : 'none';
     // À l'ouverture, rafraîchit les notifications (lecture ponctuelle)
     if(willShow){ try{ refreshNotifs(); }catch(_){} }
-    // Sur mobile : caler le panneau juste sous la cloche (position fixe)
+    // Sur mobile : caler le panneau juste sous la cloche (position fixe).
+    // On reinitialise 'bottom' car la barre flottante a pu l'ancrer par le bas.
     if(willShow && window.innerWidth<=600){
       var r = bell.getBoundingClientRect();
+      panel.style.bottom='auto';
       panel.style.top = (r.bottom + 8) + 'px';
     }
   } else if(!panel.contains(e.target)){
     panel.style.display='none';
   }
 });
+
+// ===== Barre flottante de lecture : affichage synchronisé avec le mode lecture =====
+// La barre (A-/A+/theme/cloche) reste collée en bas de l'ecran et suit toute la lecture,
+// pour ne plus avoir a remonter en haut de page. Purement visuel : aucun appel reseau.
+function syncFloatBar(){
+  var reader=document.getElementById('reader');
+  var fb=document.getElementById('floatBar');
+  if(!reader||!fb) return;
+  var reading = (reader.style.display!=='none' && reader.style.display!=='');
+  fb.classList.toggle('show', reading);
+  // Si on quitte la lecture, refermer le panneau de notifs eventuellement ouvert.
+  if(!reading){ var pnl=document.getElementById('notifPanel'); if(pnl) pnl.style.display='none'; }
+}
+// Observe les changements d'affichage du lecteur (peu importe la fonction qui le modifie).
+try{
+  var __fbObs=new MutationObserver(syncFloatBar);
+  var __rd=document.getElementById('reader');
+  if(__rd){ __fbObs.observe(__rd, {attributes:true, attributeFilter:['style']}); }
+}catch(e){ console.warn('floatBar observer', e&&e.message); }
+// Les boutons flottants reutilisent la logique existante (zero duplication).
+(function wireFloatBar(){
+  var fd=document.getElementById('fbFontDown');
+  var fu=document.getElementById('fbFontUp');
+  var ft=document.getElementById('fbTheme');
+  var fbell=document.getElementById('fbBell');
+  if(fd) fd.onclick=function(){ bumpFont(-1); };
+  if(fu) fu.onclick=function(){ bumpFont(1); };
+  if(ft) ft.onclick=function(){ var b=document.getElementById('themeBtn'); if(b) b.click(); };
+  if(fbell) fbell.onclick=function(e){
+    e.stopPropagation();   // ne pas declencher le "clic exterieur" qui refermerait aussitot
+    var panel=document.getElementById('notifPanel');
+    if(!panel) return;
+    var willShow=(panel.style.display!=='block');
+    panel.style.display = willShow ? 'block' : 'none';
+    if(willShow){
+      try{ refreshNotifs(); }catch(_){}
+      // Positionner le panneau juste AU-DESSUS de la barre flottante.
+      var fbar=document.getElementById('floatBar');
+      var r=fbar?fbar.getBoundingClientRect():null;
+      panel.style.position='fixed';
+      panel.style.top='auto';
+      if(r){ panel.style.bottom=(window.innerHeight - r.top + 8)+'px'; }
+      panel.style.left='12px'; panel.style.right='12px'; panel.style.width='auto'; panel.style.maxWidth='none';
+    }
+  };
+})();
+// Etat initial au chargement.
+try{ syncFloatBar(); }catch(e){}
 
 
 document.getElementById('cSend').onclick=async function(){
