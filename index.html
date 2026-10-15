@@ -54,6 +54,7 @@
   .socials a{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;font-size:13px;transition:.15s;font-weight:700;}
   .socials a:hover{background:rgba(255,255,255,.4);transform:translateY(-2px);}
   .controls{display:flex;gap:7px;}
+  .account-row{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;}
   .ctrl{background:rgba(255,255,255,.16);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;font-weight:700;transition:.15s;}
   .ctrl:hover{background:rgba(255,255,255,.4);}
   .wrap{max-width:900px;margin:0 auto;padding:24px 20px 80px;}
@@ -187,9 +188,18 @@
       justify-content:center;
       gap:8px;
     }
-    /* Ligne : boutons taille texte + thème + se connecter, centrés */
+    /* Ligne 2 : rangée d'actions regroupée (thème + à propos + cloche + compte + dashboard) */
     .controls{ justify-content:center; }
     #accountBtn{ margin-left:0; }
+    .account-row{
+      display:flex; flex-direction:row; flex-wrap:nowrap;
+      justify-content:center; align-items:center; gap:8px; width:100%;
+    }
+    /* Sur mobile : boutons en icônes seules pour tout garder sur UNE ligne */
+    .account-row .account-btn{ padding:7px 10px; gap:0; }
+    .account-row #aboutLabel,
+    .account-row #accountLabel{ display:none; }
+    /* La cloche garde son badge, pas de texte de toute façon */
     /* Le contenu occupe toute la largeur de l'écran */
     .wrap{ width:100%; max-width:100%; padding:16px 14px 60px; }
     .reader-body{ width:100%; padding:22px 18px; }
@@ -427,26 +437,26 @@
 #floatBar{
   position:fixed; left:50%; transform:translateX(-50%);
   bottom:calc(14px + env(safe-area-inset-bottom, 0px));
-  z-index:9998; display:none; gap:10px;
+  z-index:9998; display:none; gap:7px;
   background:linear-gradient(90deg,var(--accent-d),var(--accent));
-  padding:8px 12px; border-radius:30px;
+  padding:6px 9px; border-radius:26px;
   box-shadow:0 6px 22px rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.14);
   align-items:center;
 }
 #floatBar.show{ display:flex; }
 #floatBar .fb-btn{
   position:relative; background:rgba(255,255,255,.18); border:none; color:#fff;
-  width:40px; height:40px; border-radius:50%; cursor:pointer; font-size:15px; font-weight:700;
+  width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:13px; font-weight:700;
   transition:.15s; display:flex; align-items:center; justify-content:center;
   -webkit-tap-highlight-color:transparent; touch-action:manipulation; line-height:1;
 }
 #floatBar .fb-btn:hover{ background:rgba(255,255,255,.42); }
 #floatBar .fb-badge{
-  position:absolute; top:-3px; right:-3px; background:#e63950; color:#fff;
-  font-size:10px; font-weight:800; min-width:17px; height:17px; line-height:17px;
-  text-align:center; border-radius:9px; padding:0 4px; box-shadow:0 1px 4px rgba(0,0,0,.4);
+  position:absolute; top:-4px; right:-4px; background:#e63950; color:#fff;
+  font-size:9px; font-weight:800; min-width:15px; height:15px; line-height:15px;
+  text-align:center; border-radius:8px; padding:0 3px; box-shadow:0 1px 4px rgba(0,0,0,.4);
 }
-#floatBar .fb-sep{ width:1px; height:24px; background:rgba(255,255,255,.22); }
+#floatBar .fb-sep{ width:1px; height:20px; background:rgba(255,255,255,.22); }
 
 /* ===== Actions commentaire (modifier/supprimer) ===== */
 .cmt-actions{ display:flex; gap:8px; margin-top:6px; }
@@ -480,19 +490,21 @@
         <a href="https://www.thebookedition.com/fr/56271_julie-cacciola" target="_blank" title="Acheter mes livres (papier)">📚</a>
         <a href="https://open.spotify.com/playlist/4q7nZ7O9VJvyIiJ2J0eT8i" target="_blank" title="Ma playlist d'inspiration">🎵</a>
       </div>
-      <div class="controls">
-        <button class="ctrl" id="themeBtn" title="Mode clair / sombre">☀️</button>
-      </div>
-      <button class="account-btn" id="aboutBtn">💛 <span id="aboutLabel">À propos</span></button>
-      <div class="bell-wrap" id="bellWrap" style="display:none;">
-        <button class="account-btn bell-btn" id="bellBtn" title="Notifications">🔔<span class="bell-badge" id="bellBadge" style="display:none;">0</span></button>
-        <div class="notif-panel" id="notifPanel" style="display:none;">
-          <div class="notif-head" id="notifHead">Notifications</div>
-          <div class="notif-list" id="notifList"></div>
+      <div class="account-row">
+        <div class="controls">
+          <button class="ctrl" id="themeBtn" title="Mode clair / sombre">☀️</button>
         </div>
+        <button class="account-btn" id="aboutBtn" title="À propos">💛 <span id="aboutLabel">À propos</span></button>
+        <div class="bell-wrap" id="bellWrap" style="display:none;">
+          <button class="account-btn bell-btn" id="bellBtn" title="Notifications">🔔<span class="bell-badge" id="bellBadge" style="display:none;">0</span></button>
+          <div class="notif-panel" id="notifPanel" style="display:none;">
+            <div class="notif-head" id="notifHead">Notifications</div>
+            <div class="notif-list" id="notifList"></div>
+          </div>
+        </div>
+        <a class="account-btn" id="adminLink" href="admin.html" style="display:none;text-decoration:none;" title="Dashboard Admin">📊</a>
+        <button class="account-btn" id="accountBtn" title="Mon compte">👤 <span id="accountLabel">Se connecter</span></button>
       </div>
-      <a class="account-btn" id="adminLink" href="admin.html" style="display:none;text-decoration:none;" title="Dashboard Admin">📊</a>
-      <button class="account-btn" id="accountBtn">👤 <span id="accountLabel">Se connecter</span></button>
     </div>
   </div>
 </div>
@@ -575,7 +587,7 @@
     <div class="filters">
       <div class="filter-group" style="flex:1;min-width:200px;">
         <span class="flabel" id="searchLabel">Recherche</span>
-        <input type="search" id="searchInput" class="search-input" name="story-search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" placeholder="🔍 Rechercher une histoire…">
+        <input type="text" id="searchInput" class="search-input" name="recherche-histoire-" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" readonly data-1p-ignore data-lpignore="true" data-form-type="other" aria-label="Rechercher une histoire" placeholder="🔍 Rechercher une histoire…">
       </div>
       <div class="filter-group">
         <span class="flabel" id="typeLabel">Type d'histoire</span>
@@ -1111,6 +1123,16 @@ document.querySelectorAll('#osCatChips .chip').forEach(function(c){
     renderLibrary();
   };
 });
+// Anti-autofill : le champ est 'readonly' au repos (empeche les gestionnaires de mots de
+// passe de proposer "utiliser le mot de passe enregistre"). On le rend editable au focus.
+(function(){
+  var si=document.getElementById('searchInput');
+  if(!si) return;
+  function unlock(){ si.removeAttribute('readonly'); }
+  si.addEventListener('focus', unlock);
+  si.addEventListener('touchstart', unlock, {passive:true});
+  si.addEventListener('pointerdown', unlock);
+})();
 // Barre de recherche (filtre en direct)
 document.getElementById('searchInput').addEventListener('input', function(){
   searchQuery = this.value.trim().toLowerCase();
@@ -1542,6 +1564,21 @@ async function countView(bookId){
 // ===== Reprendre la derniere histoire ouverte =====
 // Lit le marqueur local (fanfic_last_book) et affiche une carte sous la banniere.
 // Titre affiche dans la langue courante du site. Aucun appel reseau.
+// Enregistre l'histoire en cours de lecture comme "derniere ouverte" (local, 0 appel reseau).
+// Appelee depuis openBook ET renderChapter : ainsi, des qu'on LIT, la reprise est memorisee,
+// peu importe comment on est arrive sur le chapitre.
+function markLastBook(book){
+  if(!book || !book.id) return;
+  // Ne pas memoriser une histoire encore sous embargo (date de sortie non atteinte).
+  if(book.releaseAt && Date.now() < new Date(book.releaseAt).getTime() && !isAuthor) return;
+  try{
+    safeSet('fanfic_last_book', JSON.stringify({
+      id: book.id,
+      fr: (book.fr && book.fr.title) || '',
+      en: (book.en && book.en.title) || ''
+    }));
+  }catch(e){}
+}
 function getLastBook(){
   try{ var v=safeGet('fanfic_last_book', null); if(!v) return null; var o=JSON.parse(v); return (o && o.id) ? o : null; }
   catch(e){ return null; }
@@ -1592,13 +1629,7 @@ window.openBook=async function(id){
     return;
   }
   // Mémoriser la dernière histoire ouverte (local, 0 appel réseau) pour la reprise rapide.
-  try{
-    safeSet('fanfic_last_book', JSON.stringify({
-      id: id,
-      fr: (currentBook && currentBook.fr && currentBook.fr.title) || '',
-      en: (currentBook && currentBook.en && currentBook.en.title) || ''
-    }));
-  }catch(e){}
+  try{ markLastBook(currentBook); }catch(e){}
   let p={ch:0};
   try{ p=await getProgress(id+'_'+lang); }catch(e){}
   currentCh=(p&&p.ch)||0;
@@ -1644,6 +1675,7 @@ function chapterCoverHTML(){
 }
 async function renderChapter(){
   resetMaxFrac();   // nouvelle page : on repart d'une progression max à 0
+  try{ markLastBook(currentBook); }catch(e){}   // mémorise la lecture en cours pour la reprise
   const d=currentBook[lang];
   const ch=d.chapters[currentCh];
   const body=document.getElementById('readerBody');
