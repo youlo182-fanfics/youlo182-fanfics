@@ -1716,7 +1716,14 @@ async function renderChapter(){
 document.getElementById('prevCh').onclick=()=>{ if(currentCh>0){ flushScrollToCloud(); currentCh--; renderChapter(); window.scrollTo(0,0);} };
 document.getElementById('nextCh').onclick=function(){
   const total=currentBook[lang].chapters.length;
-  if(currentCh<total-1){ pendingNext=currentCh+1; document.getElementById('overlay').classList.add('show'); }
+  if(currentCh<total-1){
+    pendingNext=currentCh+1;
+    // Adapter le libelle du bouton like de la popup : si deja aime, le dire clairement
+    // (et de toute facon le clic n'enleve plus le j'aime, cf. doLike('add')).
+    var pl=document.getElementById('popLike');
+    if(pl){ pl.textContent = myLiked ? (lang==='en'?'❤️ Already liked':'❤️ Déjà aimé') : (lang==='en'?'❤️ Leave a like':'❤️ Laisser un j\'aime'); }
+    document.getElementById('overlay').classList.add('show');
+  }
 };
 document.getElementById('backBtn').onclick=function(){
   flushScrollToCloud();   // mémorise la position avant de quitter la lecture
@@ -1742,7 +1749,10 @@ async function loadLikes(){
     const bEl=document.getElementById('likeBtn'); if(bEl) bEl.className='like-btn'+(myLiked?' liked':'');
   }catch(e){ /* silencieux : l'affichage garde l'état précédent */ }
 }
-async function doLike(){
+async function doLike(mode){
+  // mode 'add' (popup fin de chapitre) : AJOUTE un j'aime seulement, ne le retire JAMAIS
+  // (un re-clic ne doit pas annuler un j'aime deja laisse). Defaut 'toggle' (bouton coeur).
+  var addOnly = (mode==='add');
   if(!firebaseReady||!db){ return; }
   if(!currentUser){ openAuth(); return; }
   const key=chapterKey();
@@ -1758,7 +1768,10 @@ async function doLike(){
         const s=await tx.get(ref);
         let data=s.exists()?s.data():{count:0,users:{}};
         if(!data.users) data.users={};
-        if(data.users[currentUser.uid]){ delete data.users[currentUser.uid]; data.count=Math.max(0,(data.count||0)-1); likeDelta=-1; }
+        if(data.users[currentUser.uid]){
+          if(addOnly){ likeDelta=0; }   // deja aime + mode ajout : on ne retire pas
+          else { delete data.users[currentUser.uid]; data.count=Math.max(0,(data.count||0)-1); likeDelta=-1; }
+        }
         else { data.users[currentUser.uid]=true; data.count=(data.count||0)+1; likeDelta=1; }
         tx.set(ref,data);
       });
@@ -2450,7 +2463,7 @@ function advance(){
   flushScrollToCloud();   // mémorise la position du chapitre qu'on quitte
   if(pendingNext!==null){ currentCh=pendingNext; pendingNext=null; renderChapter(); window.scrollTo(0,0); }
 }
-document.getElementById('popLike').onclick=function(){ doLike(); advance(); };
+document.getElementById('popLike').onclick=function(){ doLike('add'); advance(); };
 document.getElementById('popComment').onclick=function(){ document.getElementById('overlay').classList.remove('show'); pendingNext=null; document.getElementById('cText').focus(); document.getElementById('cText').scrollIntoView({behavior:'smooth'}); };
 document.getElementById('popSkip').onclick=function(){ advance(); };
 // Popup de reprise de lecture
