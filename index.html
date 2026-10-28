@@ -102,6 +102,23 @@
   .like-btn{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:9px 18px;border-radius:24px;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;gap:8px;transition:.15s;font-weight:600;}
   .like-btn:hover{border-color:var(--accent-l);}
   .like-btn.liked{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .react-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;margin-top:22px;}
+  .react-label{font-size:14px;color:var(--muted);font-weight:600;}
+  .react-chips{display:flex;flex-wrap:wrap;gap:7px;}
+  .react-chip{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:22px;padding:6px 12px;min-height:40px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;line-height:1;transition:border-color .15s,background .15s;font-family:inherit;}
+  .react-chip .rc-e{font-size:20px;}
+  .react-chip .rc-n{font-size:13px;font-weight:700;}
+  .react-chip:hover{border-color:var(--accent-l);}
+  .react-chip.mine{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .react-chip.bump .rc-e{animation:reactBump .35s ease;}
+  @keyframes reactBump{0%{transform:scale(1);}50%{transform:scale(1.4);}100%{transform:scale(1);}}
+  .popup .pop-react{margin:4px 0 2px;}
+  .popup .pop-react-label{font-size:13px;color:var(--muted);margin-bottom:7px;}
+  .popup .react-chips{justify-content:center;}
+  .popup .react-chips{gap:5px;flex-wrap:nowrap;}
+  .popup .react-chip{padding:5px 8px;min-height:38px;gap:4px;}
+  .popup .react-chip .rc-e{font-size:18px;}
+  @media (max-width:520px){ .react-chips{gap:5px;} .react-chip{padding:6px 9px;gap:4px;} }
   .nav-arrows{display:flex;gap:8px;}
   .nav-arrows button{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:20px;cursor:pointer;font-weight:700;font-size:13px;}
   .nav-arrows button:disabled{opacity:.35;cursor:not-allowed;}
@@ -641,6 +658,7 @@
     <button class="back-btn" id="backBtn">← Retour à la bibliothèque</button>
     <div class="chapter-nav" id="chapterNav"></div>
     <div class="reader-body" id="readerBody"></div>
+    <div class="react-row" id="reactRow"><span class="react-label" id="reactLabel">Ta réaction :</span><div class="react-chips" id="reactChips"></div></div>
     <div class="chapter-actions">
       <button class="like-btn" id="likeBtn">❤️ <span id="likeCount">0</span> J'aime</button>
       <button class="share-btn" id="shareBtn" title="Partager">🔗 <span id="shareLabel">Partager</span></button>
@@ -744,6 +762,7 @@
     <p>Un petit ❤️ ou un mot fait toujours super plaisir à l'autrice avant de continuer !</p>
     <div class="pop-actions">
       <button class="pop-like" id="popLike">❤️ Laisser un j'aime</button>
+      <div class="pop-react"><div class="pop-react-label" id="popReactLabel">ou une petite réaction :</div><div class="react-chips" id="popReactChips"></div></div>
       <button class="pop-comment" id="popComment">💬 Écrire un commentaire</button>
       <button class="pop-skip" id="popSkip">Continuer vers le chapitre suivant →</button>
     </div>
@@ -1174,6 +1193,7 @@ function applyUILang(){
   document.querySelector('.popup h3').textContent=t.popTitle;
   document.querySelector('.popup p').textContent=t.popText;
   document.getElementById('popLike').textContent=t.popLike;
+  try{ renderReactions(); }catch(e){}
   document.getElementById('popComment').textContent=t.popComment;
   document.getElementById('popSkip').textContent=t.popSkip;
   document.querySelector('footer').childNodes[0].textContent=' '+t.footer+' ';
@@ -2001,6 +2021,7 @@ async function renderChapter(){
   try{ refreshOfflineBtn(); }catch(e){}
   setProgress(currentBook.id+'_'+lang,currentCh);
   subscribeLikes();
+  loadReactions();
   subscribeComments();
   document.getElementById('prevCh').disabled=(currentCh===0);
   document.getElementById('nextCh').disabled=(currentCh===d.chapters.length-1);
@@ -2104,6 +2125,89 @@ async function toggleLikeDoc(ref, currentlyLiked){
   await setDoc(ref, { count: increment(1), users: users }, { merge:true });
   return 1;
 }
+
+// ---- RÉACTIONS (Firestore reactions/{chapterKey}) ----
+// { counts: { love: n, fire: n, ... }, users: { uid: 'fire' } }
+// En plus du ❤️ : chaque lectrice connectée peut laisser UNE réaction par chapitre
+// (re-cliquer la même l'enlève, cliquer une autre la remplace).
+// 1 lecture au chargement du chapitre, 1 écriture par clic (increment, 0 lecture).
+var REACTS=[
+  {k:'love',  e:'😍', fr:"J'adore",       en:'Love it'},
+  {k:'fire',  e:'🔥', fr:'Brûlant',       en:'So hot'},
+  {k:'cry',   e:'😭', fr:'Ça m\'a fait pleurer', en:'Made me cry'},
+  {k:'shock', e:'😱', fr:'Choquée',       en:'Shocked'},
+  {k:'lol',   e:'😂', fr:'Mdr',           en:'LOL'},
+  {k:'aww',   e:'🥺', fr:'Trop mignon',   en:'Aww'}
+];
+var __reactCounts={}, __myReact='', __reactStateFor='', __reactBusy=false, __reactPopK='';
+function renderReactions(){
+  var lab=document.getElementById('reactLabel'); if(lab) lab.textContent=(lang==='en'?'Your reaction:':'Ta réaction :');
+  var pl=document.getElementById('popReactLabel'); if(pl) pl.textContent=(lang==='en'?'or a little reaction:':'ou une petite réaction :');
+  ['reactChips','popReactChips'].forEach(function(id){
+    var box=document.getElementById(id); if(!box) return;
+    box.innerHTML=REACTS.map(function(r){
+      var n=Math.max(0, parseInt(__reactCounts[r.k],10)||0), mine=(__myReact===r.k);
+      var name=(lang==='en'?r.en:r.fr);
+      return '<button type="button" class="react-chip'+(mine?' mine':'')+(__reactPopK===r.k?' bump':'')+'" data-k="'+r.k+'" title="'+name.replace(/"/g,'&quot;')+'" aria-label="'+name.replace(/"/g,'&quot;')+'" aria-pressed="'+(mine?'true':'false')+'">'
+        +'<span class="rc-e">'+r.e+'</span>'+(n>0?'<span class="rc-n">'+n+'</span>':'')+'</button>';
+    }).join('');
+  });
+  __reactPopK='';
+}
+async function loadReactions(){
+  __reactCounts={}; __myReact=''; __reactStateFor='';
+  renderReactions();
+  if(!firebaseReady||!db) return;
+  var key=chapterKey();
+  try{
+    var snap=await getDoc(doc(db,'reactions',key));
+    if(key!==chapterKeySafe()) return;   // la lectrice a changé de chapitre entre-temps
+    var data=snap.exists()?(snap.data()||{}):{};
+    __reactCounts=Object.assign({}, data.counts||{});
+    __myReact=(currentUser && data.users && data.users[currentUser.uid]) || '';
+    __reactStateFor=key+'|'+(currentUser?currentUser.uid:'');
+    renderReactions();
+  }catch(e){ /* silencieux */ }
+}
+async function doReact(k){
+  if(!REACTS.some(function(r){ return r.k===k; })) return;
+  if(!firebaseReady||!db) return;
+  if(!currentUser){
+    var ov=document.getElementById('overlay'); if(ov && ov.classList.contains('show')){ ov.classList.remove('show'); pendingNext=null; }
+    openAuth(); return;
+  }
+  if(__reactBusy) return;
+  __reactBusy=true;
+  var key=chapterKey(), uid=currentUser.uid;
+  var prevCounts=Object.assign({}, __reactCounts), prevMine=__myReact;
+  try{
+    if(__reactStateFor!==key+'|'+uid){ await loadReactions(); }
+    if(__reactStateFor!==key+'|'+uid) throw new Error('reaction state unknown');
+    var old=__myReact, neu=(old===k)?'':k;
+    prevCounts=Object.assign({}, __reactCounts); prevMine=old;
+    // Affichage immédiat (on annule si l'écriture échoue)
+    if(old) __reactCounts[old]=Math.max(0,(parseInt(__reactCounts[old],10)||0)-1);
+    if(neu){ __reactCounts[neu]=(parseInt(__reactCounts[neu],10)||0)+1; __reactPopK=neu; }
+    __myReact=neu;
+    renderReactions();
+    var counts={}, users={};
+    if(old) counts[old]=increment(-1);
+    if(neu) counts[neu]=increment(1);
+    users[uid]= neu ? neu : deleteField();
+    await setDoc(doc(db,'reactions',key), { counts:counts, users:users }, { merge:true });
+  }catch(e){
+    console.warn('reaction error', (e && (e.code||e.message)) || e);
+    if(chapterKeySafe()===key){ __reactCounts=prevCounts; __myReact=prevMine; renderReactions(); }
+  }finally{
+    __reactBusy=false;
+  }
+}
+['reactChips','popReactChips'].forEach(function(id){
+  var box=document.getElementById(id);
+  if(box) box.addEventListener('click', function(ev){
+    var b=ev.target.closest('.react-chip'); if(b) doReact(b.dataset.k);
+  });
+});
 
 // ---- COMMENTS (Firestore, live) ----
 var __chapterComments=[];   // tous les commentaires du chapitre courant (en mémoire, pour la popup)
