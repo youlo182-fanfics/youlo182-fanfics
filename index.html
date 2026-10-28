@@ -157,6 +157,18 @@
   .auth-box .auth-close a{color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline;}
   .auth-error{background:rgba(176,61,94,.15);color:var(--accent-l);border:1px solid rgba(176,61,94,.3);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:10px;display:none;}
   .auth-error.show{display:block;}
+  .auth-info{background:rgba(0,166,81,.12);color:var(--ink);border:1px solid rgba(0,166,81,.35);border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:10px;display:none;line-height:1.45;}
+  .auth-info.show{display:block;}
+  .auth-google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#3c4043;border:1px solid #dadce0;padding:11px;border-radius:22px;font-weight:700;cursor:pointer;font-size:14px;font-family:inherit;}
+  .auth-google:hover{background:#f7f8f8;}
+  .auth-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:14px 0 12px;}
+  .auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--line);}
+  .auth-forgot{text-align:right;margin:-4px 0 6px;font-size:12px;}
+  .auth-forgot a{color:var(--muted);cursor:pointer;text-decoration:underline;}
+  .new-badge{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:6px;background:#FED20D;color:#3a0a1a;font-weight:800;letter-spacing:.3px;white-space:nowrap;margin-left:6px;vertical-align:middle;}
+  .read-time{font-size:13px;color:var(--muted);margin:-4px 0 18px;user-select:none;-webkit-user-select:none;}
+  .chapter-nav button .new-dot{font-size:10px;margin-left:3px;}
+  .age-box p{font-size:14px;line-height:1.6;color:var(--ink);margin-bottom:10px;text-align:center;}
   .guest-note{font-size:11px;color:var(--muted);text-align:center;margin-top:12px;font-style:italic;}
   .author-reply{margin-left:16px;margin-top:8px;padding:10px 14px;background:rgba(176,61,94,.12);border-left:3px solid var(--accent-l);border-radius:8px;font-size:13.5px;line-height:1.5;}
 .reader-reply{margin-left:16px;margin-top:8px;padding:10px 14px;background:rgba(255,255,255,.04);border-left:3px solid var(--line);border-radius:8px;font-size:13.5px;line-height:1.5;}
@@ -632,6 +644,7 @@
     <div class="chapter-actions">
       <button class="like-btn" id="likeBtn">❤️ <span id="likeCount">0</span> J'aime</button>
       <button class="share-btn" id="shareBtn" title="Partager">🔗 <span id="shareLabel">Partager</span></button>
+      <button class="share-btn" id="offlineBtn" title="Télécharger toute l'histoire pour la lire sans internet">📥 <span id="offlineLabel">Hors-ligne</span></button>
       <div class="nav-arrows">
         <button id="prevCh">← Précédent</button>
         <button id="nextCh">Suivant →</button>
@@ -706,9 +719,13 @@
     <h3 id="authTitle">Se connecter</h3>
     <p class="sub" id="authSub">Connecte-toi pour garder ta progression, tes j'aime et tes commentaires sur tous tes appareils 💜</p>
     <div class="auth-error" id="authError"></div>
-    <input type="text" id="authDisplayName" placeholder="Ton pseudo (affiché sur tes commentaires)" style="display:none;">
+    <div class="auth-info" id="authInfo"></div>
+    <button class="auth-google" id="authGoogle" type="button"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg><span id="authGoogleLabel">Continuer avec Google</span></button>
+    <div class="auth-or" id="authOr"><span id="authOrLabel">ou avec ton email</span></div>
+    <input type="text" id="authDisplayName" maxlength="30" placeholder="Ton pseudo (affiché sur tes commentaires)" style="display:none;">
     <input type="email" id="authEmail" placeholder="Ton email">
     <input type="password" id="authPassword" placeholder="Ton mot de passe">
+    <div class="auth-forgot" id="authForgotWrap"><a id="authForgot">Mot de passe oublié ?</a></div>
     <label id="authNewsletterWrap" style="display:none;width:100%;text-align:left;font-size:13px;color:var(--muted);margin:2px 0 4px;cursor:pointer;box-sizing:border-box;overflow-wrap:break-word;word-wrap:break-word;">
       <input type="checkbox" id="authNewsletter" style="margin-right:8px;vertical-align:middle;">
       <span id="authNewsletterLabel" style="vertical-align:middle;">Je veux recevoir un email quand une nouvelle histoire est publiée 💛</span>
@@ -745,41 +762,60 @@
   </div>
 </div>
 <script type="module">
+// Config Firebase, email autrice, version du SDK : un seul fichier partagé
+// par index.html, admin.html et write.html (voir firebase-config.js).
+import { firebaseConfig, AUTHOR_EMAIL, AUTHOR_NAME, FB_CDN, maybeInitAppCheck, pseudoKey } from './firebase-config.js';
 // Firebase functions are loaded dynamically so the site still renders even if
 // the CDN import is blocked (e.g. sandboxed preview). All FB calls null-check first.
 let initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
-    signInWithEmailAndPassword, signOut, updateProfile,
-    getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, deleteDoc, updateDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp;
+    signInWithEmailAndPassword, signOut, updateProfile, sendPasswordResetEmail,
+    GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
+    getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, deleteDoc, updateDoc, query, orderBy, limit, increment, deleteField, serverTimestamp;
 let auth=null, db=null, firebaseReady=false;
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDCXtXM-F_AoqwlUTk_trk3Ny9dxy-7q-g",
-  authDomain: "youlo182-fanfics.firebaseapp.com",
-  projectId: "youlo182-fanfics",
-  storageBucket: "youlo182-fanfics.firebasestorage.app",
-  messagingSenderId: "254835522518",
-  appId: "1:254835522518:web:c309ed0c14ff24a19c0277"
-};
-
-const AUTHOR_EMAIL = "julie.cacciola@gmail.com";  // compte autrice (Youlo182)
 let isAuthor = false;
+// Badge autrice : affiché SEULEMENT si le document porte admin:true. Les règles
+// Firestore interdisent ce champ à tout autre compte que celui de l'autrice,
+// donc quelqu'un qui se ferait appeler "Youlo182" n'aurait PAS le badge.
+// Badge ✍️ : commentaire marqué admin, OU écrit avec le compte de l'autrice
+// (ses anciens commentaires n'avaient pas encore la marque "admin").
+// L'identifiant (uid) de l'autrice est lu UNE fois dans usernames/youlo182
+// (que seul son compte peut créer), puis gardé sur l'appareil.
+var AUTHOR_UID = (function(){ try{ return localStorage.getItem('author_uid')||''; }catch(e){ return ''; } })();
+function isAuthorDoc(c){ return !!(c && (c.admin===true || (AUTHOR_UID && c.uid===AUTHOR_UID))); }
+async function ensureAuthorUid(){
+  if(AUTHOR_UID || !db) return;
+  if(isAuthor && currentUser){ AUTHOR_UID=currentUser.uid; safeSet('author_uid',AUTHOR_UID); return; }
+  try{
+    var s=await getDoc(doc(db,'usernames',pseudoKey(AUTHOR_NAME)));
+    if(s.exists() && s.data().uid){ AUTHOR_UID=s.data().uid; safeSet('author_uid',AUTHOR_UID); }
+  }catch(e){}
+}
 async function initFirebase(){
   try{
-    const appMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-    const authMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
-    const fsMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    const appMod = await import(FB_CDN+"firebase-app.js");
+    const authMod = await import(FB_CDN+"firebase-auth.js");
+    const fsMod = await import(FB_CDN+"firebase-firestore.js");
     initializeApp=appMod.initializeApp;
-    ({ getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } = authMod);
-    ({ getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, deleteDoc, updateDoc, onSnapshot, query, orderBy, runTransaction, serverTimestamp } = fsMod);
+    ({ getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } = authMod);
+    ({ getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, deleteDoc, updateDoc, query, orderBy, limit, increment, deleteField, serverTimestamp } = fsMod);
     const app = initializeApp(firebaseConfig);
+    await maybeInitAppCheck(app);   // anti-robots (inactif tant que la clé n'est pas renseignée)
     auth = getAuth(app);
+    try{ auth.languageCode = lang; }catch(e){}   // emails Firebase (mot de passe oublié) dans la langue du site
     db = getFirestore(app);
     firebaseReady=true;
-    loadViewStats().then(function(){ try{ renderLibrary(); }catch(e){} });
+    loadViewStats().then(function(){ try{ var _l=document.getElementById('library'); if(_l && _l.style.display!=='none') renderLibrary(); }catch(e){} });
+    // Retour d'une connexion Google faite par redirection (mobile quand la popup est bloquée)
+    try{ getRedirectResult(auth).then(function(cred){ if(cred && cred.user) afterGoogleSignIn(cred.user); }).catch(function(e){ console.warn('Google redirect', e&&e.code); }); }catch(e){}
     // Wire auth state now that Firebase is up
     onAuthStateChanged(auth, async function(user){
-      currentUser=user; isAuthor = !!(user && user.email===AUTHOR_EMAIL); updateAccountLabel(); updateCommentForm(); loadViewStats().then(function(){ renderLibrary(); }); renderLibrary();
-      if(user){ try{ startNotifications(); }catch(e){console.warn(e);} } else { try{ stopNotifications(); }catch(e){} }
+      // (les vues ne dépendent pas du compte : plus de 2e lecture de stats/totals ici)
+      currentUser=user; isAuthor = !!(user && user.email===AUTHOR_EMAIL); __progCache=null; updateAccountLabel(); updateCommentForm();
+      // Ne redessine l'accueil QUE si on y est (sinon un lien direct ?story=ID ou /s/ID
+      // était renvoyé à l'accueil dès que Firebase avait fini de charger).
+      var _lib=document.getElementById('library'); if(_lib && _lib.style.display!=='none'){ renderLibrary(); }
+      if(user){ try{ startNotifications(); }catch(e){console.warn(e);} try{ claimPseudoIfNeeded(user); }catch(e){} } else { try{ stopNotifications(); }catch(e){} }
       var _adminLink=document.getElementById('adminLink'); if(_adminLink) _adminLink.style.display=isAuthor?'inline-block':'none';
       if(currentBook && document.getElementById('reader').style.display!=='none'){ renderChapter(); }
     });
@@ -823,7 +859,20 @@ const UI = {
     authDoLogin:"Se connecter", authDoSignup:"S'inscrire",
     authNoAccount:"Pas encore de compte ?", authHasAccount:"Déjà un compte ?",
     authSwitchSignup:"Inscris-toi", authSwitchLogin:"Connecte-toi",
-    mustLogin:"Connecte-toi pour laisser un j'aime ou un commentaire 💜"
+    mustLogin:"Connecte-toi pour laisser un j'aime ou un commentaire 💜",
+    google:"Continuer avec Google", orEmail:"ou avec ton email",
+    forgot:"Mot de passe oublié ?", forgotNeedEmail:"Écris d'abord ton email dans la case ci-dessus, puis reclique sur « Mot de passe oublié ? ».",
+    forgotSent:"C'est envoyé ! Si un compte existe avec cet email, tu vas recevoir un lien pour choisir un nouveau mot de passe. Pense à regarder dans tes spams 💌",
+    pseudoTitle:"Choisis ton pseudo", pseudoSub:"C'est le nom affiché sur tes commentaires. Ton vrai nom Google n'est jamais montré 💜", pseudoDo:"Valider mon pseudo",
+    pseudoPh:"Ton pseudo (affiché sur tes commentaires)",
+    pseudoTaken:"Ce pseudo est déjà pris, choisis-en un autre 💜", pseudoReserved:"Ce pseudo est réservé à l'autrice 💜",
+    pseudoInvalid:"Ton pseudo doit faire entre 2 et 30 caractères (sans < > ni guillemets).",
+    errEmailUsed:"Cet email a déjà un compte. Connecte-toi (ou utilise « Mot de passe oublié ? »).",
+    errBadLogin:"Email ou mot de passe incorrect.", errWeakPass:"Le mot de passe doit faire au moins 6 caractères.",
+    errBadEmail:"Cette adresse email n'a pas l'air valide.", errTooMany:"Trop d'essais d'un coup. Réessaie dans quelques minutes.",
+    errNetwork:"Pas de connexion internet. Réessaie dans un instant.",
+    offline:"Hors-ligne", offlineSaving:"Téléchargement…", offlineDone:"Dispo hors-ligne ✓", offlineFail:"Oups, réessaie",
+    readTime:"min de lecture"
   },
   en:{
     libTitle:"My Stories",
@@ -847,7 +896,20 @@ const UI = {
     authDoLogin:"Sign in", authDoSignup:"Sign up",
     authNoAccount:"No account yet?", authHasAccount:"Already have an account?",
     authSwitchSignup:"Sign up", authSwitchLogin:"Sign in",
-    mustLogin:"Sign in to leave a like or a comment 💜"
+    mustLogin:"Sign in to leave a like or a comment 💜",
+    google:"Continue with Google", orEmail:"or with your email",
+    forgot:"Forgot your password?", forgotNeedEmail:"Type your email in the box above first, then click \"Forgot your password?\" again.",
+    forgotSent:"Sent! If an account exists with this email, you will receive a link to choose a new password. Check your spam folder too 💌",
+    pseudoTitle:"Pick your username", pseudoSub:"This is the name shown on your comments. Your real Google name is never shown 💜", pseudoDo:"Save my username",
+    pseudoPh:"Your username (shown on your comments)",
+    pseudoTaken:"This username is already taken, please pick another one 💜", pseudoReserved:"This username is reserved for the author 💜",
+    pseudoInvalid:"Your username must be 2 to 30 characters long (no < > or quotes).",
+    errEmailUsed:"This email already has an account. Sign in instead (or use \"Forgot your password?\").",
+    errBadLogin:"Wrong email or password.", errWeakPass:"Your password must be at least 6 characters long.",
+    errBadEmail:"This email address does not look valid.", errTooMany:"Too many attempts. Please try again in a few minutes.",
+    errNetwork:"No internet connection. Please try again in a moment.",
+    offline:"Offline", offlineSaving:"Downloading…", offlineDone:"Available offline ✓", offlineFail:"Oops, try again",
+    readTime:"min read"
   }
 };
 
@@ -861,10 +923,43 @@ let osCatFilter = 'all';   // sous-catégorie one-shot
 let searchQuery = '';      // texte de recherche
 let pendingNext = null;
 let currentUser = null;
-let authMode = 'login'; // or 'signup'
-let unsubComments = null;
-let unsubLikes = null;
+let authMode = 'login'; // 'login' | 'signup' | 'pseudo' (choix du pseudo après Google)
 let myLiked = false;
+var __likeStateFor = '';   // pour quel chapitre + quel compte myLiked a été lu
+
+// ---- NOUVEAUTÉS (100 % local, 0 appel réseau) ----
+// On retient, par histoire et par langue, combien de chapitres existaient la dernière
+// fois que la lectrice l'a ouverte. S'il y en a plus aujourd'hui : badge "Nouveau chapitre".
+function seenKey(b){ return 'seen_'+b.id+'_'+lang; }
+function getSeenCount(b){ var v=safeGet(seenKey(b), null); return v===null ? null : (parseInt(v,10)||0); }
+function bookChapterCount(b){ var d=b && b[lang]; return (d && d.chapters) ? d.chapters.length : 0; }
+function markSeen(b){ try{ var n=bookChapterCount(b); if(n) safeSet(seenKey(b), String(n)); }catch(e){} }
+function isRecentRelease(b){
+  if(!b || !b.releaseAt) return false;
+  var t=new Date(b.releaseAt).getTime();
+  return !isNaN(t) && t<=Date.now() && (Date.now()-t) < 14*864e5;   // sortie il y a moins de 14 jours
+}
+function newChaptersCount(b){ var s=getSeenCount(b); if(s===null) return 0; return Math.max(0, bookChapterCount(b)-s); }
+function newBadgeHTML(b){
+  var n=newChaptersCount(b);
+  if(n>0) return '<span class="new-badge">✨ '+(n>1 ? (n+(lang==='fr'?' nouveaux chapitres':' new chapters')) : (lang==='fr'?'Nouveau chapitre':'New chapter'))+'</span>';
+  if(getSeenCount(b)===null && isRecentRelease(b)) return '<span class="new-badge">✨ '+(lang==='fr'?'Nouveau':'New')+'</span>';
+  return '';
+}
+// Première fois après la mise à jour : les histoires déjà commencées sur cet appareil
+// sont notées "vues" avec leur nombre actuel de chapitres (pas de faux badges).
+function bootstrapSeen(){
+  try{
+    var flag='seen_init_'+lang; if(safeGet(flag,'')) return;
+    var keys=[]; for(var i=0;i<localStorage.length;i++){ keys.push(localStorage.key(i)); }
+    BOOKS.forEach(function(b){
+      if(getSeenCount(b)!==null) return;
+      var pre1='scroll_'+b.id+'_'+lang+'_', pre2='prog_'+b.id+'_'+lang;
+      if(keys.some(function(k){ return k && (k.indexOf(pre1)===0 || k===pre2); })) markSeen(b);
+    });
+    safeSet(flag,'1');
+  }catch(e){}
+}
 
 function coverImg(b){
   if(b && b.cover){ return '<img src="'+b.cover+'" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentNode.textContent=\''+(b.emoji||'📖')+'\';">'; }
@@ -944,8 +1039,9 @@ function renderAbout(){
   document.getElementById('aboutSign').innerHTML = t.sign;
 }
 // ---- Like + commentaires sur la page À propos (clé Firebase fixe "about") ----
-var __unsubAboutLike=null, __unsubAboutComments=null;
 // Lectures PONCTUELLES (plus de listener temps réel).
+var __aboutLiked=false, __aboutLikeFor='';
+var __aboutThreads={};   // cid -> {data, replies[]} : gardé en mémoire pour les notifications
 async function subscribeAboutLike(){
   if(!firebaseReady||!db) return;
   var ref=doc(db,'likes','about');
@@ -954,6 +1050,7 @@ async function subscribeAboutLike(){
     var data=snap.exists()?snap.data():{count:0,users:{}};
     var count=data.count||0;
     var liked = !!(currentUser && data.users && data.users[currentUser.uid]);
+    __aboutLiked = liked; __aboutLikeFor = currentUser ? currentUser.uid : '';
     var cEl=document.getElementById('aboutLikeCount'); if(cEl) cEl.textContent=count;
     var btn=document.getElementById('aboutLikeBtn');
     if(btn){ btn.className='like-btn'+(liked?' liked':''); var h=btn.querySelector('.heart'); if(h) h.textContent=liked?'❤️':'🤍'; }
@@ -964,54 +1061,55 @@ window.doAboutLike=async function(){
   if(!currentUser){ openAuth(); return; }
   var ref=doc(db,'likes','about');
   try{
-    await runTransaction(db, async function(tx){
-      var s=await tx.get(ref);
-      var data=s.exists()?s.data():{count:0,users:{}};
-      if(!data.users) data.users={};
-      if(data.users[currentUser.uid]){ delete data.users[currentUser.uid]; data.count=Math.max(0,(data.count||0)-1); }
-      else { data.users[currentUser.uid]=true; data.count=(data.count||0)+1; }
-      tx.set(ref,data);
-    });
-    subscribeAboutLike();   // recharge l'affichage après le clic
+    if(__aboutLikeFor!==currentUser.uid){ await subscribeAboutLike(); }   // état inconnu : on le lit d'abord
+    if(__aboutLikeFor!==currentUser.uid) return;
+    var delta = await toggleLikeDoc(ref, __aboutLiked);
+    __aboutLiked = (delta>0);
+    var cEl=document.getElementById('aboutLikeCount'); if(cEl){ var cur=parseInt(cEl.textContent,10)||0; cEl.textContent=Math.max(0,cur+delta); }
+    var btn=document.getElementById('aboutLikeBtn');
+    if(btn){ btn.className='like-btn'+(__aboutLiked?' liked':''); var h=btn.querySelector('.heart'); if(h) h.textContent=__aboutLiked?'❤️':'🤍'; }
   }catch(e){ console.warn('aboutLike',e.message); }
 };
 async function subscribeAboutComments(){
   if(!firebaseReady||!db){ var l=document.getElementById('aboutCommentList'); if(l) l.innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les mots 💬':'Sign in online to see notes 💬')+'</div>'; return; }
+  await ensureAuthorUid();
   var q=query(collection(db,'comments','about','items'), orderBy('ts','desc'));
   var snap;
   try{ snap=await getDocs(q); }catch(e){ console.warn('aboutComments',(e&&e.message)||e); return; }
   var list=document.getElementById('aboutCommentList'); if(!list) return;
   if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois la première personne à me laisser un mot 💌':'Be the first to leave me a note 💌')+'</div>'; return; }
     var out='';
+    __aboutThreads={};
     snap.forEach(function(d){ var c=d.data(); var cid=d.id;
-      var isA = c.name==='Youlo182';
+      __aboutThreads[cid]={data:c, replies:[]};
+      var isA = isAuthorDoc(c);
       var replyForm = currentUser ? '<div class="areply-form"><input type="text" id="abrin_'+cid+'" placeholder="'+(isAuthor?(lang==='fr'?'Répondre en tant qu\'autrice…':'Reply as author…'):(lang==='fr'?'Répondre…':'Reply…'))+'"><button onclick="postAboutReply(\''+cid+'\')">'+(lang==='fr'?'Répondre':'Reply')+'</button></div>' : '';
       out+='<div class="comment"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(c.name||'Anonyme')+'</div><div class="txt">'+escapeHtml(c.text||'')+'</div><div id="abar_'+cid+'"></div>'+replyForm+'</div>';
     });
     list.innerHTML=out;
-    // Charger les réponses de chaque commentaire en UNE lecture chacune (pas de listener).
-    for(const d of snap.docs){
+    // Charger les réponses de chaque commentaire (une lecture chacune, toutes EN MÊME TEMPS : plus rapide).
+    await Promise.all(snap.docs.map(async function(d){
       var cid=d.id;
       var rq=query(collection(db,'comments','about','items',cid,'replies'), orderBy('ts','asc'));
       try{
         var rsnap=await getDocs(rq);
-        var el=document.getElementById('abar_'+cid); if(!el) continue;
+        var el=document.getElementById('abar_'+cid);
         var rout='';
-        rsnap.forEach(function(rd){ var r=rd.data(); var ra = r.admin===true || r.name==='Youlo182';
+        rsnap.forEach(function(rd){ var r=rd.data(); if(__aboutThreads[cid]) __aboutThreads[cid].replies.push(r);
+          var ra = isAuthorDoc(r);
           rout+='<div class="'+(ra?'author-reply':'reader-reply')+'"><div class="who">'+(ra?'✍️ ':'')+escapeHtml(r.name||'Anonyme')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
-        el.innerHTML=rout;
+        if(el) el.innerHTML=rout;
       }catch(e){ /* silencieux */ }
-    }
+    }));
 }
-var __aboutReplyUnsubs=[];
-function clearAboutReplyUnsubs(){ __aboutReplyUnsubs.forEach(function(u){ try{u();}catch(e){} }); __aboutReplyUnsubs=[]; }
 window.postAboutReply=async function(cid){
   if(!currentUser){ alert(UI[lang].mustLogin); openAuth(); return; }
+  if(needPseudo()) return;
   var inp=document.getElementById('abrin_'+cid); if(!inp)return;
   var text=inp.value.trim(); if(!text)return;
-  var replierName = isAuthor ? 'Youlo182' : (currentUser.displayName||'Anonyme');
+  var replierName = isAuthor ? AUTHOR_NAME : (currentUser.displayName||'Anonyme');
   var payload = isAuthor
-    ? { name:'Youlo182', uid:currentUser.uid, text:text, admin:true, ts:serverTimestamp() }
+    ? { name:AUTHOR_NAME, uid:currentUser.uid, text:text, admin:true, ts:serverTimestamp() }
     : { name:replierName, uid:currentUser.uid, text:text, ts:serverTimestamp() };
   try{
     await addDoc(collection(db,'comments','about','items',cid,'replies'), payload);
@@ -1027,9 +1125,10 @@ function initAboutInteract(){
   var sb=document.getElementById('aboutCSend'); if(sb){ sb.textContent = lang==='fr'?'Envoyer':'Send';
     sb.onclick=async function(){
       if(!currentUser){ alert(UI[lang].mustLogin); openAuth(); return; }
+      if(needPseudo()) return;
       var text=ta.value.trim(); if(!text) return;
       try{
-        await addDoc(collection(db,'comments','about','items'),{ name: currentUser.displayName||'Anonyme', uid: currentUser.uid, text: text, ts: serverTimestamp() });
+        await addDoc(collection(db,'comments','about','items'), commentPayload({ text: text }));
         ta.value='';
         subscribeAboutComments();   // recharge pour afficher le nouveau mot
       }catch(e){ alert('Oops: '+e.message); }
@@ -1165,19 +1264,166 @@ function updateAccountLabel(){
 }
 function openAuth(){
   authMode='login'; renderAuthMode();
-  document.getElementById('authError').classList.remove('show');
+  authMsg('', '');
   authOverlay.classList.add('show');
+}
+// Affiche un message dans la fenêtre de connexion (kind: 'error' | 'info' | '' pour effacer)
+function authMsg(kind, text){
+  var er=document.getElementById('authError'), inf=document.getElementById('authInfo');
+  if(er){ er.classList.remove('show'); if(kind==='error'){ er.textContent=text; er.classList.add('show'); } }
+  if(inf){ inf.classList.remove('show'); if(kind==='info'){ inf.textContent=text; inf.classList.add('show'); } }
+}
+// Traduit les erreurs Firebase en phrases simples
+function authErrMsg(e){
+  var t=UI[lang]; var c=(e && e.code) || '';
+  if(e && e.pseudo) return t[e.pseudo] || t.pseudoTaken;
+  if(c==='auth/email-already-in-use') return t.errEmailUsed;
+  if(c==='auth/invalid-credential' || c==='auth/wrong-password' || c==='auth/user-not-found' || c==='auth/invalid-login-credentials') return t.errBadLogin;
+  if(c==='auth/weak-password') return t.errWeakPass;
+  if(c==='auth/invalid-email' || c==='auth/missing-email') return t.errBadEmail;
+  if(c==='auth/too-many-requests') return t.errTooMany;
+  if(c==='auth/network-request-failed') return t.errNetwork;
+  return String((e && e.message) || e || '').replace('Firebase: ','');
 }
 function renderAuthMode(){
   const t=UI[lang];
-  document.getElementById('authTitle').textContent = authMode==='login'?t.authLoginTitle:t.authSignupTitle;
-  document.getElementById('authSub').textContent = authMode==='login'?t.authLoginSub:t.authSignupSub;
-  document.getElementById('authSubmit').textContent = authMode==='login'?t.authDoLogin:t.authDoSignup;
-  document.getElementById('authDisplayName').style.display = authMode==='signup'?'block':'none';
-  var _nlw=document.getElementById('authNewsletterWrap'); if(_nlw) _nlw.style.display = authMode==='signup'?'block':'none';
-  document.getElementById('authToggle').innerHTML = (authMode==='login'? t.authNoAccount+' <a id="authSwitch">'+t.authSwitchSignup+'</a>' : t.authHasAccount+' <a id="authSwitch">'+t.authSwitchLogin+'</a>');
-  document.getElementById('authSwitch').onclick=function(){ authMode = authMode==='login'?'signup':'login'; renderAuthMode(); };
+  var isPseudo = (authMode==='pseudo');
+  document.getElementById('authTitle').textContent = isPseudo ? t.pseudoTitle : (authMode==='login'?t.authLoginTitle:t.authSignupTitle);
+  document.getElementById('authSub').textContent = isPseudo ? t.pseudoSub : (authMode==='login'?t.authLoginSub:t.authSignupSub);
+  document.getElementById('authSubmit').textContent = isPseudo ? t.pseudoDo : (authMode==='login'?t.authDoLogin:t.authDoSignup);
+  var dn=document.getElementById('authDisplayName');
+  dn.style.display = (authMode==='signup' || isPseudo)?'block':'none';
+  dn.placeholder = t.pseudoPh;
+  var _nlw=document.getElementById('authNewsletterWrap'); if(_nlw) _nlw.style.display = (authMode==='signup' || isPseudo)?'block':'none';
+  ['authEmail','authPassword'].forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display = isPseudo?'none':'block'; });
+  var g=document.getElementById('authGoogle'); if(g) g.style.display = isPseudo?'none':'flex';
+  var gl=document.getElementById('authGoogleLabel'); if(gl) gl.textContent=t.google;
+  var orw=document.getElementById('authOr'); if(orw) orw.style.display = isPseudo?'none':'flex';
+  var orl=document.getElementById('authOrLabel'); if(orl) orl.textContent=t.orEmail;
+  var fw=document.getElementById('authForgotWrap'); if(fw) fw.style.display = (authMode==='login')?'block':'none';
+  var fl=document.getElementById('authForgot'); if(fl) fl.textContent=t.forgot;
+  var gn=document.getElementById('guestNote'); if(gn) gn.style.display = isPseudo?'none':'block';
+  var tg=document.getElementById('authToggle'); tg.style.display = isPseudo?'none':'block';
+  tg.innerHTML = (authMode==='login'? t.authNoAccount+' <a id="authSwitch">'+t.authSwitchSignup+'</a>' : t.authHasAccount+' <a id="authSwitch">'+t.authSwitchLogin+'</a>');
+  document.getElementById('authSwitch').onclick=function(){ authMode = authMode==='login'?'signup':'login'; authMsg('',''); renderAuthMode(); };
 }
+
+// ---- PSEUDOS UNIQUES ----
+// Chaque pseudo est "réservé" dans la collection Firestore usernames/{clé}.
+// La clé ignore majuscules, accents et espaces : "Youlò 182" = "youlo182".
+// Les règles Firestore empêchent d'écraser la réservation de quelqu'un d'autre,
+// et "Youlo182" ne peut être réservé que par le compte de l'autrice.
+function pseudoErr(kind){ var e=new Error(kind); e.pseudo=kind; return e; }
+function validatePseudo(name){
+  name=String(name||'').trim();
+  if(name.length<2 || name.length>30 || /[<>"`]/.test(name) || !pseudoKey(name)) throw pseudoErr('pseudoInvalid');
+  return name;
+}
+// Vérifie (sans rien écrire) qu'un pseudo est libre. email = email du futur compte.
+async function checkPseudoFree(name, email){
+  var key=pseudoKey(name);
+  if(key===pseudoKey(AUTHOR_NAME) && email!==AUTHOR_EMAIL) throw pseudoErr('pseudoReserved');
+  var snap;
+  try{ snap=await getDoc(doc(db,'usernames',key)); }
+  catch(e){ if(isDenied(e)){ console.warn('[pseudo] règles "usernames" pas encore installées : vérification ignorée'); return; } throw e; }
+  if(snap.exists() && (!currentUser || snap.data().uid!==currentUser.uid)) throw pseudoErr('pseudoTaken');
+}
+// Erreur "permission refusée" de Firestore (ex : règles pas encore collées dans la console)
+function isDenied(e){ return !!(e && (e.code==='permission-denied' || /permission/i.test(e.message||''))); }
+// Réserve le pseudo pour ce compte (ne fait rien s'il est déjà à lui).
+async function reservePseudo(user, name){
+  var key=pseudoKey(name);
+  if(key===pseudoKey(AUTHOR_NAME) && user.email!==AUTHOR_EMAIL) throw pseudoErr('pseudoReserved');
+  var ref=doc(db,'usernames',key);
+  var snap;
+  try{ snap=await getDoc(ref); }
+  catch(e){
+    // Règles "usernames" absentes : on ne bloque pas l'inscription (le pseudo sera réservé plus tard)
+    if(isDenied(e)){ console.warn('[pseudo] règles "usernames" pas encore installées : réservation ignorée'); return null; }
+    throw e;
+  }
+  if(snap.exists()){
+    if(snap.data().uid===user.uid) return key;
+    throw pseudoErr('pseudoTaken');
+  }
+  try{ await setDoc(ref,{ uid:user.uid, name:String(name).trim(), createdAt:serverTimestamp() }); }
+  catch(e){
+    // Quelqu'un l'a pris à la même seconde ? On relit pour être sûr.
+    try{ var again=await getDoc(ref); if(again.exists() && again.data().uid===user.uid) return key; }catch(_){}
+    throw pseudoErr('pseudoTaken');
+  }
+  return key;
+}
+// Comptes créés AVANT cette mise à jour : on réserve leur pseudo actuel une seule fois
+// (1 lecture par appareil, puis plus rien grâce au petit repère local).
+async function claimPseudoIfNeeded(user){
+  if(!user || !user.displayName || !db) return;
+  if((user.providerData||[]).some(function(pd){ return pd && pd.providerId==='google.com'; })) return;   // géré par afterGoogleSignIn
+  var flag='pseudo_ok_'+user.uid, key=pseudoKey(user.displayName);
+  if(safeGet(flag,'')===key) return;
+  try{ var ok=await reservePseudo(user, user.displayName); if(ok) safeSet(flag, key); }
+  catch(e){ if(e && e.pseudo) safeSet(flag, key); /* ancien doublon : on laisse tel quel */ }
+}
+// Compte connecté mais sans pseudo (nouveau compte Google) : on demande d'en choisir un.
+function needPseudo(){
+  if(currentUser && !currentUser.displayName){ authMode='pseudo'; renderAuthMode(); authMsg('',''); authOverlay.classList.add('show'); return true; }
+  return false;
+}
+// Contenu commun d'un commentaire (l'autrice signe "Youlo182" avec le badge protégé)
+function commentPayload(extra){
+  var base = isAuthor
+    ? { name: AUTHOR_NAME, uid: currentUser.uid, admin: true, ts: serverTimestamp() }
+    : { name: currentUser.displayName||'Anonyme', uid: currentUser.uid, ts: serverTimestamp() };
+  return Object.assign(base, extra||{});
+}
+
+// ---- CONNEXION GOOGLE ----
+async function afterGoogleSignIn(user){
+  var data=null;
+  try{ var snap=await getDoc(doc(db,'users',user.uid)); data = snap.exists() ? snap.data() : null; }catch(e){}
+  if(data && data.displayName && data.displayName!=='Anonyme'){
+    // Compte déjà connu : on garde SON pseudo (jamais le vrai nom Google)
+    if(user.displayName!==data.displayName){ try{ await updateProfile(user,{displayName:data.displayName}); }catch(e){} }
+    try{ await reservePseudo(user, data.displayName); }catch(e){}
+    currentUser=auth.currentUser||user; updateAccountLabel(); updateCommentForm();
+    authOverlay.classList.remove('show');
+    return;
+  }
+  // Nouveau compte Google : on retire le vrai nom tout de suite, puis on demande un pseudo
+  try{ await updateProfile(user,{displayName:null}); }catch(e){}
+  currentUser=auth.currentUser||user; updateAccountLabel(); updateCommentForm();
+  authMode='pseudo'; renderAuthMode(); authMsg('',''); authOverlay.classList.add('show');
+}
+document.getElementById('authGoogle').onclick=async function(){
+  authMsg('','');
+  if(!firebaseReady||!auth) return;
+  var provider=new GoogleAuthProvider();
+  try{ provider.setCustomParameters({prompt:'select_account'}); }catch(e){}
+  try{
+    var cred=await signInWithPopup(auth, provider);
+    await afterGoogleSignIn(cred.user);
+  }catch(e){
+    var c=(e&&e.code)||'';
+    if(c==='auth/popup-closed-by-user' || c==='auth/cancelled-popup-request') return;
+    if(c==='auth/popup-blocked' || c==='auth/operation-not-supported-in-this-environment'){
+      try{ await signInWithRedirect(auth, provider); return; }catch(e2){ e=e2; }
+    }
+    authMsg('error', authErrMsg(e));
+  }
+};
+// ---- MOT DE PASSE OUBLIÉ ----
+document.getElementById('authForgot').onclick=async function(){
+  var t=UI[lang];
+  var email=document.getElementById('authEmail').value.trim();
+  if(!email){ authMsg('error', t.forgotNeedEmail); document.getElementById('authEmail').focus(); return; }
+  if(!firebaseReady||!auth) return;
+  try{ auth.languageCode=lang; await sendPasswordResetEmail(auth, email); authMsg('info', t.forgotSent); }
+  catch(e){
+    // Par sécurité on ne dit pas si l'email existe ou non
+    if(e && e.code==='auth/user-not-found'){ authMsg('info', t.forgotSent); return; }
+    authMsg('error', authErrMsg(e));
+  }
+};
 document.getElementById('accountBtn').onclick=function(){
   if(currentUser){ openAccount(); } else { openAuth(); }
 };
@@ -1214,37 +1460,81 @@ document.getElementById('authClose').onclick=function(){ authOverlay.classList.r
 document.getElementById('authSubmit').onclick=async function(){
   const email=document.getElementById('authEmail').value.trim();
   const pass=document.getElementById('authPassword').value;
-  const errEl=document.getElementById('authError');
-  errEl.classList.remove('show');
+  const btn=this;
+  authMsg('','');
+  if(!firebaseReady||!auth) return;
+  if(btn.dataset.busy==='1') return;
+  btn.dataset.busy='1';
   try{
+    var _nl=document.getElementById('authNewsletter'); var wantsNL = !!(_nl && _nl.checked);
     if(authMode==='signup'){
-      const name=document.getElementById('authDisplayName').value.trim()||'Anonyme';
+      const name=validatePseudo(document.getElementById('authDisplayName').value);
+      await checkPseudoFree(name, email);          // pseudo libre ? (avant de créer le compte)
       const cred=await createUserWithEmailAndPassword(auth,email,pass);
+      var reserved=null;
+      try{ reserved=await reservePseudo(cred.user, name); }
+      catch(err){ try{ await cred.user.delete(); }catch(_){} throw err; }   // pris entre-temps : on annule le compte
       await updateProfile(cred.user,{displayName:name});
-      var _nl=document.getElementById('authNewsletter'); var wantsNL = !!(_nl && _nl.checked);
+      if(reserved) safeSet('pseudo_ok_'+cred.user.uid, reserved);
       await setDoc(doc(db,'users',cred.user.uid),{displayName:name,email:email,newsletter:wantsNL,createdAt:serverTimestamp()},{merge:true});
+      currentUser=auth.currentUser; updateAccountLabel(); updateCommentForm();
+    } else if(authMode==='pseudo'){
+      if(!currentUser) throw new Error('auth');
+      const name=validatePseudo(document.getElementById('authDisplayName').value);
+      var reservedP=await reservePseudo(currentUser, name);
+      await updateProfile(currentUser,{displayName:name});
+      if(reservedP) safeSet('pseudo_ok_'+currentUser.uid, reservedP);
+      await setDoc(doc(db,'users',currentUser.uid),{displayName:name,email:currentUser.email||'',newsletter:wantsNL,createdAt:serverTimestamp()},{merge:true});
+      currentUser=auth.currentUser; updateAccountLabel(); updateCommentForm();
+      if(currentBook && document.getElementById('reader').style.display!=='none'){ try{ loadComments(); }catch(e){} }
     } else {
       await signInWithEmailAndPassword(auth,email,pass);
     }
     authOverlay.classList.remove('show');
     document.getElementById('authEmail').value=''; document.getElementById('authPassword').value=''; document.getElementById('authDisplayName').value='';
   }catch(e){
-    errEl.textContent = e.message.replace('Firebase: ','');
-    errEl.classList.add('show');
-  }
+    authMsg('error', authErrMsg(e));
+  }finally{ btn.dataset.busy=''; }
 };
 
 // (auth state wired inside initFirebase once Firebase loads)
 
 // ---- PROGRESS (Firestore if logged in, else localStorage) ----
+// AVANT : la bibliothèque lisait Firebase UNE FOIS PAR HISTOIRE affichée (des dizaines
+// de lectures à chaque retour à la bibliothèque). MAINTENANT : on lit toute la
+// progression de la lectrice en UNE requête par visite, puis on la garde en mémoire.
+var __progCache=null, __progCacheUid=null, __progLoading=null;
+function loadAllProgress(){
+  if(!(currentUser && firebaseReady && db)) return Promise.resolve(null);
+  var uid=currentUser.uid;
+  if(__progCache && __progCacheUid===uid) return Promise.resolve(__progCache);
+  if(__progLoading && __progLoading.uid===uid) return __progLoading.p;
+  var pr=getDocs(collection(db,'users',uid,'progress')).then(function(snap){
+    var m={}; snap.forEach(function(d){ m[d.id]=d.data(); });
+    if(currentUser && currentUser.uid===uid){ __progCache=m; __progCacheUid=uid; }
+    __progLoading=null; return m;
+  }).catch(function(e){ __progLoading=null; return null; });
+  __progLoading={uid:uid, p:pr};
+  return pr;
+}
+function __progCachePut(bookId, patch, replace){
+  if(__progCache && currentUser && __progCacheUid===currentUser.uid){
+    __progCache[bookId] = replace ? Object.assign({}, patch) : Object.assign({}, __progCache[bookId]||{}, patch);
+  }
+}
 async function getProgress(bookId){
   if(currentUser && firebaseReady && db){
+    var m=await loadAllProgress();
+    if(m) return m[bookId]||{ch:0};
     try{ const s=await getDoc(doc(db,'users',currentUser.uid,'progress',bookId)); return s.exists()?s.data():{ch:0}; }catch(e){ return {ch:0}; }
   }
   try{ return JSON.parse(safeGet('prog_'+bookId,'{"ch":0}')); }catch(e){ return {ch:0}; }
 }
 async function setProgress(bookId,ch){
   if(currentUser && firebaseReady && db){
+    // Déjà enregistré sur ce chapitre : pas besoin de réécrire (économise des écritures)
+    if(__progCache && __progCacheUid===currentUser.uid && __progCache[bookId] && __progCache[bookId].ch===ch) return;
+    __progCachePut(bookId, {ch:ch}, true);
     try{ await setDoc(doc(db,'users',currentUser.uid,'progress',bookId),{ch:ch,updatedAt:serverTimestamp()}); }catch(e){}
   } else {
     safeSet('prog_'+bookId,JSON.stringify({ch}));
@@ -1291,6 +1581,7 @@ function flushScrollToCloud(){
   var frac=bumpMaxFrac();   // on garde le point le plus loin atteint
   try{ safeSet(scrollKey(), String(frac)); }catch(e){}
   if(currentUser && firebaseReady && db){
+    __progCachePut(currentBook.id+'_'+lang, {ch:currentCh, sc:frac}, false);
     try{ setDoc(doc(db,'users',currentUser.uid,'progress',currentBook.id+'_'+lang),{ch:currentCh, sc:frac, updatedAt:serverTimestamp()},{merge:true}); }catch(e){}
   }
 }
@@ -1367,9 +1658,8 @@ function renderLibrary(){
   if(_tz) _tz.style.display = (typeFilter==='all' && !searchQuery) ? 'flex' : 'none';
   // Carte "Reprendre ta lecture" : mêmes conditions que la bannière.
   try{ renderResumeLast(typeFilter==='all' && !searchQuery); }catch(e){ console.warn('resumeLast', e&&e.message); }
-  if(unsubComments){ unsubComments(); unsubComments=null; }
-  if(unsubLikes){ unsubLikes(); unsubLikes=null; }
   currentSaga=null;
+  bootstrapSeen();
   const books = BOOKS.filter(function(b){
     // Histoire programmee : masquee tant que la date de sortie n'est pas atteinte
     if(b.releaseAt && Date.now() < new Date(b.releaseAt).getTime()) return false;
@@ -1410,7 +1700,7 @@ function renderLibrary(){
       '<div class="cover">'+coverImg(tomes[0])+'</div>'+
       '<div class="book-info" style="flex:1">'+
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;"><h3>'+title+'</h3><span class="type-badge">'+(lang==='fr'?'Saga':'Series')+'</span></div>'+
-        '<div class="meta">'+nbTomes+(lang==='fr'?' tomes':' books')+'</div>'+
+        '<div class="meta">'+nbTomes+(lang==='fr'?' tomes':' books')+(function(){ var nb=tomes.find(function(tb){ return newBadgeHTML(tb); }); return nb?newBadgeHTML(nb):''; })()+'</div>'+
         '<div class="summary">'+summary+'</div>'+
         '<div class="tags">'+tags.map(t=>'<span class="tag">'+t+'</span>').join('')+'</div>'+
         '<div style="margin-top:10px;color:var(--accent-l);font-weight:700;font-size:13px;">'+(lang==='fr'?'Voir les tomes →':'View books →')+'</div>'+
@@ -1426,7 +1716,7 @@ function renderLibrary(){
       '<div class="cover">'+coverImg(b)+'</div>'+
       '<div class="book-info" style="flex:1">'+
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;"><h3>'+d.title+'</h3><span class="type-badge">'+TYPE_LABEL[b.type]+'</span></div>'+
-        '<div class="meta">'+total+(lang==='fr'?' chapitre':' chapter')+(total>1?'s':'')+(__viewStats[b.id]?(' · 👁️ '+__viewStats[b.id]+(lang==='fr'?' lectures':' reads')):'')+'</div>'+
+        '<div class="meta">'+total+(lang==='fr'?' chapitre':' chapter')+(total>1?'s':'')+(__viewStats[b.id]?(' · 👁️ '+__viewStats[b.id]+(lang==='fr'?' lectures':' reads')):'')+newBadgeHTML(b)+'</div>'+
         '<div class="summary">'+d.summary+'</div>'+
         '<div class="tags">'+b.tags.map(t=>'<span class="tag">'+t+'</span>').join('')+'</div>'+
         '<div class="progress-mini" id="pm_'+b.id+'" style="display:none;"><div class="bar"><div class="fill" style="width:0"></div></div><div class="lbl"></div></div>'+
@@ -1471,7 +1761,7 @@ window.openSaga=function(name){
       '<div class="cover">'+coverImg(b)+'</div>'+
       '<div class="book-info" style="flex:1">'+
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;"><h3>'+d.title+'</h3><span class="type-badge">'+(lang==='fr'?'Tome ':'Book ')+(b.tome||'')+'</span></div>'+
-        '<div class="meta">'+total+(lang==='fr'?' chapitres':' chapters')+'</div>'+
+        '<div class="meta">'+total+(lang==='fr'?' chapitres':' chapters')+newBadgeHTML(b)+'</div>'+
         '<div class="summary">'+d.summary+'</div>'+
         '<div class="progress-mini" id="pm_'+b.id+'" style="display:none;"><div class="bar"><div class="fill" style="width:0"></div></div><div class="lbl"></div></div>'+
       '</div>'+
@@ -1504,19 +1794,13 @@ const __viewedThisSession = {};
 const __statsQueue = [];   // { field, delta, bookId } en attente de réécriture
 let __statsFlushTimer = null;
 
+// increment() : Firebase ajoute +1 directement côté serveur, SANS relire le document
+// (avant : 1 lecture + 1 écriture à chaque vue/like/commentaire, et des conflits).
 async function __writeBump(field, delta, bookId){
   const ref = doc(db, 'stats', 'totals');
-  await runTransaction(db, async function(tx){
-    const s = await tx.get(ref);
-    const data = s.exists() ? s.data() : {};
-    data[field] = (data[field]||0) + delta;                 // total global
-    if(bookId){
-      data.byStory = data.byStory || {};
-      data.byStory[bookId] = data.byStory[bookId] || {views:0,likes:0,comments:0};
-      data.byStory[bookId][field] = (data.byStory[bookId][field]||0) + delta;
-    }
-    tx.set(ref, data, {merge:true});
-  });
+  const patch = {}; patch[field] = increment(delta);      // total global
+  if(bookId){ const one = {}; one[field] = increment(delta); patch.byStory = {}; patch.byStory[bookId] = one; }
+  await setDoc(ref, patch, {merge:true});
 }
 
 function __scheduleStatsFlush(){
@@ -1526,7 +1810,12 @@ function __scheduleStatsFlush(){
     if(!__statsQueue.length) return;
     const job = __statsQueue.shift();
     try{ await __writeBump(job.field, job.delta, job.bookId); }
-    catch(e){ __statsQueue.unshift(job); }   // remet en tête si ça échoue encore
+    catch(e){
+      // remet en tête si ça échoue encore (5 essais max, jamais si c'est un refus des règles)
+      job.tries=(job.tries||0)+1;
+      var c=String((e && (e.code||e.message))||'');
+      if(job.tries<5 && !/permission|invalid-argument|not-found/i.test(c)) __statsQueue.unshift(job);
+    }
     if(__statsQueue.length) __scheduleStatsFlush();
   }, 1500 + Math.random()*1000);   // délai pour laisser la contention retomber
 }
@@ -1538,10 +1827,12 @@ async function bumpTotals(field, delta, bookId){
     try{ await __writeBump(field, delta, bookId); return; }
     catch(e){
       const code=(e && (e.code||e.message||'')).toString();
+      // Refus définitif (règles Firestore) : inutile de réessayer en boucle
+      if(/permission|invalid-argument|not-found/i.test(code)) return;
       const transient=/unavailable|aborted|deadline|resource-exhausted|Quota|contention/i.test(code);
       if(transient && n===0){ await new Promise(r=>setTimeout(r,400+Math.random()*300)); continue; }
-      // échec : on ne perd pas l'incrément, on le met en file pour plus tard
-      __statsQueue.push({field, delta, bookId});
+      // échec : on ne perd pas l'incrément, on le met en file pour plus tard (20 max)
+      if(__statsQueue.length < 20) __statsQueue.push({field, delta, bookId});
       __scheduleStatsFlush();
       return;   // ne bloque jamais l'appelant
     }
@@ -1552,12 +1843,7 @@ async function countView(bookId){
   if(__viewedThisSession[bookId]) return;   // évite de compter plusieurs fois dans la même visite
   __viewedThisSession[bookId] = true;
   try{
-    const ref = doc(db, 'views', bookId);
-    await runTransaction(db, async function(tx){
-      const s = await tx.get(ref);
-      const cur = (s.exists() && s.data().count) ? s.data().count : 0;
-      tx.set(ref, { count: cur + 1, updatedAt: serverTimestamp() }, { merge:true });
-    });
+    // (l'ancien compteur views/{id} n'était lu nulle part : supprimé, stats/totals suffit)
     bumpTotals('views', 1, bookId);
   }catch(e){ /* silencieux : le comptage ne doit jamais gêner la lecture */ }
 }
@@ -1630,6 +1916,9 @@ window.openBook=async function(id){
   }
   // Mémoriser la dernière histoire ouverte (local, 0 appel réseau) pour la reprise rapide.
   try{ markLastBook(currentBook); }catch(e){}
+  // Nouveaux chapitres depuis la dernière visite : petite étoile dans la liste des chapitres
+  window.__seenBefore = currentBook ? getSeenCount(currentBook) : null;
+  if(currentBook) markSeen(currentBook);
   let p={ch:0};
   try{ p=await getProgress(id+'_'+lang); }catch(e){}
   currentCh=(p&&p.ch)||0;
@@ -1644,12 +1933,14 @@ window.openBook=async function(id){
 function renderChapterNav(){
   const chs=currentBook[lang].chapters;
   document.getElementById('chapterNav').innerHTML=chs.map(function(c,i){
-    return '<button class="'+(i===currentCh?'active':'')+'" onclick="goChapter('+i+')">Ch. '+(i+1)+'</button>';
+    var isNew = (typeof window.__seenBefore==='number' && i>=window.__seenBefore);
+    return '<button class="'+(i===currentCh?'active':'')+'" onclick="goChapter('+i+')"'+(isNew?' title="'+(lang==='fr'?'Nouveau chapitre':'New chapter')+'"':'')+'>Ch. '+(i+1)+(isNew?'<span class="new-dot">✨</span>':'')+'</button>';
   }).join('');
 }
 window.goChapter=function(i){ currentCh=i; renderChapter(); window.scrollTo(0,0); };
 
 function chapterKey(){ return currentBook.id+'_'+lang+'_'+currentCh; }
+function chapterKeySafe(){ try{ return currentBook ? chapterKey() : ''; }catch(e){ return ''; } }
 
 // Cache des chapitres déjà chargés (clé: url du fichier)
 const __chapterCache = {};
@@ -1665,6 +1956,16 @@ async function fetchChapterHTML(book, langCode, chIndex){
   txt = txt.replace(/(<img[^>]*\ssrc=")(images\/)/g, '$1' + base + '$2');
   __chapterCache[url] = txt;
   return txt;
+}
+// Temps de lecture estimé (environ 230 mots par minute), affiché sous le titre du chapitre
+function readTimeHTML(html){
+  try{
+    var txt=String(html||'').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&[a-z#0-9]+;/gi,' ');
+    var words=(txt.match(/[^\s]+/g)||[]).length;
+    if(words<40) return '';
+    var min=Math.max(1, Math.round(words/230));
+    return '<div class="read-time">⏱️ ~'+min+' '+UI[lang].readTime+'</div>';
+  }catch(e){ return ''; }
 }
 function chapterCoverHTML(){
   // Affiche la couverture en haut, uniquement au 1er chapitre, si l'histoire a une cover
@@ -1686,7 +1987,7 @@ async function renderChapter(){
     body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2><p style="opacity:.6">…</p>';
     try{
       const html = await fetchChapterHTML(currentBook, fetchLang, currentCh);
-      body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2>'+html;
+      body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2>'+readTimeHTML(html)+html;
     }catch(e){
       body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2><p style="opacity:.7">⚠️ '+
         (lang==='fr'?'Chapitre indisponible pour le moment.':'Chapter unavailable right now.')+'</p>';
@@ -1697,6 +1998,7 @@ async function renderChapter(){
     body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2>'+(ch.text||[]).map(p=>'<p>'+p+'</p>').join('');
   }
   renderChapterNav();
+  try{ refreshOfflineBtn(); }catch(e){}
   setProgress(currentBook.id+'_'+lang,currentCh);
   subscribeLikes();
   subscribeComments();
@@ -1745,6 +2047,7 @@ async function loadLikes(){
     const data=snap.exists()?snap.data():{count:0,users:{}};
     const count=data.count||0;
     myLiked = !!(currentUser && data.users && data.users[currentUser.uid]);
+    __likeStateFor = key+'|'+(currentUser?currentUser.uid:'');
     const cEl=document.getElementById('likeCount'); if(cEl) cEl.textContent=count;
     const bEl=document.getElementById('likeBtn'); if(bEl) bEl.className='like-btn'+(myLiked?' liked':'');
   }catch(e){ /* silencieux : l'affichage garde l'état précédent */ }
@@ -1761,35 +2064,13 @@ async function doLike(mode){
   if(btn && btn.dataset.busy==='1') return;   // évite le double-clic
   if(btn) btn.dataset.busy='1';
   let likeDelta=0;
-  // Petit utilitaire : réessaie la transaction en cas de contention passagère
-  async function attempt(n){
-    try{
-      await runTransaction(db, async function(tx){
-        const s=await tx.get(ref);
-        let data=s.exists()?s.data():{count:0,users:{}};
-        if(!data.users) data.users={};
-        if(data.users[currentUser.uid]){
-          if(addOnly){ likeDelta=0; }   // deja aime + mode ajout : on ne retire pas
-          else { delete data.users[currentUser.uid]; data.count=Math.max(0,(data.count||0)-1); likeDelta=-1; }
-        }
-        else { data.users[currentUser.uid]=true; data.count=(data.count||0)+1; likeDelta=1; }
-        tx.set(ref,data);
-      });
-      return true;
-    }catch(e){
-      const code=(e && (e.code||e.message||'')).toString();
-      const transient = /unavailable|aborted|deadline|resource-exhausted|Quota|contention/i.test(code);
-      if(transient && n>0){
-        await new Promise(function(r){ setTimeout(r, 400*(4-n) + Math.random()*300); });
-        return attempt(n-1);
-      }
-      throw e;
-    }
-  }
   try{
-    await attempt(3);
+    // On connaît déjà l'état (lu à l'affichage du chapitre) : plus besoin de transaction.
+    if(__likeStateFor!==key+'|'+currentUser.uid){ await loadLikes(); }
+    if(__likeStateFor!==key+'|'+currentUser.uid) throw new Error('like state unknown');
+    if(!(addOnly && myLiked)){ likeDelta = await toggleLikeDoc(ref, myLiked); }
     // Mise à jour LOCALE de l'affichage (plus de listener temps réel pour le faire).
-    if(likeDelta!==0){
+    if(likeDelta!==0 && chapterKeySafe()===key){   // (si on a déjà changé de chapitre, ne pas toucher à son affichage)
       myLiked = (likeDelta>0);
       const cEl=document.getElementById('likeCount');
       if(cEl){ const cur=parseInt(cEl.textContent,10)||0; cEl.textContent=Math.max(0,cur+likeDelta); }
@@ -1810,12 +2091,23 @@ async function doLike(mode){
   }
 }
 document.getElementById('likeBtn').onclick=function(){ doLike(); };
+// Ajoute/retire un j'aime avec increment() : 1 seule écriture, 0 lecture.
+// Les règles Firestore vérifient que le compteur reste cohérent avec la liste des "j'aime".
+async function toggleLikeDoc(ref, currentlyLiked){
+  var uid=currentUser.uid;
+  if(currentlyLiked){
+    var upd={ count: increment(-1) }; upd['users.'+uid]=deleteField();
+    await updateDoc(ref, upd);
+    return -1;
+  }
+  var users={}; users[uid]=true;
+  await setDoc(ref, { count: increment(1), users: users }, { merge:true });
+  return 1;
+}
 
 // ---- COMMENTS (Firestore, live) ----
-let replyUnsubs=[];
 var __chapterComments=[];   // tous les commentaires du chapitre courant (en mémoire, pour la popup)
 window.__currentPassageQuote='';  // le passage actuellement ouvert dans la popup de lecture
-function clearReplyUnsubs(){ replyUnsubs.forEach(function(u){ try{u();}catch(e){} }); replyUnsubs=[]; }
 // Lecture PONCTUELLE des commentaires (plus de listener temps réel : on ne
 // re-lit Firestore que quand c'est nécessaire — au chargement du chapitre et
 // après chaque action de l'utilisateur). Économise énormément de lectures.
@@ -1824,6 +2116,7 @@ function clearReplyUnsubs(){ replyUnsubs.forEach(function(u){ try{u();}catch(e){
 function subscribeComments(){ return loadComments(); }
 async function loadComments(){
   if(!firebaseReady||!db){ document.getElementById('commentList').innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les commentaires 💬':'Sign in online to see comments 💬')+'</div>'; return; }
+  await ensureAuthorUid();
   const key=chapterKey();
   const q=query(collection(db,'comments',key,'items'), orderBy('ts','desc'));
   let snap;
@@ -1834,14 +2127,15 @@ async function loadComments(){
   // Tout charger UNE fois en mémoire (généraux + passages + réponses).
   var __allC=[];
   snap.forEach(function(d){ __allC.push({id:d.id, data:d.data(), replies:[]}); });
-  // Charger les réponses de chaque commentaire (une lecture chacune) — gardées en mémoire.
-  for(const item of __allC){
+  // Charger les réponses de chaque commentaire (une lecture chacune, en parallèle) — gardées en mémoire.
+  await Promise.all(__allC.map(async function(item){
     const rq=query(collection(db,'comments',key,'items',item.id,'replies'), orderBy('ts','asc'));
     try{
       const rsnap=await getDocs(rq);
       rsnap.forEach(function(rd){ item.replies.push(rd.data()); });
     }catch(e){ /* silencieux */ }
-  }
+  }));
+  if(key!==chapterKeySafe()) return;   // la lectrice a changé de chapitre entre-temps
   // Mémoriser pour la popup de passage (aucune relecture Firebase au clic).
   __chapterComments = __allC;
   // Séparer : généraux (sans quote) vs commentaires de passage (avec quote).
@@ -1868,9 +2162,9 @@ function commentCardHTML(o){
       + '</div>';
   }
   var repliesHTML='';
-  (o.replies||[]).forEach(function(r){ var isA = r.admin===true || r.name==='Youlo182';
+  (o.replies||[]).forEach(function(r){ var isA = isAuthorDoc(r);
     repliesHTML+='<div class="'+(isA?'author-reply':'reader-reply')+'"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(r.name||'Anonyme')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
-  return '<div class="comment" data-cid="'+cid+'">'+quote+'<div class="who">'+escapeHtml(c.name||'Anonyme')+'</div><div class="txt" id="ctxt_'+cid+'">'+escapeHtml(c.text||'')+'</div>'+actions+'<div id="ar_'+cid+'">'+repliesHTML+'</div>'+authorBox+'</div>';
+  return '<div class="comment" data-cid="'+cid+'">'+quote+'<div class="who">'+(isAuthorDoc(c)?'✍️ ':'')+escapeHtml(c.name||'Anonyme')+'</div><div class="txt" id="ctxt_'+cid+'">'+escapeHtml(c.text||'')+'</div>'+actions+'<div id="ar_'+cid+'">'+repliesHTML+'</div>'+authorBox+'</div>';
 }
 
 // Affiche les commentaires généraux, repliés derrière un bouton "Voir les commentaires (X)".
@@ -2042,15 +2336,13 @@ async function sendPassageComment(){
   var ta=document.getElementById('ppText'); if(!ta) return;
   var text=ta.value.trim(); if(!text) return;
   if(!currentUser){ alert(UI[lang].mustLogin); closePassagePopup(); openAuth(); return; }
+  if(needPseudo()){ closePassagePopup(); return; }
   var key=chapterKey();
   try{
-    await addDoc(collection(db,'comments',key,'items'),{
-      name: currentUser.displayName||'Anonyme',
-      uid: currentUser.uid,
+    await addDoc(collection(db,'comments',key,'items'), commentPayload({
       text: text,
-      quote: (window.__selectedQuote||''),
-      ts: serverTimestamp()
-    });
+      quote: (window.__selectedQuote||'')
+    }));
     if(currentBook){ bumpTotals('comments', 1, currentBook.id); }
     closePassagePopup();
     var s=window.getSelection(); if(s) s.removeAllRanges();
@@ -2164,12 +2456,13 @@ window.deleteComment=async function(cid, asAuthor){
 
 window.postReply=async function(cid){
   if(!currentUser){ alert(UI[lang].mustLogin); openAuth(); return; }
+  if(needPseudo()) return;
   const inp=document.getElementById('arin_'+cid); if(!inp)return;
   const text=inp.value.trim(); if(!text)return;
   const key=chapterKey();
-  const replierName = isAuthor ? 'Youlo182' : (currentUser.displayName||'Anonyme');
+  const replierName = isAuthor ? AUTHOR_NAME : (currentUser.displayName||'Anonyme');
   const payload = isAuthor
-    ? { name:'Youlo182', uid:currentUser.uid, text:text, admin:true, ts:serverTimestamp() }
+    ? { name:AUTHOR_NAME, uid:currentUser.uid, text:text, admin:true, ts:serverTimestamp() }
     : { name:replierName, uid:currentUser.uid, text:text, ts:serverTimestamp() };
   try{
     await addDoc(collection(db,'comments',key,'items',cid,'replies'), payload);
@@ -2186,17 +2479,24 @@ async function createReplyNotification(key, cid, replierName, text){
   var myUid = currentUser ? currentUser.uid : null;
   // 1) Rassembler tous les participants du fil (auteur du commentaire + auteurs des réponses)
   var targets = {};   // uid -> true (set)
-  try{
-    var parentSnap = await getDoc(doc(db,'comments',key,'items',cid));
-    if(parentSnap.exists()){
-      var pu = parentSnap.data().uid;
-      if(pu) targets[pu] = true;
-    }
-  }catch(e){ console.warn('notif parent', e.message); }
-  try{
-    var repliesSnap = await getDocs(collection(db,'comments',key,'items',cid,'replies'));
-    repliesSnap.forEach(function(rd){ var ru = rd.data().uid; if(ru) targets[ru] = true; });
-  }catch(e){ console.warn('notif replies', e.message); }
+  // Le fil est déjà en mémoire (chargé pour l'affichage) : pas besoin de le relire.
+  var mem = (key==='about') ? __aboutThreads[cid] : (__chapterComments||[]).find(function(o){ return o.id===cid; });
+  if(mem && mem.data){
+    if(mem.data.uid) targets[mem.data.uid] = true;
+    (mem.replies||[]).forEach(function(r){ if(r && r.uid) targets[r.uid] = true; });
+  } else {
+    try{
+      var parentSnap = await getDoc(doc(db,'comments',key,'items',cid));
+      if(parentSnap.exists()){
+        var pu = parentSnap.data().uid;
+        if(pu) targets[pu] = true;
+      }
+    }catch(e){ console.warn('notif parent', e.message); }
+    try{
+      var repliesSnap = await getDocs(collection(db,'comments',key,'items',cid,'replies'));
+      repliesSnap.forEach(function(rd){ var ru = rd.data().uid; if(ru) targets[ru] = true; });
+    }catch(e){ console.warn('notif replies', e.message); }
+  }
   // Retirer soi-même
   if(myUid) delete targets[myUid];
   var uids = Object.keys(targets);
@@ -2210,7 +2510,7 @@ async function createReplyNotification(key, cid, replierName, text){
   var payload = {
     type: 'reply',
     fromName: replierName,
-    fromAdmin: (replierName==='Youlo182'),
+    fromAdmin: !!isAuthor,
     preview: (text.length>80 ? text.slice(0,80)+'…' : text),
     bookId: bookId, lang: nlang, ch: ch, commentId: cid,
     isAbout: isAbout,
@@ -2227,12 +2527,12 @@ async function createReplyNotification(key, cid, replierName, text){
 }
 
 // ==================== CLOCHE DE NOTIFICATIONS ====================
-var __unsubNotifs=null; var __notifs=[];
+var __notifs=[];
 // Lecture PONCTUELLE des notifications (plus de listener permanent).
 // On charge à la connexion, puis on rafraîchit à l'ouverture de la cloche.
 async function refreshNotifs(){
   if(!firebaseReady||!db||!currentUser) return;
-  var q=query(collection(db,'notifications',currentUser.uid,'items'), orderBy('ts','desc'));
+  var q=query(collection(db,'notifications',currentUser.uid,'items'), orderBy('ts','desc'), limit(30));   // les 30 plus récentes suffisent
   try{
     var snap=await getDocs(q);
     __notifs=[];
@@ -2439,17 +2739,15 @@ try{ syncFloatBar(); }catch(e){}
 
 document.getElementById('cSend').onclick=async function(){
   if(!currentUser){ alert(UI[lang].mustLogin); openAuth(); return; }
+  if(needPseudo()) return;
   const text=document.getElementById('cText').value.trim();
   if(!text)return;
   const key=chapterKey();
   try{
-    await addDoc(collection(db,'comments',key,'items'),{
-      name: currentUser.displayName||'Anonyme',
-      uid: currentUser.uid,
+    await addDoc(collection(db,'comments',key,'items'), commentPayload({
       text: text,
-      quote: (window.__pendingQuote||''),
-      ts: serverTimestamp()
-    });
+      quote: (window.__pendingQuote||'')
+    }));
     document.getElementById('cText').value='';
     window.__pendingQuote=''; var qb=document.getElementById('quoteBadge'); if(qb) qb.style.display='none';
     if(currentBook){ bumpTotals('comments', 1, currentBook.id); }
@@ -2678,6 +2976,9 @@ window.shareStory=async function(){
     var t = (currentBook[lang]&&currentBook[lang].title) || (currentBook.fr&&currentBook.fr.title) || '';
     title = t + " — Youlo182";
     url = location.origin + location.pathname + "?story=" + encodeURIComponent(currentBook.id);
+    // En ligne : lien court /s/ID qui affiche la couverture et le titre de l'histoire
+    // dans Insta/Discord/WhatsApp (fonction Cloudflare functions/s/[id].js)
+    if(/\.pages\.dev$/.test(location.hostname) || /youlo182/i.test(location.hostname)){ url = location.origin + "/s/" + encodeURIComponent(currentBook.id); }
   }
   var shareData = { title: title, text: (lang==='fr'?'Découvre cette histoire sur Youlo182 💛':'Check out this story on Youlo182 💛'), url: url };
   try{
@@ -2707,7 +3008,46 @@ function openStoryFromURL(){
   }catch(e){}
 }
 
-// Enregistrer le service worker (PWA installable)
+// ==================== LECTURE HORS-LIGNE ====================
+// Télécharge tous les chapitres de l'histoire ouverte dans le cache du navigateur.
+// Ensuite le service worker (sw.js) les sert même sans internet. Coût Firebase : 0.
+var OFFLINE_CACHE = 'youlo182-stories';   // même nom que dans sw.js
+function offlineUrls(book){
+  var L = book.onlyLang || lang;
+  var n = (book[L] && book[L].chapters) ? book[L].chapters.length : 0;
+  var urls=[]; for(var i=0;i<n;i++){ urls.push(book.path+'/'+L+'/ch'+(i+1)+'.html'); }
+  if(book.cover) urls.push(book.cover);
+  return urls;
+}
+function refreshOfflineBtn(){
+  var btn=document.getElementById('offlineBtn'), lbl=document.getElementById('offlineLabel');
+  if(!btn) return;
+  if(!('caches' in window) || !currentBook || !currentBook.path){ btn.style.display='none'; return; }
+  btn.style.display='';
+  lbl.textContent = (safeGet('offline_'+currentBook.id+'_'+(currentBook.onlyLang||lang),'')==='1') ? UI[lang].offlineDone : UI[lang].offline;
+}
+(function(){
+  var btn=document.getElementById('offlineBtn'); if(!btn) return;
+  btn.addEventListener('click', async function(){
+    if(!currentBook || !('caches' in window) || btn.dataset.busy==='1') return;
+    var lbl=document.getElementById('offlineLabel');
+    var book=currentBook, urls=offlineUrls(book), done=0;
+    btn.dataset.busy='1';
+    try{
+      var cache=await caches.open(OFFLINE_CACHE);
+      for(var i=0;i<urls.length;i++){
+        lbl.textContent=UI[lang].offlineSaving+' '+Math.round((done/urls.length)*100)+'%';
+        try{ var r=await fetch(urls[i], {cache:'no-cache'}); if(r && r.ok) await cache.put(urls[i], r.clone()); }catch(e){}
+        done++;
+      }
+      safeSet('offline_'+book.id+'_'+(book.onlyLang||lang),'1');
+      lbl.textContent=UI[lang].offlineDone;
+    }catch(e){ lbl.textContent=UI[lang].offlineFail; }
+    finally{ btn.dataset.busy=''; }
+  });
+})();
+
+// Enregistrer le service worker (PWA installable + lecture hors-ligne)
 if('serviceWorker' in navigator){
   window.addEventListener('load', function(){
     navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('SW', e.message); });
@@ -2754,8 +3094,28 @@ var LEGAL = {
   if(overlay) overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.classList.remove('show'); });
 })();
 
+// ==================== AVERTISSEMENT 18+ ====================
+// Affiché une seule fois par appareil. Pour le désactiver : mettre false.
+var AGE_NOTICE = true;
+function showAgeNotice(){
+  if(!AGE_NOTICE || safeGet('age_ok','')==='1') return;
+  var ov=document.getElementById('ageOverlay'); if(!ov) return;
+  var isEN=(lang==='en');
+  document.getElementById('ageTitle').textContent = isEN ? 'Before you start 🔞' : 'Avant de commencer 🔞';
+  document.getElementById('ageText').innerHTML = isEN
+    ? 'My stories are written for an <b>adult audience</b>: some contain mature scenes and themes (18+).'
+    : 'Mes histoires sont écrites pour un <b>public adulte</b> : certaines contiennent des scènes et des thèmes matures (18+).';
+  document.getElementById('ageText2').textContent = isEN ? 'By continuing, you confirm you are 18 or older.' : 'En continuant, tu confirmes avoir 18 ans ou plus.';
+  document.getElementById('ageYes').textContent = isEN ? 'I am 18 or older, let me in 💛' : "J'ai 18 ans ou plus, j'entre 💛";
+  document.getElementById('ageNo').textContent = isEN ? 'Leave' : 'Quitter';
+  document.getElementById('ageYes').onclick=function(){ safeSet('age_ok','1'); ov.classList.remove('show'); };
+  document.getElementById('ageNo').onclick=function(){ location.href='https://www.google.com'; };
+  ov.classList.add('show');
+}
+
 async function __init(){
   try{ applyUILang(); }catch(e){ console.error('applyUILang',e); }
+  try{ showAgeNotice(); }catch(e){}
   await loadRealStories();
   try{ renderLibrary(); }catch(e){ console.error('renderLibrary',e); }
   try{ initTeaser(); }catch(e){ console.error('initTeaser',e); }
@@ -2764,6 +3124,15 @@ async function __init(){
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',__init); } else { __init(); }
 initFirebase();
 </script>
+<div id="ageOverlay" class="auth-overlay" style="z-index:400;">
+  <div class="auth-box age-box">
+    <h3 id="ageTitle">Avant de commencer 🔞</h3>
+    <p id="ageText"></p>
+    <p id="ageText2" style="color:var(--muted);font-size:13px;"></p>
+    <button class="auth-main" id="ageYes">J'ai 18 ans ou plus, j'entre 💛</button>
+    <div class="auth-close"><a id="ageNo">Quitter</a></div>
+  </div>
+</div>
 <div id="accountOverlay" class="auth-overlay">
   <div class="auth-box" style="text-align:left;">
     <h2 id="accTitle" style="font-family:'Cormorant Garamond',serif;color:var(--accent-l);margin-bottom:6px;">Mon compte 💛</h2>

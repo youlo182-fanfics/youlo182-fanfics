@@ -18,6 +18,10 @@
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate
 
+# Configuration Firebase partagée (index, admin, write) : toujours fraîche
+/firebase-config.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
 # Les images/assets : peuvent être mises en cache longtemps (elles changent rarement).
 # Ça accélère le site sans gêner les mises à jour de code.
 /assets/*

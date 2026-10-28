@@ -149,6 +149,9 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
   <div><h1>✍️ Mon espace d'ecriture</h1><div class="sub">Youlo182 - Privé</div></div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <a class="top-btn" href="admin.html">📊 Dashboard</a>
+    <button class="top-btn" id="backupAllBtn" style="display:none;" title="Télécharger une copie de TOUT ton espace d'écriture (histoires, chapitres, idées, notes)">💾 Tout sauvegarder</button>
+    <button class="top-btn" id="restoreBtn" style="display:none;" title="Remettre une sauvegarde (fichier .json téléchargé avant)">📂 Restaurer</button>
+    <input type="file" id="restoreFile" accept=".json,application/json" style="display:none;">
     <button class="top-btn" id="themeBtn" onclick="toggleWriteTheme()">☀️</button>
     <button class="top-btn" id="logoutBtn" style="display:none;">Se deconnecter</button>
   </div>
@@ -167,6 +170,7 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
   </div>
 
   <!-- Main app (hidden until auth) -->
+  <div id="storageWarn" style="display:none;margin:10px 16px;background:rgba(255,77,109,.15);border:2px solid #ff4d6d;color:#ff4d6d;border-radius:10px;padding:10px 14px;font-weight:700;font-size:14px;">⚠️ Ton dernier texte n'a PAS pu être enregistré (mémoire du navigateur pleine). Clique sur « 💾 Tout sauvegarder » en haut, puis copie ce chapitre dans Word.</div>
   <div id="app" style="display:none;">
     <!-- Tabs -->
     <div class="tabs">
@@ -378,21 +382,15 @@ function toggleWriteTheme(){
 if(document.body){ applyWriteTheme(); } else { document.addEventListener('DOMContentLoaded', applyWriteTheme); }
 </script>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDCXtXM-F_AoqwlUTk_trk3Ny9dxy-7q-g",
-  authDomain: "youlo182-fanfics.firebaseapp.com",
-  projectId: "youlo182-fanfics",
-  storageBucket: "youlo182-fanfics.firebasestorage.app",
-  messagingSenderId: "254835522518",
-  appId: "1:254835522518:web:c309ed0c14ff24a19c0277"
-};
+// Config Firebase partagée avec le site et le dashboard (voir firebase-config.js).
+// Rappel : tes textes restent UNIQUEMENT sur cet appareil (localStorage), rien n'est envoyé en ligne.
+import { firebaseConfig, AUTHOR_EMAIL, FB_CDN, maybeInitAppCheck } from './firebase-config.js';
+const { initializeApp } = await import(FB_CDN+"firebase-app.js");
+const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } = await import(FB_CDN+"firebase-auth.js");
 const app = initializeApp(firebaseConfig);
+await maybeInitAppCheck(app);
 const auth = getAuth(app);
-const ADMIN_EMAIL = "julie.cacciola@gmail.com";
+const ADMIN_EMAIL = AUTHOR_EMAIL;
 
 // ===== AUTH =====
 const gate=document.getElementById('gate'), appEl=document.getElementById('app'), gateErr=document.getElementById('gateErr');
@@ -406,7 +404,10 @@ onAuthStateChanged(auth, function(user){
   if(user && user.email===ADMIN_EMAIL){
     gate.style.display='none'; appEl.style.display='block';
     document.getElementById('logoutBtn').style.display='inline-block';
+    document.getElementById('backupAllBtn').style.display='inline-block';
+    document.getElementById('restoreBtn').style.display='inline-block';
     initApp();
+    backupReminder();
   } else {
     gate.style.display='block'; appEl.style.display='none';
     document.getElementById('logoutBtn').style.display='none';
@@ -416,8 +417,81 @@ onAuthStateChanged(auth, function(user){
 
 // ===== LOCAL STORAGE HELPERS =====
 function loadJSON(key, fallback){ try{ var v=localStorage.getItem(key); return v?JSON.parse(v):fallback; }catch(e){ return fallback; } }
-function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); return true; }catch(e){ storageFailed(e); return false; } }
+// Avant : si le navigateur refusait d'enregistrer (mémoire pleine), RIEN ne s'affichait
+// et le texte pouvait être perdu en fermant la page. Maintenant : grosse alerte rouge.
+var __storageAlerted=0;
+function storageFailed(e){
+  console.error('Sauvegarde locale impossible', e);
+  try{
+    var bar=document.getElementById('saveStatusBar');
+    if(bar){ bar.textContent='⚠️ NON SAUVEGARDÉ'; bar.className=''; bar.style.color='#ff4d6d'; bar.style.fontWeight='800'; }
+    var warn=document.getElementById('storageWarn'); if(warn) warn.style.display='block';
+  }catch(_){}
+  if(Date.now()-__storageAlerted > 60000){
+    __storageAlerted=Date.now();
+    alert("⚠️ ATTENTION : ton navigateur n'arrive plus à enregistrer ton texte (sa mémoire est pleine).\n\nNe ferme pas la page ! Clique tout de suite sur « 💾 Tout sauvegarder » en haut pour télécharger une copie de tout ton travail, puis copie aussi ce chapitre dans Word par sécurité.");
+  }
+}
+function storageOk(){
+  var warn=document.getElementById('storageWarn'); if(warn) warn.style.display='none';
+  var bar=document.getElementById('saveStatusBar'); if(bar){ bar.style.color=''; bar.style.fontWeight=''; }
+}
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+// ===== SAUVEGARDE COMPLÈTE (tout l'espace d'écriture dans UN fichier) =====
+// Tout ce qui commence par "write_" dans le navigateur : histoires, chapitres, idées, notes, scènes...
+function collectWriteData(){
+  var data={};
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    if(k && k.indexOf('write_')===0) data[k]=localStorage.getItem(k);
+  }
+  return data;
+}
+function backupAll(){
+  try{ if(typeof saveCurrentChapter==='function') saveCurrentChapter(); }catch(e){}
+  var data=collectWriteData();
+  var payload={ app:'youlo182-write', version:1, exportedAt:new Date().toISOString(), count:Object.keys(data).length, data:data };
+  var d=new Date(), pad=function(n){ return (n<10?'0':'')+n; };
+  var filename='youlo182-ecriture-'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'_'+pad(d.getHours())+'h'+pad(d.getMinutes())+'.json';
+  var blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+  localStorage.setItem('write_lastBackup', String(Date.now()));
+}
+function restoreFromFile(file){
+  var r=new FileReader();
+  r.onload=function(){
+    var obj; try{ obj=JSON.parse(r.result); }catch(e){ alert('Ce fichier ne ressemble pas à une sauvegarde 😕'); return; }
+    if(!obj || obj.app!=='youlo182-write' || !obj.data){ alert('Ce fichier ne ressemble pas à une sauvegarde de ton espace d\'écriture 😕'); return; }
+    var n=Object.keys(obj.data).length;
+    var when=obj.exportedAt ? new Date(obj.exportedAt).toLocaleString('fr-FR') : '?';
+    if(!confirm('Restaurer la sauvegarde du '+when+' ('+n+' éléments) ?\n\nAvant de restaurer, une copie de ce que tu as MAINTENANT va être téléchargée automatiquement (au cas où).\n\nEnsuite, tout ce qui est dans la sauvegarde remplacera les versions actuelles.')) return;
+    backupAll();   // filet de sécurité : copie de l'état actuel avant d'écraser
+    var ok=0, fail=0;
+    Object.keys(obj.data).forEach(function(k){
+      if(k.indexOf('write_')!==0) return;
+      try{ localStorage.setItem(k, obj.data[k]); ok++; }catch(e){ fail++; }
+    });
+    alert(fail ? ('⚠️ '+ok+' éléments restaurés, '+fail+' en échec (mémoire pleine ?).') : ('✅ '+ok+' éléments restaurés ! La page va se recharger.'));
+    if(!fail) location.reload();
+  };
+  r.readAsText(file);
+}
+// Petit rappel si la dernière sauvegarde complète date de plus de 7 jours
+function backupReminder(){
+  try{
+    var last=parseInt(localStorage.getItem('write_lastBackup')||'0',10);
+    var btn=document.getElementById('backupAllBtn');
+    if(btn && (!last || Date.now()-last > 7*864e5)){ btn.style.borderColor='#FED20D'; btn.style.color='#FED20D'; btn.title='Ta dernière sauvegarde complète date de plus de 7 jours : pense à cliquer ici 💛'; }
+  }catch(e){}
+}
+document.getElementById('backupAllBtn').onclick=function(){ backupAll(); this.style.borderColor=''; this.style.color=''; };
+document.getElementById('restoreBtn').onclick=function(){ document.getElementById('restoreFile').click(); };
+document.getElementById('restoreFile').onchange=function(){ if(this.files && this.files[0]) restoreFromFile(this.files[0]); this.value=''; };
 
 // ===== DATA =====
 let stories = [];   // [{id, title, chapters:[{id, title}]}]
@@ -434,7 +508,7 @@ function saveStories(){ saveJSON('write_stories', stories); }
 function saveIdeas(){ saveJSON('write_ideas', ideas); }
 function chapterContentKey(storyId, chId){ return 'write_chapter_'+storyId+'_'+chId; }
 function getChapterContent(storyId, chId){ return localStorage.getItem(chapterContentKey(storyId, chId)) || ''; }
-function setChapterContent(storyId, chId, html){ try{ localStorage.setItem(chapterContentKey(storyId, chId), html); }catch(e){} }
+function setChapterContent(storyId, chId, html){ try{ localStorage.setItem(chapterContentKey(storyId, chId), html); storageOk(); return true; }catch(e){ storageFailed(e); return false; } }
 
 // ===== TABS =====
 document.querySelectorAll('.tab').forEach(function(t){
@@ -685,7 +759,7 @@ function loadEditor(){
 }
 function saveCurrentChapter(){
   if(!currentStory||!currentChapter) return;
-  setChapterContent(currentStory.id, currentChapter.id, editor.innerHTML);
+  if(!setChapterContent(currentStory.id, currentChapter.id, editor.innerHTML)) return;   // échec : l'alerte reste affichée
   saveStatus.textContent='Sauvegarde ✓'; saveStatus.className='save-status saved';
 }
 // Auto-save (debounced 2s)
