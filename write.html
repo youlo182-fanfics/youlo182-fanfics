@@ -833,6 +833,26 @@ var __BLOCK_RE=/^(P|DIV|H[1-6]|LI|BLOCKQUOTE)$/;
 function cleanPastedHTML(html){
   var tmp=document.createElement('div');
   tmp.innerHTML=html;
+  // 0a) Word : les couleurs / gras / italique poses avec un STYLE Word (ex. un style "Maya")
+  //     sont decrits dans le <style> du presse-papiers -> on les recopie sur le texte
+  var clsMap={};
+  tmp.querySelectorAll('style').forEach(function(stEl){
+    var css=(stEl.textContent||'').replace(/\/\*[\s\S]*?\*\//g,'').replace(/<!--|-->/g,'');
+    css.replace(/([^{}]+)\{([^}]*)\}/g, function(_, sels, body){
+      var bd=';'+body.replace(/\s+/g,' ').toLowerCase(), dc=[];
+      var cm_=bd.match(/[;\s]color\s*:\s*([^;]+)/); if(cm_ && keepableColor(cm_[1].trim())) dc.push('color:'+cm_[1].trim());
+      if(/[;\s]font-weight\s*:\s*(bold|bolder|[6-9]00)/.test(bd)) dc.push('font-weight:bold');
+      if(/[;\s]font-style\s*:\s*italic/.test(bd)) dc.push('font-style:italic');
+      if(/[;\s]text-decoration[^;]*underline/.test(bd)) dc.push('text-decoration:underline');
+      if(/[;\s]text-decoration[^;]*line-through/.test(bd)) dc.push('text-decoration:line-through');
+      if(dc.length) sels.split(',').forEach(function(s){ var m=s.trim().match(/^[a-z0-9]*\.([\w-]+)$/i); if(m) clsMap[m[1]]=(clsMap[m[1]]||'')+dc.join(';')+';'; });
+      return '';
+    });
+  });
+  if(Object.keys(clsMap).length) tmp.querySelectorAll('[class]').forEach(function(el){
+    var add=''; String(el.getAttribute('class')||'').split(/\s+/).forEach(function(c){ if(clsMap[c]) add+=clsMap[c]; });
+    if(add) el.setAttribute('style', add+(el.getAttribute('style')||''));
+  });
   // 0) Ce qui n'est pas du texte (styles Word, commentaires, balises techniques)
   tmp.querySelectorAll('style,meta,link,script,title,xml,head').forEach(function(el){ el.remove(); });
   var cw=document.createTreeWalker(tmp, NodeFilter.SHOW_COMMENT), cm=[], cn;
@@ -842,12 +862,13 @@ function cleanPastedHTML(html){
   //    (Google Docs entoure tout d'un <b style="font-weight:normal"> : on l'enleve)
   var all=Array.prototype.slice.call(tmp.querySelectorAll('*'));
   all.forEach(function(el){
-    var st=(el.getAttribute('style')||'').toLowerCase(), t=el.tagName;
-    if((t==='B'||t==='STRONG') && /font-weight\s*:\s*(normal|[1-5]00)\b/.test(st)){ el.setAttribute('data-unwrap','1'); return; }
-    var fs_=/text-decoration[^;]*line-through/.test(st) && !/^(S|STRIKE|DEL)$/.test(t);
-    var fu=/text-decoration[^;]*underline/.test(st) && t!=='U';
-    var fi=/font-style\s*:\s*italic/.test(st) && !/^(I|EM)$/.test(t);
-    var fw=/font-weight\s*:\s*(bold|bolder|[6-9]00)/.test(st) && !/^(B|STRONG|H[1-6])$/.test(t);
+    // (le ';' devant evite de confondre avec les styles Word "mso-bidi-font-weight:normal")
+    var st=';'+(el.getAttribute('style')||'').toLowerCase(), t=el.tagName;
+    if((t==='B'||t==='STRONG') && /[;\s]font-weight\s*:\s*(normal|[1-5]00)\b/.test(st)){ el.setAttribute('data-unwrap','1'); return; }
+    var fs_=/[;\s]text-decoration[^;]*line-through/.test(st) && !/^(S|STRIKE|DEL)$/.test(t);
+    var fu=/[;\s]text-decoration[^;]*underline/.test(st) && t!=='U';
+    var fi=/[;\s]font-style\s*:\s*italic/.test(st) && !/^(I|EM)$/.test(t);
+    var fw=/[;\s]font-weight\s*:\s*(bold|bolder|[6-9]00)/.test(st) && !/^(B|STRONG|H[1-6])$/.test(t);
     if(fs_) wrapKids(el,'s');
     if(fu) wrapKids(el,'u');
     if(fi) wrapKids(el,'i');
@@ -881,6 +902,20 @@ function cleanPastedHTML(html){
     }
     if(unwrap || (!color && (t==='SPAN' || t==='FONT')) || t==='FONT' || t.indexOf(':')>-1){ unwrapEl(el); }
   });
+  // 3) Retours a la ligne "techniques" de Word (pas de vrais paragraphes) -> espaces,
+  //    et on enleve les blancs entre paragraphes (sinon ils creent des paragraphes vides)
+  var tw=document.createTreeWalker(tmp, NodeFilter.SHOW_TEXT), tn, tl=[];
+  while((tn=tw.nextNode())) tl.push(tn);
+  tl.forEach(function(n){
+    if(/[\r\n]/.test(n.nodeValue)){
+      n.nodeValue=n.nodeValue.replace(/\s*[\r\n]+\s*/g,' ');
+      if(n.previousSibling && n.previousSibling.nodeName==='BR') n.nodeValue=n.nodeValue.replace(/^\s+/,'');
+    }
+    if(/\S/.test(n.nodeValue)) return;
+    var pr=n.previousSibling, nx=n.nextSibling, par=n.parentNode;
+    var isBlk=function(x){ return x && x.nodeType===1 && __BLOCK_RE.test(x.tagName); };
+    if(par===tmp || isBlk(par) || isBlk(pr) || isBlk(nx)){ if(!pr || !nx || isBlk(pr) || isBlk(nx)) n.remove(); }
+  });
   return tmp.innerHTML;
 }
 // Apres un collage ou au chargement : enleve les tailles / polices imposees qui
@@ -907,9 +942,9 @@ function handleCleanPaste(e, targetEl){
     var cleaned=cleanPastedHTML(html);
     document.execCommand('insertHTML', false, cleaned);
   } else if(text){
-    // Texte brut : convertir les sauts de ligne en paragraphes
-    var htmlText=text.split(/\n\s*\n/).map(function(block){
-      return '<p>'+block.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</p>';
+    // Texte brut (ex. "Coller en texte brut") : chaque ligne = un paragraphe, pour garder la respiration
+    var htmlText=text.replace(/^\ufeff/,'').replace(/\r\n?/g,'\n').split('\n').filter(function(l){ return /\S/.test(l); }).map(function(l){
+      return '<p>'+l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</p>';
     }).join('');
     document.execCommand('insertHTML', false, htmlText);
   }
@@ -938,7 +973,7 @@ editor.addEventListener('copy', function(e){ handleCleanCopy(e, editor, false); 
 editor.addEventListener('cut', function(e){ handleCleanCopy(e, editor, true); });
 (function(){
   var sa=document.getElementById('splitEditArea');
-  if(sa){ sa.addEventListener('copy', function(e){ handleCleanCopy(e, sa, false); }); sa.addEventListener('cut', function(e){ handleCleanCopy(e, sa, true); }); }
+  if(sa){ sa.addEventListener('paste', function(e){ handleCleanPaste(e, sa); }); sa.addEventListener('copy', function(e){ handleCleanCopy(e, sa, false); }); sa.addEventListener('cut', function(e){ handleCleanCopy(e, sa, true); }); }
   var sc=document.getElementById('sceneEditArea');
   if(sc){ sc.addEventListener('paste', function(e){ handleCleanPaste(e, sc); }); sc.addEventListener('copy', function(e){ handleCleanCopy(e, sc, false); }); sc.addEventListener('cut', function(e){ handleCleanCopy(e, sc, true); }); }
 })();
