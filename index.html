@@ -115,10 +115,10 @@
   .popup .pop-react{margin:4px 0 2px;}
   .popup .pop-react-label{font-size:13px;color:var(--muted);margin-bottom:7px;}
   .popup .react-chips{justify-content:center;}
-  .popup .react-chips{gap:5px;flex-wrap:nowrap;}
-  .popup .react-chip{padding:5px 8px;min-height:38px;gap:4px;}
+  .popup .react-chips{gap:5px;flex-wrap:wrap;}
+  .popup .react-chip{padding:5px 7px;min-height:38px;gap:3px;}
   .popup .react-chip .rc-e{font-size:18px;}
-  @media (max-width:520px){ .react-chips{gap:5px;} .react-chip{padding:6px 9px;gap:4px;} }
+  @media (max-width:520px){ .react-chips{gap:4px;} .react-chip{padding:5px 6px;gap:3px;} .react-chip .rc-e{font-size:19px;} .popup .react-chips{gap:3px;} .popup .react-chip{padding:4px 5px;} .popup .react-chip .rc-e{font-size:17px;} .popup .react-chip .rc-n{font-size:12px;} }
   .nav-arrows{display:flex;gap:8px;}
   .nav-arrows button{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:20px;cursor:pointer;font-weight:700;font-size:13px;}
   .nav-arrows button:disabled{opacity:.35;cursor:not-allowed;}
@@ -2044,7 +2044,7 @@ document.getElementById('nextCh').onclick=function(){
     // Adapter le libelle du bouton like de la popup : si deja aime, le dire clairement
     // (et de toute facon le clic n'enleve plus le j'aime, cf. doLike('add')).
     var pl=document.getElementById('popLike');
-    if(pl){ pl.textContent = myLiked ? (lang==='en'?'❤️ Already liked':'❤️ Déjà aimé') : (lang==='en'?'❤️ Leave a like':'❤️ Laisser un j\'aime'); }
+    if(pl){ pl.textContent = myLiked ? (lang==='en'?'❤️ You already liked this chapter':'❤️ Tu as déjà aimé ce chapitre') : (lang==='en'?'❤️ Leave a like':'❤️ Laisser un j\'aime'); }
     document.getElementById('overlay').classList.add('show');
   }
 };
@@ -2137,7 +2137,8 @@ var REACTS=[
   {k:'cry',   e:'😭', fr:'Ça m\'a fait pleurer', en:'Made me cry'},
   {k:'shock', e:'😱', fr:'Choquée',       en:'Shocked'},
   {k:'lol',   e:'😂', fr:'Mdr',           en:'LOL'},
-  {k:'aww',   e:'🥺', fr:'Trop mignon',   en:'Aww'}
+  {k:'aww',   e:'🥺', fr:'Trop mignon',   en:'Aww'},
+  {k:'mind',  e:'🤯', fr:"Ça m'a retournée", en:'Mind blown'}
 ];
 var __reactCounts={}, __myReact='', __reactStateFor='', __reactBusy=false, __reactPopK='';
 function renderReactions(){
@@ -2169,7 +2170,8 @@ async function loadReactions(){
     renderReactions();
   }catch(e){ /* silencieux */ }
 }
-async function doReact(k){
+async function doReact(k, mode){
+  // mode 'add' (popup fin de chapitre) : choisit ou change la réaction, ne l'enlève JAMAIS.
   if(!REACTS.some(function(r){ return r.k===k; })) return;
   if(!firebaseReady||!db) return;
   if(!currentUser){
@@ -2184,6 +2186,7 @@ async function doReact(k){
     if(__reactStateFor!==key+'|'+uid){ await loadReactions(); }
     if(__reactStateFor!==key+'|'+uid) throw new Error('reaction state unknown');
     var old=__myReact, neu=(old===k)?'':k;
+    if(mode==='add' && old===k){ __reactPopK=k; renderReactions(); return; }   // déjà choisie : on ne retire rien
     prevCounts=Object.assign({}, __reactCounts); prevMine=old;
     // Affichage immédiat (on annule si l'écriture échoue)
     if(old) __reactCounts[old]=Math.max(0,(parseInt(__reactCounts[old],10)||0)-1);
@@ -2205,7 +2208,7 @@ async function doReact(k){
 ['reactChips','popReactChips'].forEach(function(id){
   var box=document.getElementById(id);
   if(box) box.addEventListener('click', function(ev){
-    var b=ev.target.closest('.react-chip'); if(b) doReact(b.dataset.k);
+    var b=ev.target.closest('.react-chip'); if(b) doReact(b.dataset.k, id==='popReactChips' ? 'add' : '');
   });
 });
 
