@@ -18,9 +18,10 @@ export const AUTHOR_NAME = "Youlo182";
 export const FB_VERSION = "10.12.2";
 export const FB_CDN = "https://www.gstatic.com/firebasejs/" + FB_VERSION + "/";
 
-// App Check (anti-robots) : laisser VIDE tant que la clé reCAPTCHA Enterprise n'est pas créée.
+// App Check (anti-robots) : clé de site Fraud Defense / reCAPTCHA Enterprise (créée le 28/10/2026).
+// Mettre "" pour désactiver.
 // Voir youlo182-notes/README pour la marche à suivre. Vide = App Check désactivé.
-export const APPCHECK_SITE_KEY = "";
+export const APPCHECK_SITE_KEY = "6Ld5ygQuAAAAAFiDNc-M9gaepLovO8eiEc-m1HEw";
 
 // Active App Check si une clé est renseignée. Ne bloque jamais le site en cas d'échec.
 export async function maybeInitAppCheck(app){
