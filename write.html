@@ -141,6 +141,23 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
 .split-bar button:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .split-fmt{display:none;flex:0 0 auto;justify-content:center;gap:8px;padding:6px 12px;background:var(--card);border-top:1px solid var(--line);}
 .split-fmt.open{display:flex;}
+/* ---- POV (couleurs par point de vue) ---- */
+.pov-row{width:100%;display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
+.pov-btn{background:rgba(255,255,255,.08);border:1px solid var(--line);color:var(--ink);border-radius:999px;cursor:pointer;font-size:13px;font-weight:700;padding:7px 12px;display:inline-flex;align-items:center;gap:6px;font-family:inherit;}
+.pov-btn:hover{border-color:var(--accent-l);}
+.pov-lbl{font-size:12px;color:var(--muted);font-weight:700;}
+.pov-dot{width:12px;height:12px;border-radius:50%;display:inline-block;border:1px solid rgba(127,127,127,.6);flex:0 0 auto;}
+.pov-dot.p0{background:var(--ink);} .pov-dot.p1{background:#1F5FBF;} .pov-dot.p2{background:#8B1E3F;} .pov-dot.p3{background:#2E7D32;}
+body:not(.light) .pov-dot.p1{background:#8EC1FF;} body:not(.light) .pov-dot.p2{background:#F28DAA;} body:not(.light) .pov-dot.p3{background:#8FD694;}
+/* En mode sombre, les couleurs POV sont affichees plus claires (le texte garde sa vraie couleur) */
+body:not(.light) [data-pov="1"]{color:#8EC1FF !important;}
+body:not(.light) [data-pov="2"]{color:#F28DAA !important;}
+body:not(.light) [data-pov="3"]{color:#8FD694 !important;}
+.split-pov{display:none;flex:0 0 auto;justify-content:center;gap:6px;flex-wrap:wrap;padding:6px 12px;background:var(--card);border-top:1px solid var(--line);}
+.split-fmt.open + .split-pov{display:flex;}
+#povToast{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:130px;z-index:300;background:#161D26;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:90vw;box-shadow:0 4px 16px rgba(0,0,0,.45);text-align:center;line-height:1.4;}
+#syncConflict{display:none;position:relative;z-index:5;background:#FED20D;color:#161D26;padding:10px 14px;font-size:14px;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;font-weight:600;}
+#syncConflict button{background:#161D26;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-weight:700;cursor:pointer;font-family:inherit;}
 .split-fmt button{background:rgba(255,255,255,.1);border:1px solid var(--line);color:var(--ink);border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;padding:8px 14px;transition:.12s;} .split-fmt button:hover{background:var(--accent);color:#fff;}
 </style>
 </head>
@@ -152,6 +169,7 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
     <button class="top-btn" id="backupAllBtn" style="display:none;" title="Télécharger une copie de TOUT ton espace d'écriture (histoires, chapitres, idées, notes)">💾 Tout sauvegarder</button>
     <button class="top-btn" id="restoreBtn" style="display:none;" title="Remettre une sauvegarde (fichier .json téléchargé avant)">📂 Restaurer</button>
     <input type="file" id="restoreFile" accept=".json,application/json" style="display:none;">
+    <button class="top-btn" id="syncBtn" style="display:none;" title="Synchro entre tes appareils">☁️</button>
     <button class="top-btn" id="themeBtn" onclick="toggleWriteTheme()">☀️</button>
     <button class="top-btn" id="logoutBtn" style="display:none;">Se deconnecter</button>
   </div>
@@ -246,7 +264,7 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
       <span class="word-count" id="wordCount">0 mot</span>
     </div>
     <!-- Sous-barre formatage (apparait au-dessus de la bottom bar) -->
-    <div id="fmtPanel" style="display:none;position:fixed;bottom:52px;left:0;right:0;z-index:51;background:var(--card);border-top:1px solid var(--line);padding:8px 12px;box-shadow:0 -2px 8px rgba(0,0,0,.2);">
+    <div id="fmtPanel" style="display:none;flex-direction:column;position:fixed;bottom:52px;left:0;right:0;z-index:51;background:var(--card);border-top:1px solid var(--line);padding:8px 12px;box-shadow:0 -2px 8px rgba(0,0,0,.2);">
       <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;">
         <button class="fmt-btn" id="tbBold" title="Gras" style="font-weight:700;">G</button>
         <button class="fmt-btn" id="tbItalic" title="Italique" style="font-style:italic;">I</button>
@@ -254,8 +272,10 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
         <button class="fmt-btn" id="tbCenter" title="Centre">≡</button>
         <button class="fmt-btn" id="tbRight" title="Droite">⫸</button>
         <button class="fmt-btn" id="tbLineBreak" title="Saut de ligne simple (texte serre)" style="font-size:13px;">↵</button>
-        <button class="fmt-btn" id="tbClean" title="Nettoyer le formatage (police/taille de Word)" style="font-size:13px;">🧹</button>
+        <button class="fmt-btn" id="tbClean" title="Nettoyer : enlève la police et la taille imposées (garde gras, italique, couleurs)" style="font-size:13px;">🧹</button>
       </div>
+      <div class="pov-row" id="povRow"></div>
+      <div class="pov-row" id="povVersionRow" style="display:none;"></div>
     </div>
     <!-- Panneau de recherche (apparait au-dessus de la bottom bar) -->
     <div id="searchPanel" style="display:none;position:fixed;bottom:52px;left:0;right:0;z-index:51;background:var(--card);border-top:1px solid var(--line);padding:8px 12px;box-shadow:0 -2px 8px rgba(0,0,0,.2);">
@@ -357,6 +377,8 @@ a.back{color:var(--accent-l);text-decoration:none;font-size:13px;font-weight:700
     <button data-cmd="justifyRight">⫸</button>
     <button data-cmd="insertLineBreak" style="font-size:13px;">↵</button>
   </div>
+  <!-- Couleurs POV dans le mode ecran partage (visibles avec le formatage) -->
+  <div class="split-pov" id="splitPov"></div>
   <!-- Mini-barre (toujours visible) -->
   <div class="split-bar">
     <button id="splitFmtToggle">✏️</button>
@@ -383,7 +405,8 @@ if(document.body){ applyWriteTheme(); } else { document.addEventListener('DOMCon
 </script>
 <script type="module">
 // Config Firebase partagée avec le site et le dashboard (voir firebase-config.js).
-// Rappel : tes textes restent UNIQUEMENT sur cet appareil (localStorage), rien n'est envoyé en ligne.
+// Tes textes sont gardés sur cet appareil (localStorage) ET synchronisés dans ton espace privé
+// Firestore "drafts" (voir SYNCHRO plus bas) pour les retrouver sur ton téléphone / laptop.
 import { firebaseConfig, AUTHOR_EMAIL, FB_CDN, maybeInitAppCheck } from './firebase-config.js';
 const { initializeApp } = await import(FB_CDN+"firebase-app.js");
 const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } = await import(FB_CDN+"firebase-auth.js");
@@ -408,6 +431,7 @@ onAuthStateChanged(auth, function(user){
     document.getElementById('restoreBtn').style.display='inline-block';
     initApp();
     backupReminder();
+    startSync();
   } else {
     gate.style.display='block'; appEl.style.display='none';
     document.getElementById('logoutBtn').style.display='none';
@@ -508,7 +532,9 @@ function saveStories(){ saveJSON('write_stories', stories); }
 function saveIdeas(){ saveJSON('write_ideas', ideas); }
 function chapterContentKey(storyId, chId){ return 'write_chapter_'+storyId+'_'+chId; }
 function getChapterContent(storyId, chId){ return localStorage.getItem(chapterContentKey(storyId, chId)) || ''; }
-function setChapterContent(storyId, chId, html){ try{ localStorage.setItem(chapterContentKey(storyId, chId), html); storageOk(); return true; }catch(e){ storageFailed(e); return false; } }
+function setChapterContent(storyId, chId, html){ try{ localStorage.setItem(chapterContentKey(storyId, chId), html); storageOk(); markLocalEdit(chapterContentKey(storyId, chId)); return true; }catch(e){ storageFailed(e); return false; } }
+// Retient l'heure de ta derniere modif (sert a savoir quelle version est la plus recente en synchro)
+function markLocalEdit(k){ try{ var m=loadMeta(); if(m[k]){ m[k].d=Date.now(); saveMeta(m); } }catch(e){} }
 
 // ===== TABS =====
 document.querySelectorAll('.tab').forEach(function(t){
@@ -753,6 +779,7 @@ function loadEditor(){
   editor.contentEditable='true';
   var html=getChapterContent(currentStory.id, currentChapter.id);
   editor.innerHTML=html||'<p><br></p>';
+  normalizeInlineStyles(editor); povTag(editor); renderPovBar(); __edDirty=false;
   saveStatus.textContent='-'; saveStatus.className='save-status';
   // Rafraichir les notes si le panneau est ouvert
   var np=document.getElementById('notesPanel'); if(np && np.style.display!=='none') loadNotes();
@@ -760,6 +787,7 @@ function loadEditor(){
 function saveCurrentChapter(){
   if(!currentStory||!currentChapter) return;
   if(!setChapterContent(currentStory.id, currentChapter.id, editor.innerHTML)) return;   // échec : l'alerte reste affichée
+  __edDirty=false;
   saveStatus.textContent='Sauvegarde ✓'; saveStatus.className='save-status saved';
 }
 // Auto-save (debounced 2s)
@@ -771,46 +799,104 @@ editor.addEventListener('input', function(){
 // Manual save
 document.getElementById('saveBtn').onclick=function(){ saveCurrentChapter(); };
 
-// ===== COLLAGE PROPRE (nettoie le formatage de Word) =====
-// Quand on colle depuis Word, ca amene des polices et tailles imposees.
-// On nettoie pour ne garder que le texte + gras/italique + paragraphes,
-// et le texte prend automatiquement le style de l'editeur.
+// ===== COLLAGE PROPRE (garde ta mise en page, enleve seulement police + taille) =====
+// Quand on colle depuis Word / le telephone / le site, on garde : gras, italique,
+// souligne, barre, COULEURS et alignement (centre/droite/justifie).
+// On enleve : la police, la taille, l'interligne, les marges... -> le texte prend
+// automatiquement la police et la taille de l'editeur (boutons A- / A+).
+var __colorProbe=null;
+function parseColor(c){
+  if(!c) return null;
+  var m=String(c).match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,\/]\s*([\d.]+%?))?\s*\)$/i);
+  if(!m){
+    if(!__colorProbe){ __colorProbe=document.createElement('span'); __colorProbe.style.display='none'; document.body.appendChild(__colorProbe); }
+    __colorProbe.style.color=''; __colorProbe.style.color=c;
+    if(!__colorProbe.style.color) return null;
+    m=getComputedStyle(__colorProbe).color.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,\/]\s*([\d.]+%?))?\s*\)$/i);
+    if(!m) return null;
+  }
+  if(m[4]!==undefined){ var a=parseFloat(m[4]); if(String(m[4]).indexOf('%')>-1) a=a/100; if(a<0.3) return null; }
+  return [Math.round(+m[1]), Math.round(+m[2]), Math.round(+m[3])];
+}
+// Noir / blanc (= couleur "automatique" de Word ou du theme) -> on enleve,
+// pour que le texte suive le mode clair/sombre. Les vraies couleurs restent.
+function keepableColor(c){
+  var rgb=parseColor(c); if(!rgb) return '';
+  var mx=Math.max(rgb[0],rgb[1],rgb[2]), mn=Math.min(rgb[0],rgb[1],rgb[2]);
+  if(mx<75) return '';                       // noir / presque noir
+  if(mn>225) return '';                      // blanc / presque blanc
+  return 'rgb('+rgb[0]+', '+rgb[1]+', '+rgb[2]+')';
+}
+function unwrapEl(el){ var p=el.parentNode; if(!p) return; while(el.firstChild) p.insertBefore(el.firstChild, el); p.removeChild(el); }
+function wrapKids(el, tag){ var w=document.createElement(tag); while(el.firstChild) w.appendChild(el.firstChild); el.appendChild(w); }
+var __BLOCK_RE=/^(P|DIV|H[1-6]|LI|BLOCKQUOTE)$/;
 function cleanPastedHTML(html){
   var tmp=document.createElement('div');
   tmp.innerHTML=html;
-  // 1) D'ABORD : preserver le gras/italique que Word met via le style CSS
-  //    (font-weight:bold / font-style:italic) en le convertissant en vraies
-  //    balises <b> / <i> AVANT de tout nettoyer.
-  tmp.querySelectorAll('*').forEach(function(el){
-    var st=(el.getAttribute('style')||'').toLowerCase();
-    var fw=st.match(/font-weight\s*:\s*(bold|[6-9]00)/);
-    var fi=st.match(/font-style\s*:\s*italic/);
-    if(fw || fi){
-      var inner=el.innerHTML;
-      if(fi) inner='<i>'+inner+'</i>';
-      if(fw) inner='<b>'+inner+'</b>';
-      el.innerHTML=inner;
-    }
+  // 0) Ce qui n'est pas du texte (styles Word, commentaires, balises techniques)
+  tmp.querySelectorAll('style,meta,link,script,title,xml,head').forEach(function(el){ el.remove(); });
+  var cw=document.createTreeWalker(tmp, NodeFilter.SHOW_COMMENT), cm=[], cn;
+  while((cn=cw.nextNode())) cm.push(cn);
+  cm.forEach(function(n){ n.remove(); });
+  // 1) Gras / italique / souligne / barre poses en CSS -> vraies balises
+  //    (Google Docs entoure tout d'un <b style="font-weight:normal"> : on l'enleve)
+  var all=Array.prototype.slice.call(tmp.querySelectorAll('*'));
+  all.forEach(function(el){
+    var st=(el.getAttribute('style')||'').toLowerCase(), t=el.tagName;
+    if((t==='B'||t==='STRONG') && /font-weight\s*:\s*(normal|[1-5]00)\b/.test(st)){ el.setAttribute('data-unwrap','1'); return; }
+    var fs_=/text-decoration[^;]*line-through/.test(st) && !/^(S|STRIKE|DEL)$/.test(t);
+    var fu=/text-decoration[^;]*underline/.test(st) && t!=='U';
+    var fi=/font-style\s*:\s*italic/.test(st) && !/^(I|EM)$/.test(t);
+    var fw=/font-weight\s*:\s*(bold|bolder|[6-9]00)/.test(st) && !/^(B|STRONG|H[1-6])$/.test(t);
+    if(fs_) wrapKids(el,'s');
+    if(fu) wrapKids(el,'u');
+    if(fi) wrapKids(el,'i');
+    if(fw) wrapKids(el,'b');
   });
-  // 2) ENSUITE : retirer styles/classes/attributs de police, et deballer
-  //    les span/font, MAIS garder les vraies balises de formatage.
-  var KEEP={B:1,STRONG:1,I:1,EM:1,U:1,BR:1,P:1,DIV:1};
-  tmp.querySelectorAll('*').forEach(function(el){
-    el.removeAttribute('style');
-    el.removeAttribute('class');
-    el.removeAttribute('face');
-    el.removeAttribute('size');
-    el.removeAttribute('color');
-    el.removeAttribute('align');
-    el.removeAttribute('lang');
-    // Deballer les balises non voulues (span, font, o:p...) en gardant le contenu
-    if(!KEEP[el.tagName] && (el.tagName==='SPAN' || el.tagName==='FONT' || el.tagName.indexOf(':')>-1)){
-      var parent=el.parentNode;
-      while(el.firstChild) parent.insertBefore(el.firstChild, el);
-      parent.removeChild(el);
+  // 2) On ne garde que la couleur et l'alignement ; tout le reste (police, taille...) part
+  all=Array.prototype.slice.call(tmp.querySelectorAll('*'));
+  all.forEach(function(el){
+    var t=el.tagName;
+    var color=(el.style && el.style.color) || (t==='FONT' ? (el.getAttribute('color')||'') : '');
+    var align=__BLOCK_RE.test(t) ? ((el.style && el.style.textAlign) || el.getAttribute('align') || '') : '';
+    var unwrap=el.getAttribute('data-unwrap')==='1';
+    while(el.attributes.length) el.removeAttribute(el.attributes[0].name);
+    color=keepableColor(color);
+    if(/^(center|right|justify)$/i.test(align)) el.style.textAlign=align.toLowerCase();
+    if(color){
+      if(__BLOCK_RE.test(t)){
+        // Couleur sur tout un paragraphe -> on la descend sur le texte (plus simple a modifier)
+        var sp=document.createElement('span'); sp.style.color=color;
+        while(el.firstChild) sp.appendChild(el.firstChild);
+        el.appendChild(sp);
+      } else if(t==='SPAN'){
+        el.style.color=color;
+      } else if(t==='FONT' || t.indexOf(':')>-1){
+        var sp2=document.createElement('span'); sp2.style.color=color;
+        el.parentNode.insertBefore(sp2, el); sp2.appendChild(el); unwrapEl(el);
+        return;
+      } else {
+        el.style.color=color;
+      }
     }
+    if(unwrap || (!color && (t==='SPAN' || t==='FONT')) || t==='FONT' || t.indexOf(':')>-1){ unwrapEl(el); }
   });
   return tmp.innerHTML;
+}
+// Apres un collage ou au chargement : enleve les tailles / polices imposees qui
+// seraient restees (et le noir/blanc "automatique"), sans toucher au reste.
+function normalizeInlineStyles(root){
+  if(!root) return;
+  root.querySelectorAll('[style]').forEach(function(el){
+    var s=el.style;
+    ['font-size','font-family','line-height','background-color','background'].forEach(function(p){ s.removeProperty(p); });
+    if(s.color && !keepableColor(s.color)) s.removeProperty('color');
+    if(!el.getAttribute('style')) el.removeAttribute('style');
+  });
+  root.querySelectorAll('font[color],font[face],font[size]').forEach(function(el){
+    el.removeAttribute('face'); el.removeAttribute('size');
+    var c=el.getAttribute('color'); if(c && !keepableColor(c)) el.removeAttribute('color');
+  });
 }
 function handleCleanPaste(e, targetEl){
   e.preventDefault();
@@ -823,13 +909,39 @@ function handleCleanPaste(e, targetEl){
   } else if(text){
     // Texte brut : convertir les sauts de ligne en paragraphes
     var htmlText=text.split(/\n\s*\n/).map(function(block){
-      return '<p>'+block.replace(/\n/g,'<br>').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</p>';
+      return '<p>'+block.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</p>';
     }).join('');
     document.execCommand('insertHTML', false, htmlText);
   }
+  normalizeInlineStyles(targetEl);
+  povTag(targetEl);
   targetEl.focus();
 }
+// Copier / couper DEPUIS l'editeur : on met dans le presse-papiers une version propre
+// (gras, italique, couleurs, alignement, SANS la police/taille/couleur du theme),
+// pour que Word ou le telephone gardent leur propre police.
+function handleCleanCopy(e, targetEl, isCut){
+  var sel=window.getSelection();
+  if(!sel || sel.isCollapsed || !sel.rangeCount || !e.clipboardData) return;
+  var range=sel.getRangeAt(0);
+  if(!targetEl.contains(range.commonAncestorContainer)) return;
+  var box=document.createElement('div');
+  box.appendChild(range.cloneContents());
+  var html=cleanPastedHTML(box.innerHTML);
+  e.clipboardData.setData('text/html', html);
+  e.clipboardData.setData('text/plain', sel.toString());
+  e.preventDefault();
+  if(isCut) document.execCommand('delete', false, null);
+}
 editor.addEventListener('paste', function(e){ handleCleanPaste(e, editor); });
+editor.addEventListener('copy', function(e){ handleCleanCopy(e, editor, false); });
+editor.addEventListener('cut', function(e){ handleCleanCopy(e, editor, true); });
+(function(){
+  var sa=document.getElementById('splitEditArea');
+  if(sa){ sa.addEventListener('copy', function(e){ handleCleanCopy(e, sa, false); }); sa.addEventListener('cut', function(e){ handleCleanCopy(e, sa, true); }); }
+  var sc=document.getElementById('sceneEditArea');
+  if(sc){ sc.addEventListener('paste', function(e){ handleCleanPaste(e, sc); }); sc.addEventListener('copy', function(e){ handleCleanCopy(e, sc, false); }); sc.addEventListener('cut', function(e){ handleCleanCopy(e, sc, true); }); }
+})();
 
 // Bouton "Nettoyer le formatage" : remet tout le chapitre (ou la selection) au style de l'editeur
 document.getElementById('tbClean').onclick=function(){
@@ -845,11 +957,12 @@ document.getElementById('tbClean').onclick=function(){
     document.execCommand('insertHTML', false, cleaned);
   } else {
     // Nettoyer tout le chapitre
-    if(!confirm('Nettoyer le formatage de tout le chapitre ? (garde le gras/italique, enleve les polices et tailles de Word)')) return;
+    if(!confirm('Nettoyer le formatage de tout le chapitre ?\n\nJe garde : gras, italique, souligné, couleurs, centrage.\nJ\'enlève : les polices et tailles imposées (Word, téléphone...).')) return;
     target.innerHTML=cleanPastedHTML(target.innerHTML);
     if(!__splitActive && currentStory && currentChapter){ saveCurrentChapter(); }
     if(__splitActive && currentStory && currentChapter){ setChapterContent(currentStory.id, currentChapter.id, target.innerHTML); }
   }
+  normalizeInlineStyles(target); povTag(target);
   target.focus();
 };
 document.getElementById('tbClean').addEventListener('mousedown', function(e){ e.preventDefault(); });
@@ -1537,6 +1650,7 @@ function openSplitMode(refChId){
   var editArea=document.getElementById('splitEditArea');
   var html=getChapterContent(currentStory.id, currentChapter.id);
   editArea.innerHTML=html||'<p><br></p>';
+  normalizeInlineStyles(editArea); povTag(editArea); povTag(document.getElementById('splitRefContent')); renderPovBar();
 
   // Afficher l'overlay
   document.getElementById('splitOverlay').classList.add('active');
@@ -1732,6 +1846,518 @@ document.querySelectorAll('#splitFmt button').forEach(function(btn){
   // Exposer pour reutilisation eventuelle
   window.__keepCaretInView = keepCaretInView;
 })();
+
+// ===== COULEURS PAR POINT DE VUE (POV) =====
+// Chaque histoire a 2 ou 3 POV (noms modifiables avec ⚙️). Le texte "commun" reste
+// sans couleur. POV 1 = bleu, POV 2 = bordeaux, POV 3 = vert (comme dans Word).
+// La couleur est une vraie couleur de texte : elle passe dans Word et revient.
+// En mode sombre, on l'affiche juste plus claire pour que ce soit lisible.
+var POV_COLORS=['#1F5FBF','#8B1E3F','#2E7D32'];
+var POV_HUES=[220, 341, 123];
+var POV_MARK='#010203';   // couleur temporaire pour "Commun"
+function storyPovs(){
+  var p=(currentStory && Array.isArray(currentStory.povs) && currentStory.povs.length) ? currentStory.povs : ['POV 1','POV 2'];
+  return p.slice(0,3);
+}
+// A quel POV appartient une couleur ? (0 = aucun). On compare la teinte : n'importe
+// quel bleu = POV 1, n'importe quel rouge/bordeaux = POV 2, n'importe quel vert = POV 3.
+function povOfColor(c, nb){
+  var rgb=parseColor(c); if(!rgb) return 0;
+  var r=rgb[0]/255, g=rgb[1]/255, b=rgb[2]/255;
+  var mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn, l=(mx+mn)/2;
+  if(d===0) return 0;
+  var s=d/(1-Math.abs(2*l-1));
+  if(s<0.25 || l<0.08 || l>0.92) return 0;
+  var h = mx===r ? 60*(((g-b)/d)%6) : mx===g ? 60*((b-r)/d+2) : 60*((r-g)/d+4);
+  if(h<0) h+=360;
+  var best=0, bestD=31;
+  for(var i=0;i<(nb||2);i++){
+    var dd=Math.abs(h-POV_HUES[i]); dd=Math.min(dd, 360-dd);
+    if(dd<bestD){ bestD=dd; best=i+1; }
+  }
+  return best;
+}
+// Pose data-pov="1/2/3" sur les morceaux colories (sert a l'affichage sombre et au decoupage)
+function povTag(root){
+  if(!root) return;
+  var nb=storyPovs().length;
+  root.querySelectorAll('[style],font[color],[data-pov]').forEach(function(el){
+    var c=(el.style && el.style.color) || (el.tagName==='FONT' ? el.getAttribute('color') : '');
+    var p=c ? povOfColor(c, nb) : 0;
+    if(p) el.setAttribute('data-pov', String(p)); else el.removeAttribute('data-pov');
+  });
+}
+function povToast(msg, ms){
+  var t=document.getElementById('povToast');
+  if(!t){ t=document.createElement('div'); t.id='povToast'; document.body.appendChild(t); }
+  t.textContent=msg; t.style.display='block';
+  clearTimeout(povToast._t); povToast._t=setTimeout(function(){ t.style.display='none'; }, ms||4000);
+}
+function povTarget(){ return __splitActive ? document.getElementById('splitEditArea') : editor; }
+// Colorier la selection : slot 0 = commun (enleve la couleur), 1/2/3 = POV
+function applyPov(slot){
+  var target=povTarget();
+  var sel=window.getSelection();
+  if(!sel || sel.isCollapsed || !sel.rangeCount || !target.contains(sel.getRangeAt(0).commonAncestorContainer)){
+    povToast('Sélectionne d\'abord le passage à colorier 🙂'); return;
+  }
+  document.execCommand('styleWithCSS', false, true);
+  document.execCommand('foreColor', false, slot ? POV_COLORS[slot-1] : POV_MARK);
+  document.execCommand('styleWithCSS', false, false);
+  if(!slot){
+    target.querySelectorAll('[style],font[color]').forEach(function(el){
+      var c=(el.style && el.style.color) || el.getAttribute('color') || '';
+      var rgb=parseColor(c);
+      if(rgb && rgb[0]===1 && rgb[1]===2 && rgb[2]===3){
+        el.style && el.style.removeProperty('color'); el.removeAttribute('color'); el.removeAttribute('data-pov');
+        if(el.getAttribute('style')==='') el.removeAttribute('style');
+      }
+    });
+  }
+  povTag(target);
+  target.dispatchEvent(new Event('input', {bubbles:true}));
+}
+// Fabrique une version du chapitre avec SEULEMENT le commun + un POV.
+function povVersionHTML(html, slot){
+  var tmp=document.createElement('div'); tmp.innerHTML=html;
+  povTag(tmp);
+  if(!tmp.querySelector('[data-pov]')) return null;
+  function povOfNode(n){
+    var p=n.parentNode;
+    while(p && p!==tmp){ if(p.getAttribute && p.hasAttribute('data-pov')) return +p.getAttribute('data-pov'); p=p.parentNode; }
+    return 0;
+  }
+  function blockOf(n){
+    var p=n.parentNode;
+    while(p && p!==tmp){ if(p.nodeType===1 && __BLOCK_RE.test(p.tagName)) return p; p=p.parentNode; }
+    return tmp;
+  }
+  var w=document.createTreeWalker(tmp, NodeFilter.SHOW_TEXT), n, drop=[], affected=[];
+  while((n=w.nextNode())){ var pv=povOfNode(n); if(pv && pv!==slot && n.nodeValue.trim()) drop.push(n); }
+  drop.forEach(function(t){ var b=blockOf(t); if(affected.indexOf(b)<0) affected.push(b); t.remove(); });
+  // Les morceaux des autres POV devenus vides (avec leurs sauts de ligne) partent aussi
+  Array.prototype.slice.call(tmp.querySelectorAll('[data-pov]')).forEach(function(el){
+    if(+el.getAttribute('data-pov')!==slot && tmp.contains(el) && !el.textContent.trim()){
+      var b=blockOf(el); if(affected.indexOf(b)<0) affected.push(b); el.remove();
+    }
+  });
+  // Le POV garde redevient du texte normal (sans couleur)
+  tmp.querySelectorAll('[data-pov]').forEach(function(el){
+    el.removeAttribute('data-pov'); if(el.style) el.style.removeProperty('color'); el.removeAttribute('color');
+    if(el.getAttribute('style')==='') el.removeAttribute('style');
+  });
+  tmp.querySelectorAll('span:not([style]),font:not([color])').forEach(unwrapEl);
+  // Nettoyage des paragraphes touches : sauts de ligne en trop, paragraphes vides
+  affected.forEach(function(b){
+    if(b!==tmp && !tmp.contains(b)) return;
+    Array.prototype.slice.call(b.querySelectorAll('b,strong,i,em,u,s,span')).forEach(function(el){ if(!el.textContent.trim() && !el.querySelector('br,img')) el.remove(); });
+    if(b===tmp) return;
+    var kids=b.childNodes, i;
+    for(i=kids.length-1;i>0;i--){
+      if(kids[i].nodeName==='BR'){ var j=i-1; while(j>=0 && kids[j].nodeType===3 && !kids[j].nodeValue.trim()) j--; if(j>=0 && kids[j].nodeName==='BR') b.removeChild(kids[i]); }
+    }
+    while(b.firstChild && (b.firstChild.nodeName==='BR' || (b.firstChild.nodeType===3 && !b.firstChild.nodeValue.trim()))) b.removeChild(b.firstChild);
+    while(b.lastChild && (b.lastChild.nodeName==='BR' || (b.lastChild.nodeType===3 && !b.lastChild.nodeValue.trim()))) b.removeChild(b.lastChild);
+    if(!b.textContent.trim() && !b.querySelector('img')) b.remove();
+  });
+  return { html: tmp.innerHTML || '<p><br></p>', removed: drop.length };
+}
+function makePovVersion(slot){
+  if(!currentStory || !currentChapter) return;
+  if(__splitActive) closeSplitMode();
+  saveCurrentChapter();
+  var names=storyPovs(), name=names[slot-1]||('POV '+slot);
+  var res=povVersionHTML(getChapterContent(currentStory.id, currentChapter.id), slot);
+  if(!res){ alert('Je ne trouve aucun passage en couleur dans ce chapitre 🤔\n\nColorie d\'abord tes passages (bleu, bordeaux...) avec les boutons POV.'); return; }
+  var newCh={id:uid(), title:currentChapter.title+' - '+name};
+  // Ranger la version juste apres le chapitre (et apres ses autres versions deja creees)
+  var idx=currentStory.chapters.indexOf(currentChapter), pre=currentChapter.title+' - ';
+  while(idx+1<currentStory.chapters.length && String(currentStory.chapters[idx+1].title||'').indexOf(pre)===0) idx++;
+  currentStory.chapters.splice(idx+1, 0, newCh);
+  saveStories();
+  if(!setChapterContent(currentStory.id, newCh.id, res.html)) return;
+  currentChapter=newCh; renderChapterNav(); loadEditor();
+  povToast('✂️ Version "'+name+'" créée ('+res.removed+' passage'+(res.removed>1?'s':'')+' des autres POV retiré'+(res.removed>1?'s':'')+'). Ton chapitre d\'origine n\'a pas bougé.', 7000);
+}
+function renamePovs(){
+  if(!currentStory) return;
+  var v=prompt('Les prénoms de tes points de vue, séparés par une virgule (2 ou 3).\nExemple : Maya, Carina\n\n1er = bleu, 2e = bordeaux, 3e = vert', storyPovs().join(', '));
+  if(v===null) return;
+  var arr=v.split(',').map(function(s){ return s.trim(); }).filter(Boolean).slice(0,3);
+  if(!arr.length) return;
+  if(arr.length===1) arr.push('POV 2');
+  currentStory.povs=arr; saveStories();
+  renderPovBar(); povTag(editor);
+}
+function renderPovBar(){
+  var names=storyPovs();
+  var row=document.getElementById('povRow'), vrow=document.getElementById('povVersionRow'), srow=document.getElementById('splitPov');
+  var btns='<button class="pov-btn" data-p="0" title="Texte commun (sans couleur)"><span class="pov-dot p0"></span>Commun</button>'
+    + names.map(function(n,i){ return '<button class="pov-btn" data-p="'+(i+1)+'" title="Colorier la sélection : '+esc(n)+'"><span class="pov-dot p'+(i+1)+'"></span>'+esc(n)+'</button>'; }).join('');
+  if(row) row.innerHTML='<span class="pov-lbl">🎨 POV</span>'+btns
+    +'<button class="pov-btn" data-act="versions" title="Créer une copie du chapitre avec un seul point de vue">✂️ Versions</button>'
+    +'<button class="pov-btn" data-act="names" title="Changer les prénoms des points de vue">⚙️</button>';
+  if(vrow) vrow.innerHTML='<span class="pov-lbl">Créer une copie avec seulement :</span>'
+    + names.map(function(n,i){ return '<button class="pov-btn" data-v="'+(i+1)+'"><span class="pov-dot p0"></span><span class="pov-dot p'+(i+1)+'"></span>Commun + '+esc(n)+'</button>'; }).join('');
+  if(srow) srow.innerHTML=btns;
+}
+// Les boutons ne doivent pas "voler" la selection (sinon rien a colorier), y compris au doigt
+function bindPovButtons(container){
+  if(!container) return;
+  container.addEventListener('mousedown', function(e){ if(e.target.closest('button')) e.preventDefault(); });
+  container.addEventListener('touchend', function(e){ var b=e.target.closest('button'); if(b){ e.preventDefault(); b.click(); } });
+  container.addEventListener('click', function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    if(b.hasAttribute('data-p')) applyPov(+b.getAttribute('data-p'));
+    else if(b.hasAttribute('data-v')) makePovVersion(+b.getAttribute('data-v'));
+    else if(b.getAttribute('data-act')==='versions'){ var vr=document.getElementById('povVersionRow'); if(vr) vr.style.display = vr.style.display==='none' ? 'flex' : 'none'; }
+    else if(b.getAttribute('data-act')==='names') renamePovs();
+  });
+}
+bindPovButtons(document.getElementById('povRow'));
+bindPovButtons(document.getElementById('povVersionRow'));
+bindPovButtons(document.getElementById('splitPov'));
+
+// ===== SYNCHRO ENTRE APPAREILS (telephone <-> laptop) =====
+// Tout ce qui commence par "write_" (histoires, chapitres, idees, notes, scenes) est
+// copie dans Firestore, collection privee "drafts" (lisible UNIQUEMENT par ton compte,
+// voir firestore.rules). Gratuit : on reste tres loin des limites du forfait Spark.
+// Le navigateur garde toujours sa copie locale : sans internet, tu ecris quand meme,
+// et ca part dans le cloud des que la connexion revient.
+// Regles de securite (aucun texte ne doit se perdre) :
+//  - on n'ecrase JAMAIS la version du cloud sans avoir vu sa derniere version ;
+//  - si un texte a ete modifie sur 2 appareils, on garde le plus recent et l'autre version
+//    est d'abord enregistree DANS LE CLOUD ("mise de cote"), avant tout remplacement ;
+//  - bandeau jaune + bouton "Voir" pour telecharger les versions mises de cote.
+var SYNC={ fs:null, db:null, ready:false, busy:false, dev:'', hc:{}, seen:{}, state:'', conf:[], wait:{}, confLoaded:false, quickPull:0 };
+var SYNC_SKIP=/^write_(fs|lastBackup|scroll_)/;   // reglages propres a chaque appareil
+var __edDirty=false;                               // l'editeur a des frappes pas encore enregistrees
+editor.addEventListener('input', function(){ __edDirty=true; });
+function syncable(k){ return !!k && k.indexOf('write_')===0 && !SYNC_SKIP.test(k); }
+function strHash(s){
+  var h1=0xdeadbeef, h2=0x41c6ce57;
+  for(var i=0;i<s.length;i++){ var c=s.charCodeAt(i); h1=Math.imul(h1^c, 2654435761); h2=Math.imul(h2^c, 1597334677); }
+  h1=Math.imul(h1^(h1>>>16), 2246822507)^Math.imul(h2^(h2>>>13), 3266489909);
+  h2=Math.imul(h2^(h2>>>16), 2246822507)^Math.imul(h1^(h1>>>13), 3266489909);
+  return (h2>>>0).toString(36)+(h1>>>0).toString(36)+'.'+s.length.toString(36);
+}
+function hashOf(k, v){ var c=SYNC.hc[k]; if(c && c.v===v) return c.h; var h=strHash(v); SYNC.hc[k]={v:v, h:h}; return h; }
+function loadMeta(){ try{ return JSON.parse(localStorage.getItem('wsync_meta')||'{}')||{}; }catch(e){ return {}; } }
+function saveMeta(m){ try{ localStorage.setItem('wsync_meta', JSON.stringify(m)); }catch(e){} }
+function draftId(k){ return k.replace(/\//g,'%2F'); }
+function writeLocal(k, v){ try{ localStorage.setItem(k, v); return true; }catch(e){ storageFailed(e); return false; } }
+function byteLen(s){ return new TextEncoder().encode(s||'').length; }
+function withTimeout(p, ms){ return Promise.race([p, new Promise(function(_, rej){ setTimeout(function(){ rej({code:'timeout'}); }, ms); })]); }
+function isNetErr(e){ return e && (e.code==='timeout' || e.code==='unavailable' || e.code==='permission-denied' || e.code==='unauthenticated'); }
+function panelOpen(id){ var el=document.getElementById(id); return !!(el && el.style.display && el.style.display!=='none'); }
+
+function setSyncState(st, err){
+  SYNC.state=st;
+  var b=document.getElementById('syncBtn'); if(!b) return;
+  b.style.display='inline-block';
+  var map={
+    ok:   ['☁️ ✓',  'Synchronisé : tes textes sont aussi dans le cloud (clique pour vérifier maintenant)'],
+    busy: ['☁️ ⏳', 'Synchronisation en cours...'],
+    off:  ['☁️ ⚠️', 'Pas de connexion pour l\'instant : tes textes sont gardés sur cet appareil et partiront dès que internet revient (clique pour réessayer)'],
+    rules:['☁️ 🔒', 'La synchro est bloquée : il faut coller les nouvelles règles Firestore (voir README). Tes textes restent sur cet appareil.'],
+    big:  ['☁️ ⚠️', 'Un chapitre est trop long pour la synchro (plus de ~900 000 caractères) : coupe-le en deux pour qu\'il se synchronise.']
+  };
+  var m=map[st]||map.off;
+  b.textContent=m[0]; b.title=m[1];
+  if(err && st!=='busy') console.warn('Synchro :', err);
+}
+function errState(e){ return (e && (e.code==='permission-denied' || e.code==='unauthenticated')) ? 'rules' : 'off'; }
+
+// Fusion de la liste des histoires / idees : on garde tout ce qui existe d'un cote ou de l'autre,
+// sauf les chapitres qui viennent d'etre supprimes sur l'autre appareil (tomb = cles supprimees).
+function mergeList(localStr, remoteStr, tomb){
+  var L, R;
+  try{ L=JSON.parse(localStr); R=JSON.parse(remoteStr); }catch(e){ return null; }
+  if(!Array.isArray(L) || !Array.isArray(R)) return null;
+  var out=R.map(function(x){ return JSON.parse(JSON.stringify(x)); });
+  function gone(sid, ch){ return tomb[chapterContentKey(sid, ch.id)] && localStorage.getItem(chapterContentKey(sid, ch.id))===null; }
+  L.forEach(function(item){
+    if(!item || !item.id) return;
+    var r=out.find(function(x){ return x && x.id===item.id; });
+    if(!r){
+      if(Array.isArray(item.chapters)){
+        var keep=item.chapters.filter(function(ch){ return ch && !gone(item.id, ch); });
+        if(item.chapters.length && !keep.length) return;     // histoire supprimee la-bas
+        item=JSON.parse(JSON.stringify(item)); item.chapters=keep;
+      }
+      out.push(item); return;
+    }
+    if(Array.isArray(item.chapters) && Array.isArray(r.chapters)){
+      item.chapters.forEach(function(ch){
+        if(ch && !gone(item.id, ch) && !r.chapters.some(function(c){ return c && c.id===ch.id; })) r.chapters.push(ch);
+      });
+    }
+  });
+  return JSON.stringify(out);
+}
+
+// ---- Versions mises de cote (enregistrees dans le cloud : drafts/conf_...) ----
+function syncLabel(k){
+  if(k.indexOf('write_chapter_')===0){
+    var rest=k.slice(14);
+    for(var i=0;i<stories.length;i++){
+      var s=stories[i];
+      if(rest.indexOf(s.id+'_')===0){
+        var ch=(s.chapters||[]).find(function(c){ return rest===s.id+'_'+c.id; });
+        return 'Histoire "'+s.title+'" - '+(ch ? 'chapitre "'+ch.title+'"' : 'chapitre supprimé');
+      }
+    }
+    return 'Chapitre';
+  }
+  if(k.indexOf('write_notes_')===0) return 'Notes';
+  if(k.indexOf('write_scenes_')===0) return 'Scènes de côté';
+  if(k==='write_stories') return 'Liste des histoires';
+  if(k==='write_ideas') return 'Idées';
+  return k;
+}
+async function saveConflicts(list){
+  var fs=SYNC.fs;
+  if(!SYNC.confLoaded) await refreshConflicts();
+  for(var i=0;i<list.length;i++){
+    var c=list[i], ch=hashOf(c.k, c.v||'');
+    // Deja mise de cote (meme texte) : on ne la renvoie pas une 2e fois
+    if((SYNC.conf||[]).some(function(x){ return x.key===c.k && (x.h===ch || x.v===c.v); })) continue;
+    if(byteLen(c.v)>1000000) throw {code:'too-big'};
+    var id='conf_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
+    var data={k:'__conflict', key:c.k, label:syncLabel(c.k), v:c.v, h:ch, from:c.from, when:Date.now(), dev:SYNC.dev, ts:fs.serverTimestamp()};
+    await withTimeout(fs.setDoc(fs.doc(SYNC.db, 'drafts', id), data), 20000);
+    SYNC.conf.push(Object.assign({id:id}, data));
+  }
+  showConflictBanner();
+}
+async function refreshConflicts(){
+  try{
+    var fs=SYNC.fs;
+    var snap=await withTimeout(fs.getDocs(fs.query(fs.collection(SYNC.db, 'drafts'), fs.where('k', '==', '__conflict'))), 20000);
+    var arr=[]; snap.forEach(function(d){ arr.push(Object.assign({id:d.id}, d.data())); });
+    arr.sort(function(a,b){ return (a.when||0)-(b.when||0); });
+    SYNC.conf=arr; SYNC.confLoaded=true; showConflictBanner();
+  }catch(e){}
+}
+function downloadConflicts(){
+  var list=SYNC.conf||[]; if(!list.length) return;
+  var body=list.map(function(c){
+    var content, k=c.key||'';
+    if(k.indexOf('write_chapter_')===0) content=c.v||'<p><em>(vide)</em></p>';
+    else if(k.indexOf('write_scenes_')===0){ try{ content=(JSON.parse(c.v)||[]).map(function(s){ return '<div style="border-left:3px solid #ccc;padding-left:10px;margin:10px 0;">'+(s.html||'')+'</div>'; }).join(''); }catch(e){ content='<pre>'+esc(c.v)+'</pre>'; } }
+    else content='<pre style="white-space:pre-wrap;">'+esc(c.v)+'</pre>';
+    return '<h2>'+esc(c.label)+'</h2><p style="color:#888;">Version mise de côté (venait de '+esc(c.from)+'), le '+new Date(c.when).toLocaleString('fr-FR')+'</p>'+content+'<hr>';
+  }).join('');
+  var full='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Versions mises de côté</title><style>body{font-family:Georgia,serif;font-size:13pt;line-height:1.7;max-width:760px;margin:30px auto;padding:20px;}</style></head><body><h1>Versions mises de côté par la synchro</h1>'+body+'</body></html>';
+  var blob=new Blob([full],{type:'text/html;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='versions-mises-de-cote.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+}
+function showConflictBanner(){
+  var n=(SYNC.conf||[]).length;
+  var bn=document.getElementById('syncConflict');
+  if(!n){ if(bn) bn.style.display='none'; return; }
+  if(!bn){
+    bn=document.createElement('div'); bn.id='syncConflict';
+    bn.innerHTML='<span id="syncConflictTxt"></span> <button id="syncConfDl">📥 Voir</button> <button id="syncConfOk">OK, effacer</button>';
+    document.body.insertBefore(bn, document.body.firstChild);
+    document.getElementById('syncConfDl').onclick=function(){ downloadConflicts(); };
+    document.getElementById('syncConfOk').onclick=async function(){
+      if(!confirm('Effacer les versions mises de côté ?\n\n(Clique d\'abord sur "Voir" si tu veux les garder.)')) return;
+      var fs=SYNC.fs, left=[];
+      for(var i=0;i<SYNC.conf.length;i++){
+        try{ await withTimeout(fs.deleteDoc(fs.doc(SYNC.db, 'drafts', SYNC.conf[i].id)), 20000); }catch(e){ left.push(SYNC.conf[i]); }
+      }
+      SYNC.conf=left; showConflictBanner();
+      if(left.length) alert('Pas de connexion : réessaie plus tard 🙂');
+    };
+  }
+  document.getElementById('syncConflictTxt').textContent='⚠️ '+n+' version'+(n>1?'s':'')+' mise'+(n>1?'s':'')+' de côté par la synchro (texte modifié sur 2 appareils) : j\'ai gardé le plus récent, l\'autre est sauvegardée ici.';
+  bn.style.display='flex';
+}
+
+// ---- Envoi des changements vers le cloud ----
+async function syncPush(){
+  if(!SYNC.ready || SYNC.busy) return;
+  SYNC.busy=true;
+  var big=false, needPull=false;
+  try{
+    if(__edDirty && !__splitActive) saveCurrentChapter();
+    var meta=loadMeta(), jobs=[], now=Date.now(), touched=false;
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i); if(!syncable(k)) continue;
+      var v=localStorage.getItem(k), h=hashOf(k, v), m=meta[k];
+      if(!m || m.h!==h){
+        jobs.push({k:k, v:v, h:h});
+        if(m && SYNC.seen[k]!==h){ m.d=now; touched=true; }   // heure de ta derniere modif
+      }
+      SYNC.seen[k]=h;
+    }
+    Object.keys(meta).forEach(function(k){ if(syncable(k) && localStorage.getItem(k)===null) jobs.push({k:k, del:true}); });
+    if(touched) saveMeta(meta);
+    if(!jobs.length){ setSyncState(SYNC.state==='big' ? 'big' : 'ok'); return; }
+    setSyncState('busy');
+    var fs=SYNC.fs;
+    for(var j=0;j<jobs.length;j++){
+      var job=jobs[j];
+      if(!job.del && byteLen(job.v)>1000000){ big=true; continue; }
+      if(SYNC.wait[job.k] && SYNC.wait[job.k]>now){ needPull=true; continue; }   // en attente de la prochaine recuperation
+      try{
+        var ref=fs.doc(SYNC.db, 'drafts', draftId(job.k));
+        meta=loadMeta();
+        var base=meta[job.k] ? meta[job.k].h : null;
+        // Securite : on regarde d'abord la version du cloud
+        var cur=await withTimeout(fs.getDoc(ref), 20000);
+        if(cur.exists()){
+          var cd=cur.data()||{};
+          if(!cd.del && cd.h===job.h){ meta[job.k]={h:job.h}; saveMeta(meta); continue; }       // deja a jour
+          if(!cd.del && cd.h!==base){ needPull=true; SYNC.wait[job.k]=now+60000; continue; }   // modifie ailleurs : on recupere d'abord
+          if(cd.del && job.del){ delete meta[job.k]; saveMeta(meta); continue; }
+        } else if(job.del){ delete meta[job.k]; saveMeta(meta); continue; }
+        var data= job.del ? {k:job.k, v:'', h:'', del:true, dev:SYNC.dev, ts:fs.serverTimestamp()}
+                          : {k:job.k, v:job.v, h:job.h, del:false, dev:SYNC.dev, ts:fs.serverTimestamp()};
+        await withTimeout(fs.setDoc(ref, data), 20000);
+        meta=loadMeta();
+        if(job.del) delete meta[job.k]; else meta[job.k]={h:job.h};
+        saveMeta(meta);
+      }catch(e){
+        if(isNetErr(e)) throw e;            // plus de connexion : on reessaiera plus tard
+        console.warn('Synchro : envoi impossible pour', job.k, e);   // un seul texte en echec ne bloque pas les autres
+      }
+    }
+    setSyncState(big ? 'big' : 'ok');
+  }catch(e){ setSyncState(errState(e), e); }
+  finally{ SYNC.busy=false; }
+  if(needPull && Date.now()-(SYNC.quickPull||0)>60000){ SYNC.quickPull=Date.now(); setTimeout(syncPull, 0); }   // une seule fois par minute max
+}
+
+// ---- Recuperation des changements faits sur les autres appareils ----
+async function syncPull(){
+  if(!SYNC.fs || SYNC.busy) return;
+  // Pas pendant que tu ecris dans une fenetre a part (ecran partage, scene, notes) : on attendra
+  if(__splitActive || panelOpen('sceneEditorOverlay') || panelOpen('notesPanel')) return;
+  SYNC.busy=true; setSyncState('busy');
+  var ok=false, failed=false;
+  try{
+    if(__edDirty) saveCurrentChapter();
+    var curKey=(currentStory && currentChapter) ? chapterContentKey(currentStory.id, currentChapter.id) : null;
+    var edSnap=curKey ? editor.innerHTML : null;
+    var fs=SYNC.fs, last=parseInt(localStorage.getItem('wsync_last')||'0',10);
+    var col=fs.collection(SYNC.db, 'drafts');
+    var q= last ? fs.query(col, fs.where('ts', '>', fs.Timestamp.fromMillis(last-15000))) : col;
+    var snap=await withTimeout(fs.getDocs(q), 25000);
+    // Si tu as tape pendant le telechargement, ton texte compte comme le plus recent
+    var typed = curKey && editor.innerHTML!==edSnap;
+    if(typed){ saveCurrentChapter(); edSnap=editor.innerHTML; }
+    var meta=loadMeta(), changed={}, conflicts=[], actions=[], merges=[], tomb={}, maxTs=last;
+    // 1) On decide quoi faire pour chaque texte (sans rien modifier encore)
+    snap.forEach(function(d){
+      var r=d.data(); if(!r) return;
+      var ts=(r.ts && r.ts.toMillis) ? r.ts.toMillis() : 0; if(ts>maxTs) maxTs=ts;
+      if(!syncable(r.k)) return;
+      var k=r.k, local=localStorage.getItem(k), m=meta[k], base=m ? m.h : null;
+      var lh= local===null ? null : hashOf(k, local);
+      if(r.del){
+        tomb[k]=1;
+        if(local===null || lh===base){ actions.push({k:k, remove:local!==null, meta:null}); return; }
+        // Supprime la-bas mais modifie ici : on garde ici, et une copie est mise de cote
+        conflicts.push({k:k, v:local, from:'cet appareil (supprimé sur l\'autre appareil)'});
+        actions.push({k:k, meta:null, needConf:true});
+        return;
+      }
+      if(lh===r.h){ actions.push({k:k, meta:{h:r.h}}); return; }
+      if(local===null){
+        if(base!==null && r.h===base) return;     // supprime ici, inchange la-bas : la suppression partira
+        if(base!==null){ conflicts.push({k:k, v:r.v, from:'l\'autre appareil (supprimé ici, mais modifié là-bas)'}); }
+        actions.push({k:k, write:r.v, meta:{h:r.h}, needConf:base!==null});
+        return;
+      }
+      if(lh===base && !(k===curKey && typed)){ actions.push({k:k, write:r.v, meta:{h:r.h}}); return; }
+      if(r.h===base) return;                       // modifie seulement ici : partira au prochain envoi
+      // Modifie des deux cotes
+      if(k==='write_stories' || k==='write_ideas'){ merges.push({k:k, local:local, remote:r.v, h:r.h}); return; }
+      var localNewer=(k===curKey && typed) || (m && m.d && m.d>ts);
+      if(localNewer){ conflicts.push({k:k, v:r.v, from:'l\'autre appareil'}); actions.push({k:k, meta:{h:r.h, d:Date.now()}, needConf:true}); }
+      else { conflicts.push({k:k, v:local, from:'cet appareil'}); actions.push({k:k, write:r.v, meta:{h:r.h}, needConf:true}); }
+    });
+    // 2) Les versions mises de cote partent dans le cloud AVANT tout remplacement
+    if(conflicts.length){
+      try{ await saveConflicts(conflicts); }
+      catch(e){ failed=true; actions=actions.filter(function(a){ return !a.needConf; }); }
+      // Tu as tape pendant l'envoi des versions mises de cote : on ne remplace pas ce chapitre maintenant
+      if(curKey && editor.innerHTML!==edSnap){ saveCurrentChapter(); actions=actions.filter(function(a){ return !(a.k===curKey && a.write!==undefined); }); }
+    }
+    // 3) On applique
+    actions.forEach(function(a){
+      if(a.remove){ try{ localStorage.removeItem(a.k); }catch(e){} changed[a.k]=1; }
+      if(a.write!==undefined){ if(!writeLocal(a.k, a.write)){ failed=true; return; } changed[a.k]=1; }
+      if(a.meta) meta[a.k]=a.meta; else delete meta[a.k];
+    });
+    merges.forEach(function(mg){
+      var merged=mergeList(mg.local, mg.remote, tomb);
+      if(merged===null){ failed=true; return; }
+      if(writeLocal(mg.k, merged)){ meta[mg.k]={h:mg.h, d:Date.now()}; changed[mg.k]=1; } else failed=true;
+    });
+    saveMeta(meta);
+    if(!failed){ try{ localStorage.setItem('wsync_last', String(maxTs)); }catch(e){} }   // sinon on reprendra au meme endroit
+    applyRemoteChanges(changed);
+    if(!SYNC.ready){ SYNC.ready=true; refreshConflicts(); }
+    ok=true;
+    setSyncState('ok');
+  }catch(e){ setSyncState(errState(e), e); }
+  finally{ SYNC.busy=false; }
+  if(ok && !failed) syncPush();
+  if(ok && !failed) SYNC.wait={};
+}
+function applyRemoteChanges(changed){
+  var keys=Object.keys(changed); if(!keys.length) return;
+  if(changed['write_stories'] || changed['write_ideas']){
+    loadData();
+    try{ renderIdeas(); }catch(e){}
+    if(currentStory){
+      var cs=stories.find(function(s){ return s.id===currentStory.id; });
+      if(!cs){
+        // Histoire supprimee sur l'autre appareil
+        document.getElementById('storyEditorView').style.display='none';
+        document.getElementById('storyListView').style.display='block';
+        var bb=document.getElementById('bottomBar'); if(bb) bb.style.display='none';
+        currentStory=null; currentChapter=null; __edDirty=false;
+      } else {
+        var chId=currentChapter && currentChapter.id;
+        currentStory=cs;
+        var nc=cs.chapters.find(function(c){ return c.id===chId; });
+        if(!nc){ currentChapter=cs.chapters[0]||null; changed['__reload']=1; } else currentChapter=nc;
+        document.getElementById('currentStoryTitle').textContent=cs.title;
+        renderChapterNav(); renderPovBar();
+      }
+    }
+    renderStoryList();
+  } else if(keys.some(function(k){ return k.indexOf('write_chapter_')===0; })){
+    renderStoryList();
+  }
+  if(currentStory && currentChapter && (changed['__reload'] || changed[chapterContentKey(currentStory.id, currentChapter.id)])){ loadEditor(); __edDirty=false; }
+  if(currentStory && changed['write_scenes_'+currentStory.id]){ try{ loadScenesData(); renderScenes(); }catch(e){} }
+}
+async function startSync(){
+  if(SYNC.fs) return;
+  try{
+    SYNC.dev=localStorage.getItem('wsync_dev') || ('d'+uid());
+    try{ localStorage.setItem('wsync_dev', SYNC.dev); }catch(e){}
+    SYNC.fs=await import(FB_CDN+"firebase-firestore.js");
+    SYNC.db=SYNC.fs.getFirestore(app);
+  }catch(e){ SYNC.fs=null; setSyncState('off', e); return; }
+  await syncPull();
+  setInterval(syncPush, 10000);
+  setInterval(function(){ if(!document.hidden) syncPull(); }, 60000);
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden){ if(__edDirty && !__splitActive) saveCurrentChapter(); syncPush(); }
+    else syncPull();
+  });
+  window.addEventListener('online', function(){ syncPull(); });
+  window.addEventListener('pagehide', function(){ if(__edDirty && !__splitActive) saveCurrentChapter(); syncPush(); });
+}
+document.getElementById('syncBtn').onclick=function(){ if(!SYNC.fs) startSync(); else if(!SYNC.ready) syncPull(); else syncPull(); };
 
 // ===== INIT =====
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
