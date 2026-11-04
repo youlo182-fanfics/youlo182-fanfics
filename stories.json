@@ -1,6 +1,33 @@
 {
   "stories": [
     {
+      "id": "sa-what-a-lie",
+      "type": "standalone",
+      "emoji": "🪞",
+      "path": "stories/standalone/sa-what-a-lie",
+      "tags": [
+        "Station 19",
+        "Marina",
+        "Lycée",
+        "Best Friends to Lovers",
+        "Angst"
+      ],
+      "cover": "stories/covers/what-a-lie.jpeg",
+      "banner": "assets/what-a-lie-banner.jpeg",
+      "releaseAt": "2099-01-01T00:00:00+01:00",
+      "noCountdown": true,
+      "fr": {
+        "title": "What A Lie",
+        "summary": "Maya et Carina, c'était une évidence. Meilleures amies depuis toujours, puis enfin bien plus que ça, après une année d'absence et des sentiments trop longtemps tus. Six mois de bonheur, de promesses et de « per sempre »... jusqu'au matin où tout s'effondre. Quelques mots, et Carina s'en va. Pour une autre. Assise au pied du phare de Discovery Park, le cœur en miettes, Maya n'a plus qu'une question : à quel moment Carina a-t-elle commencé à faire semblant ? Et si tout ce qu'elles ont vécu n'avait été qu'un mensonge ? Certains mensonges nous protègent. D'autres nous brisent. Une histoire Marina au lycée, à Seattle, sur le premier amour, les promesses et le poids des mots qu'on ne dit pas. 💛",
+        "chapters": []
+      },
+      "en": {
+        "title": "What A Lie",
+        "summary": "Maya and Carina were meant to be. Best friends forever, then finally so much more, after a year apart and feelings kept silent for far too long. Six months of happiness, promises and \"per sempre\"... until the morning everything falls apart. A few words, and Carina walks away. For another girl. Sitting at the foot of the Discovery Park lighthouse, her heart in pieces, Maya is left with one question: when did Carina start pretending? And what if everything they shared was nothing but a lie? Some lies protect us. Some break us. A Marina high school story set in Seattle, about first love, promises, and the weight of everything left unsaid. 💛",
+        "chapters": []
+      }
+    },
+    {
       "id": "os-girls-like-girls",
       "type": "oneshot",
       "emoji": "💋",
