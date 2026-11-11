@@ -1,0 +1,5 @@
+# Outils Firebase (cache local, journaux)
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firebase-functions/node_modules/

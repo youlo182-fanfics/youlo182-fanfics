@@ -1459,14 +1459,18 @@ async function openAccount(){
   document.getElementById('accTitle').textContent = isEN ? 'My account 💛' : 'Mon compte 💛';
   document.getElementById('accWho').textContent = (currentUser.displayName||'') + ' · ' + (currentUser.email||'');
   document.getElementById('accNlLabel').textContent = isEN ? 'Get an email when a new story is published 💛' : 'Recevoir un email quand une nouvelle histoire est publiée 💛';
+  document.getElementById('accRpLabel').textContent = isEN ? 'Get an email when someone replies to me 💬' : 'Recevoir un email quand on me répond 💬';
   document.getElementById('accLogout').textContent = isEN ? 'Sign out' : 'Se déconnecter';
   document.getElementById('accClose').textContent = isEN ? 'Close' : 'Fermer';
   document.getElementById('accNlSaved').style.display='none';
   // Charger l'état actuel de la préférence newsletter
   var chk=document.getElementById('accNewsletter'); chk.checked=false;
+  // E-mails de réponse : cochés par défaut (désactivés seulement si emailReplies === false)
+  var rp=document.getElementById('accReplies'); rp.checked=true;
   try{
     var snap=await getDoc(doc(db,'users',currentUser.uid));
     if(snap.exists() && snap.data().newsletter===true) chk.checked=true;
+    if(snap.exists() && snap.data().emailReplies===false) rp.checked=false;
   }catch(e){}
   ov.classList.add('show');
 }
@@ -1478,6 +1482,15 @@ document.getElementById('accNewsletter').onchange=async function(){
     await setDoc(doc(db,'users',currentUser.uid),{ newsletter:val, email:currentUser.email, displayName:(currentUser.displayName||'Anonyme') },{merge:true});
     var s=document.getElementById('accNlSaved'); if(s){ s.style.display='block'; setTimeout(function(){ s.style.display='none'; },2500); }
   }catch(e){ alert('Oops: '+e.message); }
+};
+// E-mail quand quelqu'un me répond (envoyé par la Cloud Function mailOnReply)
+document.getElementById('accReplies').onchange=async function(){
+  if(!currentUser) return;
+  var val=this.checked, box=this;
+  try{
+    await setDoc(doc(db,'users',currentUser.uid),{ emailReplies:val },{merge:true});
+    var s=document.getElementById('accNlSaved'); if(s){ s.style.display='block'; setTimeout(function(){ s.style.display='none'; },2500); }
+  }catch(e){ box.checked=!val; alert((lang==='en'?'Could not save, please try again. ':'Impossible d\'enregistrer, réessaie. ')+'('+((e&&e.code)||'')+')'); }
 };
 document.getElementById('accLogout').onclick=function(){ document.getElementById('accountOverlay').classList.remove('show'); signOut(auth); };
 document.getElementById('accClose').onclick=function(){ document.getElementById('accountOverlay').classList.remove('show'); };
@@ -2802,7 +2815,12 @@ window.openNotif=async function(nid){
   try{ if(!n.read && currentUser){ await setDoc(doc(db,'notifications',currentUser.uid,'items',nid),{read:true},{merge:true}); n.read=true; renderNotifs(); } }catch(e){}
   // fermer le panneau
   var panel=document.getElementById('notifPanel'); if(panel) panel.style.display='none';
-  // naviguer vers le chapitre + commentaire
+  goToCommentTarget(n);
+};
+// Ouvre le chapitre + le commentaire visé (cloche de notifications OU lien reçu par e-mail).
+// opts.wait : laisser plus de temps aux commentaires pour charger (ouverture à froid depuis un e-mail).
+function goToCommentTarget(n, opts){
+  var waitTries = (opts && opts.wait) ? -40 : 0;
   if(n.isAbout || n.bookId==='about'){
     showAbout();
     setTimeout(function(){
@@ -2821,7 +2839,7 @@ window.openNotif=async function(nid){
       // CAS A : la lectrice lit DÉJÀ ce chapitre -> ne rien recharger, garder sa place.
       // On ouvre juste la popup / on surligne par-dessus : sa position de lecture est intacte.
       if(readerVisible && currentBook && currentBook.id===n.bookId && currentCh===targetCh){
-        focusNotifComment(n.commentId);
+        focusNotifComment(n.commentId, waitTries);
         return;
       }
       // CAS B : autre chapitre (ou autre histoire). Avant de partir, on mémorise la
@@ -2837,10 +2855,10 @@ window.openNotif=async function(nid){
       // Après rendu + chargement des commentaires en mémoire, ouvrir le bon endroit.
       // renderChapter() -> loadComments() peuple __chapterComments de façon asynchrone :
       // on attend qu'il soit prêt (sans AUCUNE relecture Firebase supplémentaire).
-      focusNotifComment(n.commentId);
+      focusNotifComment(n.commentId, waitTries);
     }
   }
-};
+}
 // Ouvre le commentaire visé par une notification au bon endroit :
 //  - commentaire de passage (avec citation) -> la POPUP du thread de ce passage
 //  - commentaire général (sans citation)    -> déplie la liste + surligne la carte
@@ -3261,6 +3279,26 @@ function openStoryFromURL(){
   try{
     var params = new URLSearchParams(location.search);
     var sid = params.get('story');
+    var cid = params.get('c');
+    if(cid && (sid || params.get('about'))){
+      // Lien reçu par e-mail : se mettre dans la langue du commentaire, puis l'ouvrir.
+      var wl = params.get('lang');
+      if((wl==='fr'||wl==='en') && wl!==lang){
+        var chip=document.querySelector('#langChips .chip[data-lang="'+wl+'"]'); if(chip) chip.click();
+      }
+      var target = params.get('about')
+        ? { isAbout:true, bookId:'about', commentId:cid }
+        : { bookId:sid, lang:wl, ch:(parseInt(params.get('ch'),10)||0), commentId:cid };
+      try{ history.replaceState(null,'',location.pathname+'?story='+encodeURIComponent(sid||'')); }catch(e){}
+      if(target.isAbout){ try{ history.replaceState(null,'',location.pathname); }catch(e){} }
+      var tries=0;
+      (function go(){
+        // attendre Firebase (max ~8 s) pour que les commentaires puissent charger
+        if(!firebaseReady && tries++<40){ setTimeout(go,200); return; }
+        goToCommentTarget(target, {wait:true});
+      })();
+      return;
+    }
     if(sid && typeof openBook==='function'){
       var b = BOOKS.find(function(x){return x.id===sid;});
       if(b){ setTimeout(function(){ openBook(sid); }, 300); }
@@ -3400,6 +3438,10 @@ initFirebase();
     <label id="accNlWrap" style="display:block;width:100%;text-align:left;font-size:14px;color:var(--ink);margin-bottom:16px;cursor:pointer;box-sizing:border-box;background:rgba(176,61,94,.10);border:1px solid var(--line);border-radius:10px;padding:12px;overflow-wrap:break-word;word-wrap:break-word;">
       <input type="checkbox" id="accNewsletter" style="margin-right:8px;vertical-align:middle;">
       <span id="accNlLabel" style="vertical-align:middle;">Recevoir un email quand une nouvelle histoire est publiée 💛</span>
+    </label>
+    <label id="accRpWrap" style="display:block;width:100%;text-align:left;font-size:14px;color:var(--ink);margin-bottom:16px;cursor:pointer;box-sizing:border-box;background:rgba(176,61,94,.10);border:1px solid var(--line);border-radius:10px;padding:12px;overflow-wrap:break-word;word-wrap:break-word;">
+      <input type="checkbox" id="accReplies" style="margin-right:8px;vertical-align:middle;">
+      <span id="accRpLabel" style="vertical-align:middle;">Recevoir un email quand on me répond 💬</span>
     </label>
     <div id="accNlSaved" style="display:none;font-size:12.5px;color:#00a651;margin-bottom:12px;">✅ Préférence enregistrée !</div>
     <button class="auth-main" id="accLogout" style="background:var(--card);border:1px solid var(--accent-l);color:var(--accent-l);">Se déconnecter</button>
