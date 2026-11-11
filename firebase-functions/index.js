@@ -338,3 +338,67 @@ exports.unsubscribe = onRequest({ secrets: [UNSUB_KEY], invoker: "public" }, asy
     '<button type="submit" style="background:#b03d5e;color:#fff;border:none;padding:12px 22px;border-radius:999px;font-size:15px;cursor:pointer;">Confirmer / Confirm</button>' +
     "</form>"));
 });
+
+// ============================================================================
+// COMPTEURS / INDEX DES COMMENTAIRES (economie de lectures)
+// ----------------------------------------------------------------------------
+// Pour chaque chapitre (et la page A propos), on tient a jour UN document resume :
+//   stats/c_{key}  =  { v:1, n, items:[ {id, name, uid, text, quote, ts, admin, edited,
+//                                        replies:[{id, name, uid, text, ts, admin, edited}]} ] }
+// Le site lit ce seul document (1 lecture) au lieu de tous les commentaires + reponses.
+// stats/* est deja lisible par tout le monde et seule l'autrice / le serveur peut y ecrire
+// autre chose que "totals" : aucune regle Firestore a changer.
+// Reconstruit a chaque creation / modification / suppression d'un commentaire ou d'une reponse.
+// ============================================================================
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+
+function pick(d, keys) {
+  const o = {};
+  keys.forEach((k) => { if (d[k] !== undefined && d[k] !== null) o[k] = d[k]; });
+  return o;
+}
+function tsMs(t) { return t && t.toMillis ? t.toMillis() : 0; }
+
+async function rebuildIndex(key) {
+  const idxRef = db.collection("stats").doc("c_" + key);
+  const itemsCol = db.collection("comments").doc(key).collection("items");
+  await db.runTransaction(async (tx) => {
+    await tx.get(idxRef);   // verrou : deux reconstructions simultanees ne s'ecrasent pas
+    const snap = await tx.get(itemsCol);
+    const items = await Promise.all(snap.docs.map(async (d) => {
+      const rs = await tx.get(d.ref.collection("replies"));
+      const replies = rs.docs
+        .map((r) => Object.assign({ id: r.id }, pick(r.data(), ["name", "uid", "text", "ts", "admin", "edited"])))
+        .sort((a, b) => tsMs(a.ts) - tsMs(b.ts));
+      return Object.assign({ id: d.id }, pick(d.data(), ["name", "uid", "text", "quote", "ts", "admin", "edited"]), { replies });
+    }));
+    items.sort((a, b) => tsMs(b.ts) - tsMs(a.ts));
+    let out = { v: 1, n: items.length, at: admin.firestore.FieldValue.serverTimestamp(), items };
+    // Limite Firestore : 1 Mo par document. Au-dela (enorme fil), on laisse le site lire a l'ancienne.
+    if (Buffer.byteLength(JSON.stringify(items)) > 900000) {
+      out = { v: 1, n: items.length, at: admin.firestore.FieldValue.serverTimestamp(), tooBig: true };
+    }
+    if (items.length === 0) tx.delete(idxRef); else tx.set(idxRef, out);
+  });
+}
+
+exports.indexOnComment = onDocumentWritten("comments/{key}/items/{cid}", async (event) => {
+  try { await rebuildIndex(event.params.key); } catch (e) { logger.error("indexOnComment", event.params.key, e); }
+});
+exports.indexOnReply = onDocumentWritten("comments/{key}/items/{cid}/replies/{rid}", async (event) => {
+  try { await rebuildIndex(event.params.key); } catch (e) { logger.error("indexOnReply", event.params.key, e); }
+});
+
+// Reconstruction complete (une fois au depart, ou en secours) :
+//   https://europe-west1-youlo182-fanfics.cloudfunctions.net/rebuildCommentIndexes?k=<cle>
+// <cle> = HMAC du mot "rebuild" avec UNSUB_KEY (voir ~/.aki/tmp pour la generer).
+exports.rebuildCommentIndexes = onRequest({ secrets: [UNSUB_KEY], invoker: "public", timeoutSeconds: 540 }, async (req, res) => {
+  const want = crypto.createHmac("sha256", UNSUB_KEY.value()).update("rebuild").digest("hex");
+  if ((req.query.k || "") !== want) { res.status(403).send("forbidden"); return; }
+  const refs = await db.collection("comments").listDocuments();
+  let done = 0; const errors = [];
+  for (const r of refs) {
+    try { await rebuildIndex(r.id); done++; } catch (e) { errors.push(r.id + ": " + e.message); }
+  }
+  res.json({ keys: refs.length, done, errors });
+});

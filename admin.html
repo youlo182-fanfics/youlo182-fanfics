@@ -275,10 +275,30 @@ async function loadCommentsAsync(){
 
   let allComments=[];
   try{
-    // Une seule requête récupère TOUS les commentaires (sous-collection 'items')
-    const snap = await getDocs(collectionGroup(db,'items'));
-    snap.forEach(function(d){
-      const parts = d.ref.path.split('/');   // comments/{key}/items/{id}
+    // ÉCONOMIE : on lit les résumés stats/c_{chapitre} tenus à jour par le serveur
+    // (1 lecture par chapitre commenté, réponses comprises) au lieu de TOUS les
+    // commentaires + toutes les notifications. Ancienne méthode en secours.
+    var rows=[];
+    try{
+      const ss = await getDocs(collection(db,'stats'));
+      var bad=false;
+      ss.forEach(function(d){
+        if(d.id.indexOf('c_')!==0) return;
+        var x=d.data(); if(!x || x.tooBig || !Array.isArray(x.items)){ bad=true; return; }
+        x.items.forEach(function(it){
+          var data={}; Object.keys(it).forEach(function(k){ if(k!=='id' && k!=='replies') data[k]=it[k]; });
+          rows.push({ id:it.id, path:['comments', d.id.slice(2), 'items', it.id], data:data, replies:it.replies||[] });
+        });
+      });
+      if(bad || !rows.length) rows=null;
+    }catch(e){ rows=null; }
+    if(!rows){
+      rows=[];
+      const snap = await getDocs(collectionGroup(db,'items'));
+      snap.forEach(function(d){ rows.push({ id:d.id, path:d.ref.path.split('/'), data:d.data(), replies:null }); });
+    }
+    rows.forEach(function(d){
+      const parts = d.path;   // comments/{key}/items/{id}
       // IMPORTANT : collectionGroup('items') attrape AUSSI notifications/{uid}/items.
       // On ne garde QUE les vrais commentaires (chemin commençant par 'comments/').
       if(parts[0] !== 'comments') return;
@@ -291,7 +311,7 @@ async function loadCommentsAsync(){
       const isSpecial = SPECIAL_NAMES.hasOwnProperty(bookId);
       const chTitle = isSpecial ? '' : (chArr[ch]||('Chapitre '+(ch+1)));
       const storyName = SPECIAL_NAMES[bookId] || idToName[bookId] || ('⚠️ Histoire inconnue ('+bookId+')');
-      allComments.push(Object.assign({id:d.id, key, bookId, lang, ch, chTitle, isSpecial, storyName:storyName}, d.data()));
+      allComments.push(Object.assign({id:d.id, key, bookId, lang, ch, chTitle, isSpecial, storyName:storyName, __replies:d.replies}, d.data));
     });
   }catch(e){
     box.innerHTML='<div class="empty">⚠️ '+esc(e.message)+'</div>';
@@ -314,23 +334,31 @@ async function loadCommentsAsync(){
     paginate('commentsAdmin', allComments, renderCmt, 12);
     // Réponses : seulement pour la 1re page affichée (les autres pages les chargent via gotoPage).
     // (loadReplies ignorait déjà les commentaires non affichés : simple nettoyage.)
-    allComments.slice(0, 12).forEach(c=>loadReplies(c.key,c.id));
+    allComments.slice(0, 12).forEach(c=>loadReplies(c.key,c.id,c.__replies));
   }
 }
 
 // Affiche le fil de réponses sous un commentaire — LECTURE PONCTUELLE (plus de
 // listener temps réel : avant, chaque commentaire ouvrait un onSnapshot permanent,
 // ce qui pouvait faire des centaines de connexions temps réel simultanées).
-async function loadReplies(key, commentId){
+async function loadReplies(key, commentId, preset){
   const box = document.getElementById('reply_'+commentId);
   if(!box) return;
   try{
-    const q = query(collection(db,'comments',key,'items',commentId,'replies'), orderBy('ts','asc'));
-    const snap = await getDocs(q);
+    // preset = réponses déjà fournies par le résumé (0 lecture) ; sinon lecture directe.
+    let list;
+    if(preset){ list=preset; }
+    else {
+      const q = query(collection(db,'comments',key,'items',commentId,'replies'), orderBy('ts','asc'));
+      const snap = await getDocs(q);
+      list=snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+      // Une fois relu en direct (après une réponse/modif), on oublie le résumé pour ce fil.
+      var st=__pageState['commentsAdmin'];
+      if(st){ var c=st.items.find(function(x){ return x.id===commentId; }); if(c) c.__replies=null; }
+    }
     let html='';
-    snap.forEach(function(d){
-      const r=d.data();
-      const rid=d.id;
+    list.forEach(function(r){
+      const rid=r.id;
       const isAdmin = r.admin===true || !!(auth.currentUser && r.uid===auth.currentUser.uid);   // badge protégé par les règles (le pseudo seul ne suffit plus)
       // Boutons Modifier/Supprimer uniquement sur MES réponses (admin).
       var adminActions = isAdmin
@@ -381,7 +409,7 @@ window.gotoPage=function(containerId, p){
   // Recharger les réponses des commentaires visibles sur cette page
   if(containerId==='commentsAdmin'){
     var start=st.page*st.pageSize;
-    st.items.slice(start, start+st.pageSize).forEach(function(c){ loadReplies(c.key, c.id); });
+    st.items.slice(start, start+st.pageSize).forEach(function(c){ loadReplies(c.key, c.id, c.__replies); });
   }
   var box=document.getElementById(containerId); if(box) box.scrollIntoView({behavior:'smooth', block:'start'});
 };

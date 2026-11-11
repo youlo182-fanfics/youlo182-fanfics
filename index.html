@@ -1095,12 +1095,19 @@ window.doAboutLike=async function(){
     if(btn){ btn.className='like-btn'+(__aboutLiked?' liked':''); var h=btn.querySelector('.heart'); if(h) h.textContent=__aboutLiked?'❤️':'🤍'; }
   }catch(e){ console.warn('aboutLike',e.message); }
 };
-async function subscribeAboutComments(){
+async function subscribeAboutComments(fresh){
   if(!firebaseReady||!db){ var l=document.getElementById('aboutCommentList'); if(l) l.innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les mots 💬':'Sign in online to see notes 💬')+'</div>'; return; }
   await ensureAuthorUid();
-  var q=query(collection(db,'comments','about','items'), orderBy('ts','desc'));
+  // 1 seule lecture (résumé serveur stats/c_about, réponses comprises) sauf juste après une action.
+  var idx = fresh ? null : await readCommentIndex('about');
   var snap;
+  if(idx){
+    snap={ empty:!idx.length, docs:idx.map(function(it){ return { id:it.id, data:function(){ return it.data; }, __replies:it.replies }; }) };
+    snap.forEach=function(f){ snap.docs.forEach(f); };
+  } else {
+  var q=query(collection(db,'comments','about','items'), orderBy('ts','desc'));
   try{ snap=await getDocs(q); }catch(e){ console.warn('aboutComments',(e&&e.message)||e); return; }
+  }
   var list=document.getElementById('aboutCommentList'); if(!list) return;
   if(snap.empty){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois la première personne à me laisser un mot 💌':'Be the first to leave me a note 💌')+'</div>'; return; }
     var out='';
@@ -1115,9 +1122,10 @@ async function subscribeAboutComments(){
     // Charger les réponses de chaque commentaire (une lecture chacune, toutes EN MÊME TEMPS : plus rapide).
     await Promise.all(snap.docs.map(async function(d){
       var cid=d.id;
-      var rq=query(collection(db,'comments','about','items',cid,'replies'), orderBy('ts','asc'));
       try{
-        var rsnap=await getDocs(rq);
+        var rsnap;
+        if(d.__replies){ rsnap={ forEach:function(f){ d.__replies.forEach(function(r){ f({ data:function(){ return r; } }); }); } }; }
+        else { rsnap=await getDocs(query(collection(db,'comments','about','items',cid,'replies'), orderBy('ts','asc'))); }
         var el=document.getElementById('abar_'+cid);
         var rout='';
         rsnap.forEach(function(rd){ var r=rd.data(); if(__aboutThreads[cid]) __aboutThreads[cid].replies.push(r);
@@ -1140,7 +1148,7 @@ window.postAboutReply=async function(cid){
     await addDoc(collection(db,'comments','about','items',cid,'replies'), payload);
     inp.value='';
     try{ await createReplyNotification('about', cid, replierName, text); }catch(e){ console.warn('notif about',e.message); }
-    subscribeAboutComments();   // recharge pour afficher la nouvelle réponse
+    subscribeAboutComments(true);   // recharge (en direct) pour afficher la nouvelle réponse
   }catch(e){ alert('Oops: '+e.message); }
 };
 function initAboutInteract(){
@@ -1155,7 +1163,7 @@ function initAboutInteract(){
       try{
         await addDoc(collection(db,'comments','about','items'), commentPayload({ text: text }));
         ta.value='';
-        subscribeAboutComments();   // recharge pour afficher le nouveau mot
+        subscribeAboutComments(true);   // recharge (en direct) pour afficher le nouveau mot
       }catch(e){ alert('Oops: '+e.message); }
     };
   }
@@ -1526,7 +1534,7 @@ document.getElementById('authSubmit').onclick=async function(){
       if(reservedP) safeSet('pseudo_ok_'+currentUser.uid, reservedP);
       await setDoc(doc(db,'users',currentUser.uid),{displayName:name,email:currentUser.email||'',newsletter:wantsNL,createdAt:serverTimestamp()},{merge:true});
       currentUser=auth.currentUser; updateAccountLabel(); updateCommentForm();
-      if(currentBook && document.getElementById('reader').style.display!=='none'){ try{ loadComments(); }catch(e){} }
+      if(currentBook && document.getElementById('reader').style.display!=='none'){ try{ loadComments(true); }catch(e){} }
     } else {
       await signInWithEmailAndPassword(auth,email,pass);
     }
@@ -2320,6 +2328,20 @@ async function refreshRepliesOf(cid){
   await ensureReplies([o]);
   document.querySelectorAll('[id="ar_'+cid+'"]').forEach(function(el){ el.innerHTML=repliesHTMLFor(o); });
 }
+// Lit le résumé des commentaires d'un chapitre (stats/c_{key}, écrit par le serveur).
+// Renvoie [{id, data, replies, repliesLoaded:true}] ou null (pas de résumé : lecture classique).
+async function readCommentIndex(key){
+  try{
+    var s=await getDoc(doc(db,'stats','c_'+key));
+    if(!s.exists()) return null;
+    var d=s.data();
+    if(!d || d.v!==1 || d.tooBig || !Array.isArray(d.items)) return null;
+    return d.items.map(function(it){
+      var data={}; Object.keys(it).forEach(function(k){ if(k!=='id' && k!=='replies') data[k]=it[k]; });
+      return {id:it.id, data:data, replies:(it.replies||[]), repliesLoaded:true};
+    });
+  }catch(e){ console.warn('commentIndex', (e&&e.message)||e); return null; }
+}
 var LOADING_C = function(){ return '<div class="empty-c">'+(lang==='fr'?'Chargement…':'Loading…')+'</div>'; };
 async function loadComments(useCache){
   if(!firebaseReady||!db){ document.getElementById('commentList').innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les commentaires 💬':'Sign in online to see comments 💬')+'</div>'; return; }
@@ -2330,6 +2352,14 @@ async function loadComments(useCache){
   if(hit && (Date.now()-hit.t) < COMMENTS_CACHE_MS){
     __allC = hit.all;
   } else {
+    // Ouverture normale d'un chapitre : on lit le RÉSUMÉ tenu à jour par le serveur
+    // (stats/c_{key}, 1 seule lecture, réponses comprises). Après une action de la lectrice
+    // (poster, modifier, supprimer), on relit en direct pour voir tout de suite le changement.
+    var idx = (useCache===true) ? await readCommentIndex(key) : null;
+    if(idx){
+      idx.forEach(function(it){ __allC.push(it); });
+      __commentsCache[key] = { t:Date.now(), all:__allC };
+    } else {
     const q=query(collection(db,'comments',key,'items'), orderBy('ts','desc'));
     let snap;
     try{ snap=await getDocs(q); }
@@ -2344,6 +2374,7 @@ async function loadComments(useCache){
       __allC.push({id:d.id, data:d.data(), replies: old ? old.replies : [], repliesLoaded: !!(old && old.repliesLoaded)});
     });
     __commentsCache[key] = { t:Date.now(), all:__allC };
+    }
   }
   const list=document.getElementById('commentList');
   if(!list) return;
