@@ -492,6 +492,30 @@ document.getElementById('mailingCopy').onclick=async function(){
 };
 document.getElementById('mailingOverlay').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
 
+// Message clair quand une action admin échoue (au lieu de "Oops: ...").
+function niceError(e, kind, text){
+  var code=(e&&e.code)||'', msg=((e&&e.message)||'')+'';
+  console.warn('firebase error', code, msg);
+  var what = { send:"Ta réponse n'a pas été envoyée.", edit:"La modification n'a pas été enregistrée.", del:"La suppression n'a pas marché." }[kind] || "Ça n'a pas marché.";
+  var keep = (kind==='send') ? " Ton texte est toujours dans la case, tu peux réessayer." : "";
+  var why;
+  if(navigator.onLine===false || code==='unavailable' || code==='deadline-exceeded' || /network|offline/i.test(msg)){
+    why = "La connexion internet semble coupée. Vérifie ton réseau puis réessaie.";
+  } else if(text && text.length>5000){
+    why = "Le texte est trop long : "+text.length+" caractères, le maximum est 5000.";
+  } else if(code==='unauthenticated' || !auth.currentUser){
+    why = "Ta session a expiré. Recharge la page et reconnecte-toi.";
+  } else if(code==='permission-denied'){
+    why = "Firebase a refusé. Vérifie que tu es connectée avec julie.cacciola@gmail.com (le compte autrice), sinon déconnecte-toi et reconnecte-toi.";
+  } else if(code==='not-found'){
+    why = "Ce message n'existe plus (déjà supprimé ?). Recharge la page.";
+  } else if(code==='resource-exhausted'){
+    why = "Quota Firebase atteint pour le moment. Réessaie un peu plus tard.";
+  } else {
+    why = "Réessaie dans un instant. (Détail technique : "+(code||msg)+")";
+  }
+  alert(what+' '+why+keep);
+}
 window.sendReply=async function(key,commentId){
   const inp=document.getElementById('rin_'+commentId); const text=inp.value.trim(); if(!text)return;
   try{
@@ -502,7 +526,7 @@ window.sendReply=async function(key,commentId){
     // Notifier les participants du fil (comme le fait le site public quand on répond).
     try{ await createReplyNotificationAdmin(key, commentId, AUTHOR_NAME, text); }catch(e){ console.warn('notif admin', e.message); }
   }
-  catch(e){ alert('Oops: '+e.message); }
+  catch(e){ niceError(e,'send',text); }
 };
 
 // ---- Supprimer un commentaire de lecteur (et tout son fil de réponses) ----
@@ -518,7 +542,7 @@ window.deleteComment=async function(key, commentId){
     // Retirer la carte du commentaire de l'affichage.
     var card=document.getElementById('reply_'+commentId);
     if(card){ var wrap=card.closest('.cmt'); if(wrap) wrap.remove(); }
-  }catch(e){ alert('Oops: '+e.message); }
+  }catch(e){ niceError(e,'del'); }
 };
 
 // ---- Modifier une de MES réponses (correction de faute de frappe) ----
@@ -531,7 +555,7 @@ window.editReply=async function(key, commentId, replyId){
   try{
     await updateDoc(doc(db,'comments',key,'items',commentId,'replies',replyId), { text:nv, edited:true });
     await loadReplies(key, commentId);  // recharge pour afficher le texte corrigé
-  }catch(e){ alert('Oops: '+e.message); }
+  }catch(e){ niceError(e,'edit',nv); }
 };
 
 // ---- Supprimer une de MES réponses (sans toucher au commentaire de la lectrice) ----
@@ -540,7 +564,7 @@ window.deleteReply=async function(key, commentId, replyId){
   try{
     await deleteDoc(doc(db,'comments',key,'items',commentId,'replies',replyId));
     await loadReplies(key, commentId);  // recharge le fil sans la réponse supprimée
-  }catch(e){ alert('Oops: '+e.message); }
+  }catch(e){ niceError(e,'del'); }
 };
 
 // Crée une notification pour chaque participant du fil quand l'autrice répond depuis l'admin.
