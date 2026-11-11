@@ -497,6 +497,8 @@
 
 .share-btn{ background:var(--card); border:1px solid var(--accent-l); color:var(--accent-l); border-radius:22px; padding:9px 18px; font-weight:700; cursor:pointer; font-size:14px; margin-left:8px; }
 .share-btn:hover{ background:var(--accent); color:#fff; }
+  .chapter-retry{background:var(--accent);color:#fff;border:none;border-radius:999px;padding:10px 22px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px}
+  .chapter-retry:hover{background:var(--accent-l)}
 </style>
 </head>
 <body>
@@ -1967,9 +1969,28 @@ const __chapterCache = {};
 async function fetchChapterHTML(book, langCode, chIndex){
   const url = book.path + '/' + langCode + '/ch' + (chIndex+1) + '.html';
   if(__chapterCache[url] !== undefined) return __chapterCache[url];
-  const res = await fetch(url, {cache:'no-cache'});
-  if(!res.ok) throw new Error('HTTP '+res.status+' sur '+url);
-  let txt = await res.text();
+  // Jusqu'à 3 essais (réseau mobile qui coupe, connexion qui rame) avant d'abandonner.
+  // Chaque essai a 25 s max. Un 404 (fichier absent) n'est pas réessayé : inutile.
+  let txt = null, lastErr = null;
+  for(let n=0; n<3 && txt===null; n++){
+    if(n>0) await new Promise(function(r){ setTimeout(r, n===1 ? 1200 : 3000); });
+    const ctrl = (typeof AbortController!=='undefined') ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, 25000) : null;
+    try{
+      const res = await fetch(url, ctrl ? {cache:'no-cache', signal:ctrl.signal} : {cache:'no-cache'});
+      if(!res.ok){
+        const err = new Error('HTTP '+res.status+' sur '+url); err.kind = (res.status===404 ? 'missing' : 'server'); err.status = res.status;
+        if(res.status===404) throw err;
+        lastErr = err; continue;
+      }
+      txt = await res.text();
+    }catch(e){
+      if(e && e.kind==='missing') throw e;
+      lastErr = e;
+      if(e && !e.kind) e.kind = (e.name==='AbortError') ? 'timeout' : ((typeof navigator!=='undefined' && navigator.onLine===false) ? 'offline' : 'network');
+    }finally{ if(timer) clearTimeout(timer); }
+  }
+  if(txt===null) throw (lastErr || new Error('chapitre non chargé'));
   // Le chapitre est injecté dans index.html (racine) : on transforme les chemins d'images
   // relatifs (src="images/...") en chemins complets vers le dossier du chapitre.
   const base = book.path + '/' + langCode + '/';
@@ -1994,6 +2015,36 @@ function chapterCoverHTML(){
   var t = (currentBook[lang]&&currentBook[lang].title) || (currentBook.fr&&currentBook.fr.title) || '';
   return '<div class="chapter-cover"><img src="'+currentBook.cover+'" alt="'+t.replace(/"/g,'')+'"></div>';
 }
+// Message affiché si le chapitre n'a pas pu être chargé : la cause probable + un bouton Réessayer.
+function chapterErrorHTML(e){
+  var fr = (lang==='fr');
+  var kind = (e && e.kind) || ((typeof navigator!=='undefined' && navigator.onLine===false) ? 'offline' : 'network');
+  var whyFr = {
+    offline: 'Ton téléphone semble hors connexion. Vérifie ton Wi-Fi ou tes données mobiles.',
+    timeout: 'La connexion est trop lente, le chapitre n\'a pas fini de se charger.',
+    network: 'Problème de connexion pendant le chargement.',
+    server:  'Le serveur ne répond pas pour le moment.',
+    missing: 'Ce chapitre est introuvable sur le site. Préviens-moi dans les commentaires !'
+  };
+  var whyEn = {
+    offline: 'Your device seems to be offline. Check your Wi-Fi or mobile data.',
+    timeout: 'The connection is too slow, the chapter didn\'t finish loading.',
+    network: 'Connection problem while loading.',
+    server:  'The server isn\'t responding right now.',
+    missing: 'This chapter can\'t be found on the site. Please let me know in the comments!'
+  };
+  var why = (fr ? whyFr : whyEn)[kind] || (fr ? whyFr : whyEn).network;
+  var tip = (kind==='missing') ? '' : '<br><span style="font-size:.9em">'+(fr
+    ? 'Si ça continue et que tu lis depuis Instagram, TikTok ou X, essaie d\'ouvrir le site dans Safari ou Chrome.'
+    : 'If it keeps happening and you\'re reading from Instagram, TikTok or X, try opening the site in Safari or Chrome.')+'</span>';
+  var code = (e && e.status) ? String(e.status) : kind;
+  return '<div class="chapter-error" style="text-align:center;padding:24px 8px">'+
+    '<p style="opacity:.85">\u26a0\ufe0f '+(fr?'Chapitre indisponible pour le moment.':'Chapter unavailable right now.')+'</p>'+
+    '<p style="opacity:.75">'+why+tip+'</p>'+
+    '<button type="button" class="chapter-retry" onclick="retryChapter()">\ud83d\udd04 '+(fr?'Réessayer':'Try again')+'</button>'+
+    '<p style="opacity:.4;font-size:.75em;margin-top:10px">Code : '+code+'</p></div>';
+}
+window.retryChapter = function(){ try{ renderChapter(); }catch(e){} };
 async function renderChapter(){
   resetMaxFrac();   // nouvelle page : on repart d'une progression max à 0
   try{ markLastBook(currentBook); }catch(e){}   // mémorise la lecture en cours pour la reprise
@@ -2009,8 +2060,7 @@ async function renderChapter(){
       const html = await fetchChapterHTML(currentBook, fetchLang, currentCh);
       body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2>'+readTimeHTML(html)+html;
     }catch(e){
-      body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2><p style="opacity:.7">⚠️ '+
-        (lang==='fr'?'Chapitre indisponible pour le moment.':'Chapter unavailable right now.')+'</p>';
+      body.innerHTML=chapterCoverHTML()+'<h2>'+ch.title+'</h2>'+chapterErrorHTML(e);
       console.error('Chargement chapitre', e);
     }
   } else {
@@ -2220,28 +2270,39 @@ window.__currentPassageQuote='';  // le passage actuellement ouvert dans la popu
 // après chaque action de l'utilisateur). Économise énormément de lectures.
 // subscribeComments est conservé comme alias pour rester compatible avec le
 // bouton "Annuler" de l'édition et les appels existants.
-function subscribeComments(){ return loadComments(); }
-async function loadComments(){
+// Mini-cache en mémoire (5 min) : revenir sur un chapitre déjà ouvert, changer de langue
+// d'interface ou la connexion qui redessine le chapitre ne relit plus tout Firebase.
+// Toute action (poster, répondre, modifier, supprimer) appelle loadComments() sans cache.
+var __commentsCache = {};
+var COMMENTS_CACHE_MS = 5*60*1000;
+function subscribeComments(){ return loadComments(true); }
+async function loadComments(useCache){
   if(!firebaseReady||!db){ document.getElementById('commentList').innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les commentaires 💬':'Sign in online to see comments 💬')+'</div>'; return; }
   await ensureAuthorUid();
   const key=chapterKey();
-  const q=query(collection(db,'comments',key,'items'), orderBy('ts','desc'));
-  let snap;
-  try{ snap=await getDocs(q); }
-  catch(e){ console.warn('loadComments', (e&&e.message)||e); return; }
+  var __allC=[];
+  var hit = (useCache===true) ? __commentsCache[key] : null;
+  if(hit && (Date.now()-hit.t) < COMMENTS_CACHE_MS){
+    __allC = hit.all;
+  } else {
+    const q=query(collection(db,'comments',key,'items'), orderBy('ts','desc'));
+    let snap;
+    try{ snap=await getDocs(q); }
+    catch(e){ console.warn('loadComments', (e&&e.message)||e); return; }
+    // Tout charger UNE fois en mémoire (généraux + passages + réponses).
+    snap.forEach(function(d){ __allC.push({id:d.id, data:d.data(), replies:[]}); });
+    // Charger les réponses de chaque commentaire (une lecture chacune, en parallèle) — gardées en mémoire.
+    await Promise.all(__allC.map(async function(item){
+      const rq=query(collection(db,'comments',key,'items',item.id,'replies'), orderBy('ts','asc'));
+      try{
+        const rsnap=await getDocs(rq);
+        rsnap.forEach(function(rd){ item.replies.push(rd.data()); });
+      }catch(e){ /* silencieux */ }
+    }));
+    __commentsCache[key] = { t:Date.now(), all:__allC };
+  }
   const list=document.getElementById('commentList');
   if(!list) return;
-  // Tout charger UNE fois en mémoire (généraux + passages + réponses).
-  var __allC=[];
-  snap.forEach(function(d){ __allC.push({id:d.id, data:d.data(), replies:[]}); });
-  // Charger les réponses de chaque commentaire (une lecture chacune, en parallèle) — gardées en mémoire.
-  await Promise.all(__allC.map(async function(item){
-    const rq=query(collection(db,'comments',key,'items',item.id,'replies'), orderBy('ts','asc'));
-    try{
-      const rsnap=await getDocs(rq);
-      rsnap.forEach(function(rd){ item.replies.push(rd.data()); });
-    }catch(e){ /* silencieux */ }
-  }));
   if(key!==chapterKeySafe()) return;   // la lectrice a changé de chapitre entre-temps
   // Mémoriser pour la popup de passage (aucune relecture Firebase au clic).
   __chapterComments = __allC;

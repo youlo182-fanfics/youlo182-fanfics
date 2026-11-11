@@ -129,7 +129,7 @@ if(document.body){ applyAdminTheme(); } else { document.addEventListener('DOMCon
 import { firebaseConfig, AUTHOR_EMAIL, AUTHOR_NAME, FB_CDN, maybeInitAppCheck } from './firebase-config.js';
 const { initializeApp } = await import(FB_CDN+"firebase-app.js");
 const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } = await import(FB_CDN+"firebase-auth.js");
-const { getFirestore, collection, collectionGroup, getDocs, addDoc, doc, getDoc, deleteDoc, updateDoc, query, orderBy, serverTimestamp } = await import(FB_CDN+"firebase-firestore.js");
+const { getFirestore, collection, collectionGroup, getDocs, addDoc, doc, getDoc, deleteDoc, updateDoc, query, orderBy, serverTimestamp, getCountFromServer } = await import(FB_CDN+"firebase-firestore.js");
 
 const app = initializeApp(firebaseConfig);
 await maybeInitAppCheck(app);   // anti-robots (inactif tant que la clé n'est pas renseignée)
@@ -210,7 +210,9 @@ async function loadDashboard(){
 
   // Lecteurs inscrits
   let userCount=0;
-  try{ const us=await getDocs(collection(db,'users')); userCount=us.size; }catch(e){}
+  // Comptage côté serveur : ~1 lecture (au lieu d'1 lecture PAR inscrit à chaque ouverture)
+  try{ const cs=await getCountFromServer(collection(db,'users')); userCount=cs.data().count; }
+  catch(e){ try{ const us=await getDocs(collection(db,'users')); userCount=us.size; }catch(_){} }
 
   // ---- Nouveautés depuis ta dernière visite (comparaison locale, 0 coût Firebase) ----
   var prev = lastSeen();
@@ -310,7 +312,9 @@ async function loadCommentsAsync(){
     box.innerHTML='<div class="empty">Aucun commentaire pour l\'instant 💌</div>';
   } else {
     paginate('commentsAdmin', allComments, renderCmt, 12);
-    allComments.forEach(c=>loadReplies(c.key,c.id));
+    // Réponses : seulement pour la 1re page affichée (les autres pages les chargent via gotoPage).
+    // (loadReplies ignorait déjà les commentaires non affichés : simple nettoyage.)
+    allComments.slice(0, 12).forEach(c=>loadReplies(c.key,c.id));
   }
 }
 
