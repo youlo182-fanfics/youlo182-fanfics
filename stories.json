@@ -16,6 +16,10 @@
       "banner": "assets/what-a-lie-banner.jpeg",
       "releaseAt": "2099-01-01T00:00:00+01:00",
       "noCountdown": true,
+      "mailNote": {
+        "fr": "✨ Depuis la dernière histoire, le site a plein de nouveautés : tu peux réagir à chaque chapitre avec un emoji, te faire lire le chapitre à voix haute, télécharger une histoire pour la lire sans internet, et recevoir un e-mail quand quelqu'un te répond. Tu peux aussi te connecter avec Google.",
+        "en": "✨ Since the last story, the site has lots of new features: you can react to every chapter with an emoji, have the chapter read aloud to you, download a story to read it offline, and get an e-mail when someone replies to you. You can also sign in with Google."
+      },
       "fr": {
         "title": "What A Lie",
         "summary": "Maya et Carina, c'était une évidence. Meilleures amies depuis toujours, puis enfin bien plus que ça, après une année d'absence et des sentiments trop longtemps tus. Six mois de bonheur, de promesses et de « per sempre »... jusqu'au matin où tout s'effondre. Quelques mots, et Carina s'en va. Pour une autre. Assise au pied du phare de Discovery Park, le cœur en miettes, Maya n'a plus qu'une question : à quel moment Carina a-t-elle commencé à faire semblant ? Et si tout ce qu'elles ont vécu n'avait été qu'un mensonge ? Certains mensonges nous protègent. D'autres nous brisent. Une histoire Marina au lycée, à Seattle, sur le premier amour, les promesses et le poids des mots qu'on ne dit pas. 💛",

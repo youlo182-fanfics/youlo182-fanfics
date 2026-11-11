@@ -314,13 +314,29 @@ function page(title, body) {
 exports.unsubscribe = onRequest({ secrets: [UNSUB_KEY], invoker: "public" }, async (req, res) => {
   const uid = String((req.query && req.query.u) || "");
   const t = String((req.query && req.query.t) || "");
+  const news = String((req.query && req.query.n) || "") === "1";   // lien de la newsletter
   let valid = false;
   try {
-    valid = !!uid && t.length === 32 && crypto.timingSafeEqual(Buffer.from(t), Buffer.from(token(uid)));
+    valid = !!uid && t.length === 32 && crypto.timingSafeEqual(Buffer.from(t), Buffer.from(news ? newsToken(uid) : token(uid)));
   } catch (e) { valid = false; }
   res.set("Cache-Control", "no-store");
   if (!valid) {
     res.status(400).send(page("Lien invalide", "<p>Ce lien n'est pas valide. / This link is not valid.</p>"));
+    return;
+  }
+  if (news) {
+    if (req.method === "POST") {
+      await db.doc("users/" + uid).set({ newsletter: false }, { merge: true });
+      res.send(page("C'est noté", "<p>C'est noté, tu ne recevras plus la newsletter des nouvelles histoires.</p>" +
+        "<p style=\"color:#8a7a80;font-size:14px;\">Done, you will no longer get the new stories newsletter.</p>" +
+        "<p style=\"color:#8a7a80;font-size:13px;\">Tu peux te réinscrire dans « Mon compte » sur le site.</p>"));
+      return;
+    }
+    const act = UNSUB_URL + "?n=1&u=" + encodeURIComponent(uid) + "&t=" + encodeURIComponent(t);
+    res.send(page("Newsletter", "<p>Tu ne veux plus recevoir la newsletter des nouvelles histoires ?</p>" +
+      '<p style="color:#8a7a80;font-size:14px;">Stop getting the new stories newsletter?</p>' +
+      '<form method="post" action="' + esc(act) + '">' +
+      '<button type="submit" style="background:#b03d5e;color:#fff;border:none;padding:12px 22px;border-radius:999px;font-size:15px;cursor:pointer;">Confirmer / Confirm</button></form>'));
     return;
   }
   if (req.method === "POST") {
@@ -402,3 +418,288 @@ exports.rebuildCommentIndexes = onRequest({ secrets: [UNSUB_KEY], invoker: "publ
   }
   res.json({ keys: refs.length, done, errors });
 });
+
+// ============================================================================
+// COUPE-CIRCUIT DE FACTURATION
+// ----------------------------------------------------------------------------
+// Le budget Google Cloud "Firebase Project youlo182-fanfics" (2 EUR / mois) publie
+// regulierement la depense du mois sur le sujet Pub/Sub "budget-alerts".
+// Si la depense reelle atteint KILL_AT, on previent Julie puis on DETACHE la facturation
+// du projet : plus aucun cout possible. Le site statique (Cloudflare) reste en ligne,
+// Firebase repasse en mode gratuit limite. Pour reactiver : console Google Cloud > Facturation.
+// ============================================================================
+const { onMessagePublished } = require("firebase-functions/v2/pubsub");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const KILL_AT = 2;   // euros
+
+exports.billingKillSwitch = onMessagePublished({ topic: "budget-alerts", secrets: [GMAIL_APP_PASSWORD] }, async (event) => {
+  let d = {};
+  try { d = event.data.message.json || JSON.parse(Buffer.from(event.data.message.data, "base64").toString()); } catch (e) { logger.warn("budget msg", e.message); return; }
+  const cost = Number(d.costAmount || 0);
+  logger.info("budget", { cost, budget: d.budgetAmount, currency: d.currencyCode });
+  if (!(cost >= KILL_AT)) return;
+  const st = db.doc("mailState/_billing");
+  const month = String(d.costIntervalStart || new Date().toISOString().slice(0, 7));
+  const prev = await st.get();
+  if (prev.exists && prev.data().cutFor === month) return;   // deja coupe ce mois-ci
+  await st.set({ cutFor: month, cost, at: admin.firestore.FieldValue.serverTimestamp() });
+  try {
+    await gmailTransport().sendMail({
+      from: { name: FROM_NAME, address: FROM_ADDR }, to: AUTHOR_INBOX,
+      subject: "Youlo182 : facturation Firebase coupee (" + cost.toFixed(2) + " EUR)",
+      text: "Coucou Julie,\n\nLa depense Google Cloud du mois a atteint " + cost.toFixed(2) + " EUR (seuil " + KILL_AT + " EUR).\n" +
+        "Par securite, la facturation du projet youlo182-fanfics vient d'etre coupee automatiquement : plus aucun cout possible.\n\n" +
+        "Le site reste en ligne et lisible. Les e-mails automatiques et les resumes de commentaires sont en pause, et Firebase repasse aux limites gratuites.\n\n" +
+        "Pour tout remettre : demande a Aki, ou console Google Cloud > Facturation > Associer un compte de facturation au projet youlo182-fanfics.\n"
+    });
+  } catch (e) { logger.error("mail killswitch", e.message); }
+  const { GoogleAuth } = require("google-auth-library");
+  const client = await new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-billing"] }).getClient();
+  await client.request({
+    url: "https://cloudbilling.googleapis.com/v1/projects/" + PROJECT + "/billingInfo",
+    method: "PUT", data: { billingAccountName: "" }
+  });
+  logger.warn("FACTURATION COUPEE", cost);
+});
+
+// ============================================================================
+// NEWSLETTER AUTOMATIQUE
+// ----------------------------------------------------------------------------
+// Toutes les 30 min, on lit stories.json du site :
+//  - une histoire avec un DECOMPTE (releaseAt dans le futur, sans noCountdown)
+//    -> mail "nouvelle histoire le <date> a <heure>" avec image + resume ;
+//  - une histoire toute nouvelle publiee directement (sans decompte)
+//    -> mail "nouvelle histoire en ligne".
+// Un seul mail par histoire, aux inscrits qui ont coche la newsletter (users.newsletter === true).
+// Au tout premier passage, les histoires deja presentes sont juste memorisees (aucun mail).
+// Champ optionnel dans stories.json : "mailNote": {"fr": "...", "en": "..."} (petit paragraphe en plus).
+// ============================================================================
+const NEWS_PER_RUN = 120;
+
+function newsToken(uid) { return token("news:" + uid); }
+function newsUnsubLink(uid) { return UNSUB_URL + "?n=1&u=" + encodeURIComponent(uid) + "&t=" + newsToken(uid); }
+function absUrl(p) { return SITE + "/" + String(p || "").split("/").map(encodeURIComponent).join("/"); }
+function realDate(s) { const t = Date.parse(s || ""); return (t && new Date(t).getUTCFullYear() < 2090) ? t : 0; }
+function fmtWhen(ms, en) {
+  const o = { timeZone: "Europe/Paris", weekday: "long", day: "numeric", month: "long" };
+  const day = new Intl.DateTimeFormat(en ? "en-GB" : "fr-FR", o).format(new Date(ms));
+  const p = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(ms));
+  const h = Number(p.find((x) => x.type === "hour").value), m = p.find((x) => x.type === "minute").value;
+  if (en) {
+    const h12 = (h % 12) || 12;
+    return day + " at " + h12 + (m === "00" ? "" : ":" + m) + (h < 12 ? " AM" : " PM") + " (Paris time)";
+  }
+  return day + " à " + h + "h" + (m === "00" ? "" : m) + " (heure de Paris)";
+}
+
+function buildNews(s, kind, unsub) {
+  const fr = s.fr || {}, en = s.en || {};
+  const titleFr = fr.title || en.title || s.id, titleEn = en.title || fr.title || s.id;
+  const when = realDate(s.releaseAt);
+  const link = SITE + "/?story=" + encodeURIComponent(s.id);
+  const img = absUrl(s.banner || s.cover);
+  const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+  const P = {
+    fr: {
+      hello: "Coucou 💛",
+      head: kind === "teaser" ? "📖 Nouvelle histoire le " + fmtWhen(when, false) + " !" : "📖 Nouvelle histoire en ligne !",
+      intro: kind === "teaser" ? "Je publie bientôt une toute nouvelle histoire : " + titleFr + "." : "Une toute nouvelle histoire t'attend sur le site : " + titleFr + ".",
+      sum: fr.summary || "", note: (s.mailNote && s.mailNote.fr) || "",
+      btn: kind === "teaser" ? "Voir l'histoire sur le site" : "Lire maintenant",
+      bye: kind === "teaser" ? "J'ai hâte de te la faire découvrir. À très vite ! 🥰💛" : "Bonne lecture ! 🥰💛",
+      foot: "Tu reçois ce mail car tu es inscrit·e à ma newsletter sur youlo182-fanfics.pages.dev.",
+      stop: "Me désinscrire de la newsletter"
+    },
+    en: {
+      hello: "Hi 💛",
+      head: kind === "teaser" ? "📖 New story on " + fmtWhen(when, true) + "!" : "📖 New story online!",
+      intro: kind === "teaser" ? "I'm publishing a brand-new story soon: " + titleEn + "." : "A brand-new story is waiting for you on the site: " + titleEn + ".",
+      sum: en.summary || "", note: (s.mailNote && s.mailNote.en) || "",
+      btn: kind === "teaser" ? "See the story on the site" : "Read it now",
+      bye: kind === "teaser" ? "I can't wait for you to read it. See you very soon! 🥰💛" : "Happy reading! 🥰💛",
+      foot: "You get this e-mail because you subscribed to my newsletter on youlo182-fanfics.pages.dev.",
+      stop: "Unsubscribe from the newsletter"
+    }
+  };
+  const subject = kind === "teaser"
+    ? "Nouvelle histoire le " + fmtWhen(when, false).replace(" (heure de Paris)", "") + " : " + titleFr
+    : "Nouvelle histoire en ligne : " + titleFr;
+  function part(L) {
+    const x = P[L];
+    return '<p>' + esc(x.hello) + '</p>' +
+      '<p style="font-size:17px;"><b>' + esc(x.head) + '</b></p>' +
+      '<p>' + esc(x.intro) + '</p>' +
+      (x.sum ? '<p style="padding-left:12px;border-left:3px solid #e6c9d3;color:#444;"><i>' + esc(x.sum) + '</i></p>' : '') +
+      (x.note ? '<p>' + esc(x.note).replace(/\n/g, "<br>") + '</p>' : '') +
+      '<p><a href="' + esc(link) + '" style="color:#b03d5e;font-weight:bold;">👉 ' + esc(x.btn) + '</a></p>' +
+      '<p>' + esc(x.bye) + '</p><p>xx Youlo182 aka Julie</p>';
+  }
+  const html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#222;max-width:560px;">' +
+    '<p style="font-size:12px;color:#777;">English below</p>' +
+    '<p><a href="' + esc(link) + '"><img src="' + esc(img) + '" alt="' + esc(titleFr) + '" style="width:100%;max-width:560px;border-radius:10px;display:block;"></a></p>' +
+    part("fr") + '<hr style="border:none;border-top:1px solid #ddd;margin:28px 0;">' + part("en") +
+    '<p style="font-size:12px;color:#777;margin-top:28px;">' + esc(P.fr.foot) + '<br>' + esc(P.en.foot) + '<br>' +
+    '<a href="' + esc(unsub) + '" style="color:#777;">' + esc(P.fr.stop) + ' / ' + esc(P.en.stop) + '</a></p></div>';
+  function txt(L) {
+    const x = P[L];
+    return [x.hello, "", x.head, "", x.intro, "", x.sum, x.note ? "\n" + x.note : "", "", x.btn + " : " + link, "", x.bye, "", "xx Youlo182 aka Julie"].join("\n");
+  }
+  const text = "English below\n\n" + txt("fr") + "\n\n-----\n\n" + txt("en") + "\n\n--\n" + P.fr.foot + "\n" + P.fr.stop + " : " + unsub;
+  return { subject, html, text };
+}
+
+async function sendNews(transporter, s, kind, toAddr, uid) {
+  const unsub = uid ? newsUnsubLink(uid) : SITE;
+  const m = buildNews(s, kind, unsub);
+  await transporter.sendMail({
+    from: { name: FROM_NAME, address: FROM_ADDR }, to: toAddr, subject: m.subject, text: m.text, html: m.html,
+    headers: uid ? { "List-Unsubscribe": "<" + unsub + ">", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } : {}
+  });
+}
+
+async function fetchStories() {
+  const r = await fetch(SITE + "/stories.json?t=" + Date.now(), { headers: { "Cache-Control": "no-cache" } });
+  if (!r.ok) throw new Error("stories.json " + r.status);
+  const j = await r.json();
+  return Array.isArray(j) ? j : (j.stories || []);
+}
+function hasChapters(s) { return ["fr", "en"].some((l) => s[l] && Array.isArray(s[l].chapters) && s[l].chapters.length > 0); }
+
+exports.newsletterCheck = onSchedule({ schedule: "every 30 minutes", timeZone: "Europe/Paris", secrets: [GMAIL_APP_PASSWORD, UNSUB_KEY], timeoutSeconds: 540 }, async () => {
+  const stories = await fetchStories();
+  const now = Date.now();
+  const stRef = db.doc("mailState/_news");
+  const st = (await stRef.get()).data() || {};
+  const known = st.known || {};
+  if (!st.init) {   // premier passage : on memorise l'existant, aucun mail
+    stories.forEach((s) => { known[s.id] = "existing"; });
+    await stRef.set({ init: true, known });
+    logger.info("newsletter init", stories.length);
+    return;
+  }
+  // Que faut-il annoncer ?
+  const todo = [];
+  stories.forEach((s) => {
+    const k = known[s.id];
+    const when = realDate(s.releaseAt);
+    const isTeaser = when > now && !s.noCountdown;
+    if (isTeaser && k !== "teaser" && k !== "live") todo.push({ s, kind: "teaser" });
+    else if ((!k || k === "waiting") && !isTeaser && hasChapters(s) && (!when || when <= now)) todo.push({ s, kind: "live" });
+    else if (!k && (s.noCountdown || !hasChapters(s))) known[s.id] = "waiting";   // pas encore prete
+  });
+  // Securite : plus de 2 histoires d'un coup = sans doute une reorganisation du site, on demande a Julie.
+  const fresh = todo.filter((t) => !(st.sending && st.sending.id === t.s.id));
+  if (fresh.length > 2) {
+    fresh.forEach((t) => { known[t.s.id] = "skipped"; });
+    await stRef.set({ known }, { merge: true });
+    await gmailTransport().sendMail({ from: { name: FROM_NAME, address: FROM_ADDR }, to: AUTHOR_INBOX,
+      subject: "Youlo182 : newsletter NON envoyee (" + fresh.length + " histoires d'un coup)",
+      text: "Coucou Julie,\n\n" + fresh.length + " nouvelles histoires sont apparues d'un coup dans stories.json : " + fresh.map((t) => t.s.id).join(", ") +
+        ".\nPar securite, aucune newsletter n'est partie. Demande a Aki si tu veux en envoyer une." });
+    return;
+  }
+  if (!todo.length) { await stRef.set({ known }, { merge: true }); return; }
+  const job = todo[0];
+  // Envoi (reprend la ou il s'etait arrete si besoin : plafond Gmail / temps)
+  const sending = (st.sending && st.sending.id === job.s.id && st.sending.kind === job.kind) ? st.sending : { id: job.s.id, kind: job.kind, sent: [] };
+  const done = new Set(sending.sent || []);
+  const us = await db.collection("users").where("newsletter", "==", true).get();
+  const transporter = gmailTransport();
+  let n = 0, left = 0;
+  const seenEmails = new Set();
+  for (const u of us.docs) {
+    const e = String(u.data().email || "").trim().toLowerCase();
+    if (!e || e === AUTHOR_EMAIL || seenEmails.has(e)) continue;
+    seenEmails.add(e);
+    if (done.has(u.id)) continue;
+    if (n >= NEWS_PER_RUN || !(await takeDaily("_global", MAX_GLOBAL_PER_DAY))) { left++; continue; }
+    try { await sendNews(transporter, job.s, job.kind, e, u.id); n++; } catch (err) { logger.warn("news to", u.id, err.message); }
+    done.add(u.id);
+    sending.sent = Array.from(done);
+    if (n % 10 === 0) await stRef.set({ sending }, { merge: true });
+  }
+  if (left > 0) {
+    await stRef.set({ sending, known }, { merge: true });
+    logger.info("newsletter partielle", { id: job.s.id, sent: n, left });
+    return;
+  }
+  known[job.s.id] = job.kind;
+  await stRef.set({ known, sending: admin.firestore.FieldValue.delete(), last: { id: job.s.id, kind: job.kind, count: done.size, at: new Date().toISOString() } }, { merge: true });
+  try {
+    await transporter.sendMail({ from: { name: FROM_NAME, address: FROM_ADDR }, to: AUTHOR_INBOX,
+      subject: "Youlo182 : newsletter envoyee (" + ((job.s.fr && job.s.fr.title) || job.s.id) + ")",
+      text: "Coucou Julie,\n\nLa newsletter \"" + (job.kind === "teaser" ? "nouvelle histoire bientot" : "nouvelle histoire en ligne") + "\" pour " +
+        ((job.s.fr && job.s.fr.title) || job.s.id) + " est partie a " + done.size + " inscrit(e)s." });
+  } catch (e) { logger.warn("recap news", e.message); }
+});
+
+// Apercu : envoie la newsletter d'une histoire UNIQUEMENT a youlo182.fanfics@gmail.com.
+//   .../newsletterPreview?k=<HMAC("preview")>&id=<id histoire>&kind=teaser|live&when=<date ISO optionnelle>
+exports.newsletterPreview = onRequest({ secrets: [GMAIL_APP_PASSWORD, UNSUB_KEY], invoker: "public" }, async (req, res) => {
+  const want = crypto.createHmac("sha256", UNSUB_KEY.value()).update("preview").digest("hex");
+  if ((req.query.k || "") !== want) { res.status(403).send("forbidden"); return; }
+  const s = (await fetchStories()).find((x) => x.id === req.query.id);
+  if (!s) { res.status(404).send("histoire inconnue"); return; }
+  const story = Object.assign({}, s);
+  if (req.query.when) story.releaseAt = String(req.query.when);
+  await sendNews(gmailTransport(), story, req.query.kind === "live" ? "live" : "teaser", AUTHOR_INBOX, null);
+  res.send("apercu envoye a " + AUTHOR_INBOX);
+});
+
+// ============================================================================
+// RECAP DE LA SEMAINE (chaque lundi 9h, a youlo182.fanfics@gmail.com)
+// ============================================================================
+async function weeklyRecap() {
+  const now = Date.now(), weekAgo = now - 7 * 24 * 3600 * 1000;
+  const recRef = db.doc("mailState/_recap");
+  const prev = (await recRef.get()).data() || null;
+  const tot = (await db.doc("stats/totals").get()).data() || {};
+  const users = (await db.collection("users").count().get()).data().count;
+  const nl = (await db.collection("users").where("newsletter", "==", true).count().get()).data().count;
+  const newUsers = (await db.collection("users").where("createdAt", ">=", admin.firestore.Timestamp.fromMillis(weekAgo)).count().get()).data().count;
+  const stories = await fetchStories().catch(() => []);
+  const byId = {}; stories.forEach((s) => { byId[s.id] = s; });
+  const tname = (id) => (byId[id] && ((byId[id].fr && byId[id].fr.title) || (byId[id].en && byId[id].en.title))) || (id === "about" ? "Page À propos" : id);
+  // Commentaires + reponses de la semaine (depuis les resumes stats/c_*)
+  const idx = await db.collection("stats").get();
+  let nC = 0, nR = 0; const perChap = {}; const latest = [];
+  idx.forEach((d) => {
+    if (!d.id.startsWith("c_")) return;
+    const key = d.id.slice(2);
+    (d.data().items || []).forEach((it) => {
+      const isMe = (x) => x.admin === true || x.name === "Youlo182";
+      if (tsMs(it.ts) >= weekAgo && !isMe(it)) { nC++; perChap[key] = (perChap[key] || 0) + 1; latest.push({ key, name: it.name, text: it.text, ts: tsMs(it.ts) }); }
+      (it.replies || []).forEach((r) => { if (tsMs(r.ts) >= weekAgo && !isMe(r)) { nR++; perChap[key] = (perChap[key] || 0) + 1; } });
+    });
+  });
+  const where = (key) => {
+    const m = key.match(/^(.*)_(fr|en)_(\d+)$/);
+    return m ? tname(m[1]) + " (" + m[2].toUpperCase() + ", ch. " + (Number(m[3]) + 1) + ")" : tname(key);
+  };
+  const top = Object.keys(perChap).sort((a, b) => perChap[b] - perChap[a]).slice(0, 3);
+  latest.sort((a, b) => b.ts - a.ts);
+  const diff = (k) => (prev && typeof prev[k] === "number") ? Math.max(0, (tot[k] || 0) - prev[k]) : null;
+  const dV = diff("views"), dL = diff("likes");
+  // Vues par histoire cette semaine
+  let topStories = [];
+  if (prev && prev.byStory) {
+    topStories = Object.keys(tot.byStory || {}).map((id) => ({ id, v: ((tot.byStory[id] || {}).views || 0) - ((prev.byStory[id] || {}).views || 0) }))
+      .filter((x) => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 3);
+  }
+  const L = [];
+  L.push("Coucou Julie 💛", "", "Voici ta semaine sur Youlo182 :", "");
+  L.push("👁️ Vues : " + (dV === null ? (tot.views || 0) + " au total (comparaison dès la semaine prochaine)" : "+" + dV + " (" + (tot.views || 0) + " au total)"));
+  L.push("❤️ J'aime : " + (dL === null ? (tot.likes || 0) + " au total" : "+" + dL + " (" + (tot.likes || 0) + " au total)"));
+  L.push("💬 Commentaires : +" + nC + ", réponses des lectrices : +" + nR);
+  L.push("🧑 Nouveaux inscrits : +" + newUsers + " (" + users + " au total, dont " + nl + " à la newsletter)");
+  if (topStories.length) { L.push("", "📖 Histoires les plus lues cette semaine :"); topStories.forEach((x) => L.push("   - " + tname(x.id) + " : " + x.v + " vues")); }
+  if (top.length) { L.push("", "🔥 Chapitres les plus commentés :"); top.forEach((k) => L.push("   - " + where(k) + " : " + perChap[k])); }
+  if (latest.length) { L.push("", "💌 Derniers commentaires :"); latest.slice(0, 5).forEach((c) => L.push("   - " + (c.name || "Anonyme") + " sur " + where(c.key) + " : « " + oneLine(c.text, 140) + " »")); }
+  L.push("", "Tableau de bord : " + SITE + "/admin.html", "", "Bonne semaine ! 🥰");
+  const text = L.join("\n");
+  const html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#222;max-width:560px;white-space:pre-wrap;">' + esc(text) + "</div>";
+  await gmailTransport().sendMail({ from: { name: FROM_NAME, address: FROM_ADDR }, to: AUTHOR_INBOX,
+    subject: "Youlo182 : ta semaine (" + (dV === null ? "" : "+" + dV + " vues, ") + "+" + nC + " commentaires, +" + newUsers + " inscrits)", text, html });
+  await recRef.set({ views: tot.views || 0, likes: tot.likes || 0, comments: tot.comments || 0, users, byStory: tot.byStory || {}, at: new Date().toISOString() });
+}
+exports.weeklyRecap = onSchedule({ schedule: "every monday 09:00", timeZone: "Europe/Paris", secrets: [GMAIL_APP_PASSWORD] }, async () => { await weeklyRecap(); });
