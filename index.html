@@ -2276,6 +2276,33 @@ window.__currentPassageQuote='';  // le passage actuellement ouvert dans la popu
 var __commentsCache = {};
 var COMMENTS_CACHE_MS = 5*60*1000;
 function subscribeComments(){ return loadComments(true); }
+// Lit les réponses des commentaires donnés (une seule fois chacun, puis gardées en mémoire).
+async function ensureReplies(items){
+  if(!firebaseReady||!db||!items||!items.length) return;
+  var key=chapterKey();
+  await Promise.all(items.filter(function(o){ return o && !o.repliesLoaded; }).map(async function(o){
+    try{
+      var rs=await getDocs(query(collection(db,'comments',key,'items',o.id,'replies'), orderBy('ts','asc')));
+      var arr=[]; rs.forEach(function(rd){ arr.push(rd.data()); });
+      o.replies=arr; o.repliesLoaded=true;
+    }catch(e){ /* silencieux : on réessaiera à la prochaine ouverture */ }
+  }));
+}
+function repliesHTMLFor(o){
+  var h='';
+  (o.replies||[]).forEach(function(r){ var isA = isAuthorDoc(r);
+    h+='<div class="'+(isA?'author-reply':'reader-reply')+'"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(r.name||'Anonyme')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
+  return h;
+}
+// Relit les réponses d'UN commentaire et met à jour son fil à l'écran (après une réponse postée).
+async function refreshRepliesOf(cid){
+  var o=(__chapterComments||[]).find(function(x){ return x.id===cid; });
+  if(!o) return loadComments();
+  o.repliesLoaded=false;
+  await ensureReplies([o]);
+  document.querySelectorAll('[id="ar_'+cid+'"]').forEach(function(el){ el.innerHTML=repliesHTMLFor(o); });
+}
+var LOADING_C = function(){ return '<div class="empty-c">'+(lang==='fr'?'Chargement…':'Loading…')+'</div>'; };
 async function loadComments(useCache){
   if(!firebaseReady||!db){ document.getElementById('commentList').innerHTML='<div class="empty-c">'+(lang==='fr'?'Connecte-toi en ligne pour voir les commentaires 💬':'Sign in online to see comments 💬')+'</div>'; return; }
   await ensureAuthorUid();
@@ -2289,16 +2316,15 @@ async function loadComments(useCache){
     let snap;
     try{ snap=await getDocs(q); }
     catch(e){ console.warn('loadComments', (e&&e.message)||e); return; }
-    // Tout charger UNE fois en mémoire (généraux + passages + réponses).
-    snap.forEach(function(d){ __allC.push({id:d.id, data:d.data(), replies:[]}); });
-    // Charger les réponses de chaque commentaire (une lecture chacune, en parallèle) — gardées en mémoire.
-    await Promise.all(__allC.map(async function(item){
-      const rq=query(collection(db,'comments',key,'items',item.id,'replies'), orderBy('ts','asc'));
-      try{
-        const rsnap=await getDocs(rq);
-        rsnap.forEach(function(rd){ item.replies.push(rd.data()); });
-      }catch(e){ /* silencieux */ }
-    }));
+    // On lit SEULEMENT les commentaires (pour les pastilles 💬 et le compteur).
+    // Les réponses sont lues plus tard, quand la lectrice ouvre une pastille ou la liste
+    // (voir ensureReplies) : c'était la plus grosse source de lectures Firebase.
+    var prevById = {};
+    if(__commentsCache[key]){ __commentsCache[key].all.forEach(function(o){ prevById[o.id]=o; }); }
+    snap.forEach(function(d){
+      var old = prevById[d.id];
+      __allC.push({id:d.id, data:d.data(), replies: old ? old.replies : [], repliesLoaded: !!(old && old.repliesLoaded)});
+    });
     __commentsCache[key] = { t:Date.now(), all:__allC };
   }
   const list=document.getElementById('commentList');
@@ -2329,9 +2355,7 @@ function commentCardHTML(o){
       + (canDelete ? '<button class="cmt-act cmt-del" onclick="deleteComment(\''+cid+'\','+(isAuthor && !isMine ? 'true':'false')+')">🗑️ '+(lang==='fr'?'Supprimer':'Delete')+'</button>' : '')
       + '</div>';
   }
-  var repliesHTML='';
-  (o.replies||[]).forEach(function(r){ var isA = isAuthorDoc(r);
-    repliesHTML+='<div class="'+(isA?'author-reply':'reader-reply')+'"><div class="who">'+(isA?'✍️ ':'')+escapeHtml(r.name||'Anonyme')+'</div>'+escapeHtml(r.text||'')+'</div>'; });
+  var repliesHTML=repliesHTMLFor(o);
   return '<div class="comment" data-cid="'+cid+'">'+quote+'<div class="who">'+(isAuthorDoc(c)?'✍️ ':'')+escapeHtml(c.name||'Anonyme')+'</div><div class="txt" id="ctxt_'+cid+'">'+escapeHtml(c.text||'')+'</div>'+actions+'<div id="ar_'+cid+'">'+repliesHTML+'</div>'+authorBox+'</div>';
 }
 
@@ -2341,15 +2365,23 @@ function renderGeneralComments(generals){
   if(!list) return;
   if(!generals.length){ list.innerHTML='<div class="empty-c">'+(lang==='fr'?'Sois le premier à laisser un mot 💌':'Be the first to leave a note 💌')+'</div>'; return; }
   var label=(lang==='fr'?'Voir les commentaires':'Show comments')+' ('+generals.length+')';
-  var inner=generals.map(commentCardHTML).join('');
+  // La liste (et ses réponses) n'est construite qu'à l'ouverture : 0 lecture si on ne l'ouvre pas.
   list.innerHTML='<button class="cmt-act" id="toggleComments" style="margin-bottom:10px;">💬 '+label+'</button>'
-    +'<div id="generalCommentsInner" style="display:none;">'+inner+'</div>';
+    +'<div id="generalCommentsInner" style="display:none;"></div>';
   var btn=document.getElementById('toggleComments');
   var inr=document.getElementById('generalCommentsInner');
-  if(btn && inr){ btn.onclick=function(){
+  var built=false;
+  if(btn && inr){ btn.onclick=async function(){
     var open=(inr.style.display!=='none');
     inr.style.display=open?'none':'block';
     btn.textContent='💬 '+(open?((lang==='fr'?'Voir les commentaires':'Show comments')+' ('+generals.length+')'):((lang==='fr'?'Masquer les commentaires':'Hide comments')));
+    if(!open && !built){
+      inr.innerHTML=LOADING_C();
+      await ensureReplies(generals);
+      if(document.getElementById('generalCommentsInner')!==inr) return;   // chapitre changé entre-temps
+      inr.innerHTML=generals.map(commentCardHTML).join('');
+      built=true;
+    }
   }; }
 }
 
@@ -2433,7 +2465,16 @@ function openPassageReadPopup(quote, ids){
   var theQuote = quote || (items[0] && items[0].data && items[0].data.quote) || '';
   window.__currentPassageQuote = theQuote;
   if(qEl) qEl.textContent = '\u201c'+theQuote+'\u201d';
-  bodyEl.innerHTML = items.length ? items.map(commentCardHTML).join('') : '<div class="empty-c">'+(lang==='fr'?'Aucun commentaire sur ce passage.':'No comment on this passage.')+'</div>';
+  if(!items.length){ bodyEl.innerHTML='<div class="empty-c">'+(lang==='fr'?'Aucun commentaire sur ce passage.':'No comment on this passage.')+'</div>'; }
+  else if(items.every(function(o){ return o.repliesLoaded; })){ bodyEl.innerHTML=items.map(commentCardHTML).join(''); }
+  else {
+    // Réponses pas encore lues : on affiche les commentaires tout de suite, puis on complète.
+    bodyEl.innerHTML=items.map(commentCardHTML).join('');
+    ensureReplies(items).then(function(){
+      if(window.__currentPassageQuote!==theQuote || !ov.classList.contains('show')) return;
+      items.forEach(function(o){ document.querySelectorAll('[id="ar_'+o.id+'"]').forEach(function(el){ el.innerHTML=repliesHTMLFor(o); }); });
+    });
+  }
   // Bouton "Commenter ce passage" : visible seulement si connecté.
   if(replyBtn){
     if(currentUser){ replyBtn.style.display='inline-block';
@@ -2637,7 +2678,7 @@ window.postReply=async function(cid){
     inp.value='';
     // Créer une notification pour l'auteur du commentaire parent
     try{ await createReplyNotification(key, cid, replierName, text); }catch(e){ console.warn('notif',e.message); }
-    loadComments();   // recharge pour afficher la nouvelle réponse
+    refreshRepliesOf(cid);   // relit seulement ce fil (la liste et la popup restent ouvertes)
   }catch(e){ alert('Oops: '+e.message); }
 };
 
@@ -2649,6 +2690,7 @@ async function createReplyNotification(key, cid, replierName, text){
   var targets = {};   // uid -> true (set)
   // Le fil est déjà en mémoire (chargé pour l'affichage) : pas besoin de le relire.
   var mem = (key==='about') ? __aboutThreads[cid] : (__chapterComments||[]).find(function(o){ return o.id===cid; });
+  if(mem && key!=='about' && !mem.repliesLoaded){ try{ await ensureReplies([mem]); }catch(e){} }
   if(mem && mem.data){
     if(mem.data.uid) targets[mem.data.uid] = true;
     (mem.replies||[]).forEach(function(r){ if(r && r.uid) targets[r.uid] = true; });
@@ -2824,14 +2866,16 @@ function focusNotifComment(commentId, tries){
   // Commentaire général -> déplier la liste puis surligner la bonne carte.
   var inr=document.getElementById('generalCommentsInner');
   var btn=document.getElementById('toggleComments');
-  if(inr && inr.style.display==='none' && btn){ btn.click(); }   // ouvre la liste repliée
-  setTimeout(function(){
-    var cl=document.getElementById('commentList'); if(cl) cl.scrollIntoView({behavior:'smooth',block:'start'});
+  if(inr && inr.style.display==='none' && btn){ btn.click(); }   // ouvre la liste repliée (chargée à l'ouverture)
+  var cl=document.getElementById('commentList'); if(cl) cl.scrollIntoView({behavior:'smooth',block:'start'});
+  var waitN=0;
+  (function findCard(){
     var el=document.getElementById('ar_'+commentId);
     var card=el&&el.closest?el.closest('.comment'):null;
     if(!card){ var dc=document.querySelector('.comment[data-cid="'+commentId+'"]'); if(dc) card=dc; }
-    if(card){ card.scrollIntoView({behavior:'smooth',block:'center'}); card.classList.add('hl'); setTimeout(function(){ card.classList.remove('hl'); },2600); }
-  }, 250);
+    if(card){ card.scrollIntoView({behavior:'smooth',block:'center'}); card.classList.add('hl'); setTimeout(function(){ card.classList.remove('hl'); },2600); return; }
+    if(++waitN<20) setTimeout(findCard, 200);   // la liste se charge encore (max ~4 s)
+  })();
 }
 // Ouvrir/fermer le panneau au clic sur la cloche
 document.addEventListener('click', function(e){
