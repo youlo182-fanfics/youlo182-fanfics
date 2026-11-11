@@ -485,6 +485,7 @@
   font-size:9px; font-weight:800; min-width:15px; height:15px; line-height:15px;
   text-align:center; border-radius:8px; padding:0 3px; box-shadow:0 1px 4px rgba(0,0,0,.4);
 }
+#floatBar .fb-badge.fb-ok{ background:#1f9d55; }
 #floatBar .fb-sep{ width:1px; height:20px; background:rgba(255,255,255,.22); }
 
 /* ===== Actions commentaire (modifier/supprimer) ===== */
@@ -701,6 +702,9 @@
   <button class="fb-btn" id="fbFontDown" title="Texte plus petit" aria-label="Texte plus petit">A−</button>
   <button class="fb-btn" id="fbFontUp" title="Texte plus grand" aria-label="Texte plus grand">A+</button>
   <button class="fb-btn" id="fbTheme" title="Mode clair / sombre" aria-label="Mode clair / sombre">☀️</button>
+  <span class="fb-sep"></span>
+  <button class="fb-btn" id="fbShare" title="Partager" aria-label="Partager">🔗<span class="fb-badge fb-ok" id="fbShareBadge" style="display:none;">✓</span></button>
+  <button class="fb-btn" id="fbOffline" title="Télécharger pour lire hors-ligne" aria-label="Télécharger pour lire hors-ligne">📥<span class="fb-badge fb-ok" id="fbOfflineBadge" style="display:none;">✓</span></button>
   <span class="fb-sep" id="fbSep" style="display:none;"></span>
   <button class="fb-btn" id="fbBell" title="Notifications" aria-label="Notifications" style="display:none;">🔔<span class="fb-badge" id="fbBadge" style="display:none;">0</span></button>
 </div>
@@ -2927,6 +2931,37 @@ try{
   if(fd) fd.onclick=function(){ bumpFont(-1); };
   if(fu) fu.onclick=function(){ bumpFont(1); };
   if(ft) ft.onclick=function(){ var b=document.getElementById('themeBtn'); if(b) b.click(); };
+  // Partager / Hors-ligne : mêmes actions que les boutons sous le chapitre (clic relayé).
+  var fsh=document.getElementById('fbShare'), fof=document.getElementById('fbOffline');
+  if(fsh) fsh.onclick=function(){ var b=document.getElementById('shareBtn'); if(b) b.click(); };
+  if(fof) fof.onclick=function(){ var b=document.getElementById('offlineBtn'); if(b) b.click(); };
+  // Le retour visuel (Lien copié, 45 %, Téléchargé) s'affiche sur le bouton du bas, qu'on ne voit
+  // pas en pleine lecture : on le recopie sur la barre flottante (pastille + infobulle).
+  function mirrorFloat(){
+    var lblS=document.getElementById('shareLabel'), lblO=document.getElementById('offlineLabel');
+    var bO=document.getElementById('offlineBtn');
+    var bdS=document.getElementById('fbShareBadge'), bdO=document.getElementById('fbOfflineBadge');
+    var fr=(lang==='fr');
+    if(fsh){ fsh.title=fr?'Partager':'Share'; fsh.setAttribute('aria-label', fsh.title); }
+    if(fsh && bdS && lblS){ var copied=/copi/i.test(lblS.textContent); bdS.style.display=copied?'':'none'; if(copied) fsh.title=lblS.textContent; }
+    if(fof && bO){ fof.style.display = (bO.style.display==='none') ? 'none' : ''; }
+    if(fof && bdO && lblO){
+      var t=lblO.textContent||'';
+      var pct=t.match(/(\d+)\s*%/);
+      var done=(typeof UI!=='undefined' && UI[lang] && t===UI[lang].offlineDone);
+      if(pct){ bdO.textContent=pct[1]; bdO.className='fb-badge'; bdO.style.display=''; }
+      else if(done){ bdO.textContent='✓'; bdO.className='fb-badge fb-ok'; bdO.style.display=''; }
+      else { bdO.style.display='none'; }
+      fof.title = t ? ('📥 '+t) : (fr?'Télécharger pour lire hors-ligne':'Download to read offline');
+      fof.setAttribute('aria-label', fof.title);
+    }
+  }
+  try{
+    var mo=new MutationObserver(mirrorFloat);
+    ['shareLabel','offlineLabel'].forEach(function(id){ var el=document.getElementById(id); if(el) mo.observe(el,{childList:true,characterData:true,subtree:true}); });
+    var ob=document.getElementById('offlineBtn'); if(ob) mo.observe(ob,{attributes:true,attributeFilter:['style']});
+  }catch(e){}
+  mirrorFloat();
   if(fbell) fbell.onclick=function(e){
     e.stopPropagation();   // ne pas declencher le "clic exterieur" qui refermerait aussitot
     var panel=document.getElementById('notifPanel');
