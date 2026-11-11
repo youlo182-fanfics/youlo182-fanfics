@@ -33,6 +33,10 @@ const SMTP_USER = "youlo182.fanfics@gmail.com";
 const FROM_ADDR = "youlo182.fanfics@gmail.com";
 const FROM_NAME = "Youlo182";
 const PROJECT = "youlo182-fanfics";
+// Compte autrice sur le site, et boite ou elle veut recevoir SES e-mails (pas son adresse perso).
+const AUTHOR_EMAIL = "julie.cacciola@gmail.com";
+const AUTHOR_INBOX = "youlo182.fanfics@gmail.com";
+const MAX_AUTHOR_PER_DAY = 100;
 const UNSUB_URL = "https://" + REGION + "-" + PROJECT + ".cloudfunctions.net/unsubscribe";
 
 const THREAD_COOLDOWN_MS = 30 * 60 * 1000;
@@ -88,6 +92,26 @@ async function storyTitle(bookId, lang) {
     }
   } catch (e) { logger.warn("stories.json", e.message); }
   return bookId;
+}
+
+// Compteur du jour (mailState/{name}) : renvoie false si le plafond est atteint.
+async function takeDaily(name, max) {
+  const ref = db.doc("mailState/" + name);
+  const today = new Date().toISOString().slice(0, 10);
+  return db.runTransaction(async (t) => {
+    const g = await t.get(ref);
+    const d = g.exists ? g.data() : {};
+    const count = d.day === today ? (d.count || 0) : 0;
+    if (count >= max) return false;
+    t.set(ref, { day: today, count: count + 1 });
+    return true;
+  });
+}
+function gmailTransport() {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: SMTP_USER, pass: GMAIL_APP_PASSWORD.value().replace(/\s+/g, "") }
+  });
 }
 
 // ---------- textes FR / EN ----------
@@ -151,6 +175,8 @@ exports.mailOnReply = onDocumentCreated(
     let user;
     try { user = await admin.auth().getUser(uid); } catch (e) { logger.warn("compte introuvable", uid); return; }
     if (!user.email || user.disabled) return;
+    const isAuthorTarget = (user.email || "").toLowerCase() === AUTHOR_EMAIL;
+    const toAddr = isAuthorTarget ? AUTHOR_INBOX : user.email;
 
     // Le commentaire existe-t-il vraiment ? (protege contre les fausses notifications)
     const isAbout = !!n.isAbout || n.bookId === "about";
@@ -181,17 +207,7 @@ exports.mailOnReply = onDocumentCreated(
       return true;
     });
     if (!ok) { logger.info("limite anti-spam atteinte", uid); return; }
-    // Plafond global du jour (tous lecteurs confondus)
-    const globalRef = db.doc("mailState/_global");
-    const gOk = await db.runTransaction(async (t) => {
-      const g = await t.get(globalRef);
-      const d = g.exists ? g.data() : {};
-      const count = d.day === today ? (d.count || 0) : 0;
-      if (count >= MAX_GLOBAL_PER_DAY) return false;
-      t.set(globalRef, { day: today, count: count + 1 });
-      return true;
-    });
-    if (!gOk) { logger.warn("plafond global du jour atteint (" + MAX_GLOBAL_PER_DAY + ")"); return; }
+    if (!(await takeDaily("_global", MAX_GLOBAL_PER_DAY))) { logger.warn("plafond global du jour atteint (" + MAX_GLOBAL_PER_DAY + ")"); return; }
 
     const title = isAbout ? "" : await storyTitle(n.bookId, lang);
     const link = isAbout
@@ -206,14 +222,11 @@ exports.mailOnReply = onDocumentCreated(
       preview: oneLine(n.preview, 200)
     });
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: SMTP_USER, pass: GMAIL_APP_PASSWORD.value().replace(/\s+/g, "") }
-    });
+    const transporter = gmailTransport();
     try {
       await transporter.sendMail({
         from: { name: FROM_NAME, address: FROM_ADDR },
-        to: user.email,
+        to: toAddr,
         subject: mail.subject,
         text: mail.text,
         html: mail.html,
@@ -227,6 +240,62 @@ exports.mailOnReply = onDocumentCreated(
     } catch (e) {
       logger.error("envoi impossible", e.message);
     }
+  }
+);
+
+// ---------- 1 bis) Nouveau commentaire -> e-mail a l'autrice (boite youlo182.fanfics) ----------
+// Seulement les NOUVEAUX commentaires (pas les reponses : celles-ci passent par mailOnReply,
+// et l'autrice ne les recoit que si elle participe a la discussion).
+exports.mailAuthorOnComment = onDocumentCreated(
+  { document: "comments/{key}/items/{cid}", secrets: [GMAIL_APP_PASSWORD] },
+  async (event) => {
+    const c = event.data && event.data.data();
+    if (!c || c.admin) return;                       // commentaire de l'autrice elle-meme
+    if (c.uid) {
+      try {
+        const au = await admin.auth().getUserByEmail(AUTHOR_EMAIL);
+        if (au.uid === c.uid) return;
+      } catch (e) { /* compte autrice introuvable : on continue */ }
+    }
+    if (!(await takeDaily("_author", MAX_AUTHOR_PER_DAY))) { logger.warn("plafond autrice du jour atteint"); return; }
+    if (!(await takeDaily("_global", MAX_GLOBAL_PER_DAY))) { logger.warn("plafond global du jour atteint"); return; }
+
+    const key = event.params.key, cid = event.params.cid;
+    const isAbout = key === "about";
+    const m = key.match(/^(.*)_(fr|en)_(\d+)$/);
+    const bookId = isAbout ? "about" : (m ? m[1] : key);
+    const lang = m ? m[2] : "fr";
+    const ch = m ? parseInt(m[3], 10) : 0;
+    const title = isAbout ? "" : await storyTitle(bookId, lang);
+    const where = isAbout ? "la page À propos" : ("« " + title + " », chapitre " + (ch + 1) + " (" + lang.toUpperCase() + ")");
+    const link = isAbout
+      ? (SITE + "/?about=1&c=" + encodeURIComponent(cid) + "&lang=" + lang)
+      : (SITE + "/?story=" + encodeURIComponent(bookId) + "&lang=" + lang + "&ch=" + ch + "&c=" + encodeURIComponent(cid));
+    const who = oneLine(c.name || "Quelqu'un", 40);
+    const txt = oneLine(c.text, 600);
+    const quote = c.quote ? oneLine(c.quote, 200) : "";
+
+    const subject = "Nouveau commentaire de " + who + " sur " + (isAbout ? "la page À propos" : title);
+    const text = [
+      who + " a laissé un commentaire sur " + where + " :", "",
+      (quote ? ("Passage : « " + quote + " »\n") : "") + "« " + txt + " »", "",
+      "Voir le commentaire : " + link
+    ].join("\n");
+    const html =
+      '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#222;max-width:560px;">' +
+      "<p><b>" + esc(who) + "</b> a laissé un commentaire sur " + esc(where) + " :</p>" +
+      (quote ? '<p style="margin:0 0 8px;color:#777;font-size:13px;">Passage : <i>' + esc(quote) + "</i></p>" : "") +
+      '<p style="margin:0 0 16px;padding-left:12px;border-left:3px solid #ccc;color:#444;"><i>' + esc(txt) + "</i></p>" +
+      '<p><a href="' + esc(link) + '">Voir le commentaire</a></p>' +
+      "</div>";
+    try {
+      await gmailTransport().sendMail({
+        from: { name: FROM_NAME, address: FROM_ADDR },
+        to: AUTHOR_INBOX, subject, text, html,
+        headers: { "Auto-Submitted": "auto-generated" }
+      });
+      logger.info("mail autrice envoye", key, cid);
+    } catch (e) { logger.error("envoi autrice impossible", e.message); }
   }
 );
 

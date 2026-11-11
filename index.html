@@ -840,7 +840,7 @@ async function initFirebase(){
       // Ne redessine l'accueil QUE si on y est (sinon un lien direct ?story=ID ou /s/ID
       // était renvoyé à l'accueil dès que Firebase avait fini de charger).
       var _lib=document.getElementById('library'); if(_lib && _lib.style.display!=='none'){ renderLibrary(); }
-      if(user){ try{ startNotifications(); }catch(e){console.warn(e);} try{ claimPseudoIfNeeded(user); }catch(e){} } else { try{ stopNotifications(); }catch(e){} }
+      if(user){ try{ startNotifications(); }catch(e){console.warn(e);} try{ claimPseudoIfNeeded(user); }catch(e){} try{ maybeAskMailPrefs(user); }catch(e){} } else { try{ stopNotifications(); }catch(e){} }
       var _adminLink=document.getElementById('adminLink'); if(_adminLink) _adminLink.style.display=isAuthor?'inline-block':'none';
       if(currentBook && document.getElementById('reader').style.display!=='none'){ renderChapter(); }
     });
@@ -3363,7 +3363,7 @@ var LEGAL = {
       + "<p>La plupart des couvertures sont générées par intelligence artificielle, afin de ne pas utiliser l'image réelle des actrices. <strong>En revanche, les histoires ne sont pas écrites par une IA : elles sont entièrement écrites par Julie Cacciola (Youlo182).</strong></p>"
       + "<h3 style='color:var(--accent-l);margin:14px 0 6px;'>🔒 Confidentialité (RGPD)</h3>"
       + "<p>Si tu crées un compte, les données suivantes sont enregistrées : ton <strong>adresse email</strong>, ton <strong>pseudo</strong>, ta progression de lecture, tes j'aime et tes commentaires. Ces données servent uniquement au fonctionnement du site (te reconnaître, garder ta progression, afficher tes commentaires). Elles sont stockées de façon sécurisée via Google Firebase et ne sont <strong>jamais vendues ni partagées</strong>.</p>"
-      + "<p>Si tu as coché l'option newsletter, ton email pourra être utilisé pour t'informer des nouvelles publications. Tu peux te désinscrire à tout moment.</p>"
+      + "<p>Si tu as coché l'option newsletter, ton email pourra être utilisé pour t'informer des nouvelles publications. Si tu as coché l'option « quand on me répond », tu reçois aussi un email quand quelqu'un répond à une discussion à laquelle tu participes. Tu peux te désinscrire à tout moment (dans « Mon compte » ou via le lien en bas de chaque email).</p>"
       + "<p>Pour demander l'accès à tes données ou leur suppression, contacte-moi via mes réseaux (voir bas de page). 💛</p>"
   },
   en: {
@@ -3374,7 +3374,7 @@ var LEGAL = {
       + "<p>Most covers are AI-generated, so as not to use the actresses' real likeness. <strong>However, the stories are NOT written by AI: they are entirely written by Julie Cacciola (Youlo182).</strong></p>"
       + "<h3 style='color:var(--accent-l);margin:14px 0 6px;'>🔒 Privacy (GDPR)</h3>"
       + "<p>If you create an account, the following data is stored: your <strong>email</strong>, your <strong>display name</strong>, your reading progress, your likes and your comments. This data is only used to run the site (recognise you, keep your progress, show your comments). It is stored securely via Google Firebase and is <strong>never sold or shared</strong>.</p>"
-      + "<p>If you ticked the newsletter option, your email may be used to notify you of new releases. You can unsubscribe at any time.</p>"
+      + "<p>If you ticked the newsletter option, your email may be used to notify you of new releases. If you ticked the “replies” option, you also get an email when someone replies in a discussion you take part in. You can unsubscribe at any time (in “My account” or via the link at the bottom of each email).</p>"
       + "<p>To request access to or deletion of your data, contact me via my socials (see footer). 💛</p>"
   }
 };
@@ -3412,6 +3412,53 @@ function showAgeNotice(){
   ov.classList.add('show');
 }
 
+// ==================== POPUP CHOIX DES E-MAILS ====================
+// Une seule fois par appareil (comme le 18+), et jamais si le compte a déjà fait son choix
+// (champ users.mailPrefsAt). Attend que la popup 18+ / connexion soit fermée.
+var __mpAsking=false;
+async function maybeAskMailPrefs(user){
+  if(!user || isAuthor || __mpAsking) return;
+  if(safeGet('mailprefs_asked','')==='1') return;
+  __mpAsking=true;
+  var data={};
+  try{ var snap=await getDoc(doc(db,'users',user.uid)); data = snap.exists() ? snap.data() : {}; }catch(e){ __mpAsking=false; return; }
+  if(data.mailPrefsAt){ safeSet('mailprefs_asked','1'); __mpAsking=false; return; }
+  var ov=document.getElementById('mailPrefsOverlay'); if(!ov){ __mpAsking=false; return; }
+  (function waitFree(){
+    var busy = ['ageOverlay','authOverlay'].some(function(id){ var o=document.getElementById(id); return o && o.classList.contains('show'); });
+    if(busy){ setTimeout(waitFree,700); return; }
+    if(!currentUser || currentUser.uid!==user.uid){ __mpAsking=false; return; }
+    var isEN=(lang==='en');
+    document.getElementById('mpTitle').textContent = isEN ? 'Your e-mails 💌' : 'Tes e-mails 💌';
+    document.getElementById('mpText').textContent = isEN ? 'Choose which e-mails you want to get from Youlo182:' : 'Choisis les e-mails que tu veux recevoir de Youlo182 :';
+    document.getElementById('mpNlLabel').textContent = isEN ? 'Get an email when a new story is published 💛' : 'Recevoir un email quand une nouvelle histoire est publiée 💛';
+    document.getElementById('mpRpLabel').textContent = isEN ? 'Get an email when someone replies to me 💬' : 'Recevoir un email quand on me répond 💬';
+    document.getElementById('mpNote').textContent = isEN ? 'You can change this anytime in “My account”.' : 'Tu pourras changer ça à tout moment dans « Mon compte ».';
+    var btn=document.getElementById('mpSave');
+    btn.textContent = isEN ? 'Save my choices' : 'Enregistrer mes choix';
+    document.getElementById('mpNewsletter').checked = (data.newsletter===true);
+    document.getElementById('mpReplies').checked = (data.emailReplies!==false);
+    btn.disabled=false;
+    btn.onclick=async function(){
+      btn.disabled=true;
+      try{
+        await setDoc(doc(db,'users',user.uid),{
+          newsletter: document.getElementById('mpNewsletter').checked,
+          emailReplies: document.getElementById('mpReplies').checked,
+          mailPrefsAt: serverTimestamp(),
+          email: user.email||'', displayName: (user.displayName||'Anonyme')
+        },{merge:true});
+        safeSet('mailprefs_asked','1');
+        ov.classList.remove('show'); __mpAsking=false;
+      }catch(e){
+        btn.disabled=false;
+        alert((isEN?'Could not save, please try again. ':'Impossible d\'enregistrer, réessaie. ')+'('+((e&&e.code)||'')+')');
+      }
+    };
+    ov.classList.add('show');
+  })();
+}
+
 async function __init(){
   try{ applyUILang(); }catch(e){ console.error('applyUILang',e); }
   try{ showAgeNotice(); }catch(e){}
@@ -3430,6 +3477,22 @@ initFirebase();
     <p id="ageText2" style="color:var(--muted);font-size:13px;"></p>
     <button class="auth-main" id="ageYes">J'ai 18 ans ou plus, j'entre 💛</button>
     <div class="auth-close"><a id="ageNo">Quitter</a></div>
+  </div>
+</div>
+<div id="mailPrefsOverlay" class="auth-overlay" style="z-index:390;">
+  <div class="auth-box age-box" style="text-align:left;">
+    <h3 id="mpTitle" style="text-align:center;">Tes e-mails 💌</h3>
+    <p id="mpText">Choisis les e-mails que tu veux recevoir de Youlo182 :</p>
+    <label style="display:block;font-size:14px;color:var(--ink);margin-bottom:10px;cursor:pointer;background:rgba(176,61,94,.10);border:1px solid var(--line);border-radius:10px;padding:12px;">
+      <input type="checkbox" id="mpNewsletter" style="margin-right:8px;vertical-align:middle;">
+      <span id="mpNlLabel" style="vertical-align:middle;">Recevoir un email quand une nouvelle histoire est publiée 💛</span>
+    </label>
+    <label style="display:block;font-size:14px;color:var(--ink);margin-bottom:12px;cursor:pointer;background:rgba(176,61,94,.10);border:1px solid var(--line);border-radius:10px;padding:12px;">
+      <input type="checkbox" id="mpReplies" style="margin-right:8px;vertical-align:middle;">
+      <span id="mpRpLabel" style="vertical-align:middle;">Recevoir un email quand on me répond 💬</span>
+    </label>
+    <p id="mpNote" style="color:var(--muted);font-size:12.5px;">Tu pourras changer ça à tout moment dans « Mon compte ».</p>
+    <button class="auth-main" id="mpSave">Enregistrer mes choix</button>
   </div>
 </div>
 <div id="accountOverlay" class="auth-overlay">
