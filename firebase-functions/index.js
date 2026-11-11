@@ -37,6 +37,9 @@ const UNSUB_URL = "https://" + REGION + "-" + PROJECT + ".cloudfunctions.net/uns
 
 const THREAD_COOLDOWN_MS = 30 * 60 * 1000;
 const MAX_PER_DAY = 15;
+// Plafond GLOBAL : Gmail autorise environ 500 envois/jour pour tout le compte (newsletter comprise).
+// On garde de la marge pour la newsletter de Julie.
+const MAX_GLOBAL_PER_DAY = 300;
 
 const GMAIL_APP_PASSWORD = defineSecret("GMAIL_APP_PASSWORD");
 const UNSUB_KEY = defineSecret("UNSUB_KEY");
@@ -180,6 +183,17 @@ exports.mailOnReply = onDocumentCreated(
       return true;
     });
     if (!ok) { logger.info("limite anti-spam atteinte", uid); return; }
+    // Plafond global du jour (tous lecteurs confondus)
+    const globalRef = db.doc("mailState/_global");
+    const gOk = await db.runTransaction(async (t) => {
+      const g = await t.get(globalRef);
+      const d = g.exists ? g.data() : {};
+      const count = d.day === today ? (d.count || 0) : 0;
+      if (count >= MAX_GLOBAL_PER_DAY) return false;
+      t.set(globalRef, { day: today, count: count + 1 });
+      return true;
+    });
+    if (!gOk) { logger.warn("plafond global du jour atteint (" + MAX_GLOBAL_PER_DAY + ")"); return; }
 
     const title = isAbout ? "" : await storyTitle(n.bookId, lang);
     const link = isAbout
