@@ -1460,6 +1460,7 @@ async function openAccount(){
   document.getElementById('accWho').textContent = (currentUser.displayName||'') + ' · ' + (currentUser.email||'');
   document.getElementById('accNlLabel').textContent = isEN ? 'Get an email when a new story is published 💛' : 'Recevoir un email quand une nouvelle histoire est publiée 💛';
   document.getElementById('accRpLabel').textContent = isEN ? 'Get an email when someone replies to me 💬' : 'Recevoir un email quand on me répond 💬';
+  document.getElementById('accRpHint').textContent = isEN ? 'Add youlo182.fanfics@gmail.com to your contacts so these emails don\'t end up in spam.' : 'Pense à ajouter youlo182.fanfics@gmail.com à tes contacts pour que ces emails n\'arrivent pas dans les spams.';
   document.getElementById('accLogout').textContent = isEN ? 'Sign out' : 'Se déconnecter';
   document.getElementById('accClose').textContent = isEN ? 'Close' : 'Fermer';
   document.getElementById('accNlSaved').style.display='none';
@@ -3442,6 +3443,7 @@ initFirebase();
     <label id="accRpWrap" style="display:block;width:100%;text-align:left;font-size:14px;color:var(--ink);margin-bottom:16px;cursor:pointer;box-sizing:border-box;background:rgba(176,61,94,.10);border:1px solid var(--line);border-radius:10px;padding:12px;overflow-wrap:break-word;word-wrap:break-word;">
       <input type="checkbox" id="accReplies" style="margin-right:8px;vertical-align:middle;">
       <span id="accRpLabel" style="vertical-align:middle;">Recevoir un email quand on me répond 💬</span>
+      <span id="accRpHint" style="display:block;margin-top:6px;font-size:12.5px;color:var(--muted);">Pense à ajouter youlo182.fanfics@gmail.com à tes contacts pour que ces emails n'arrivent pas dans les spams.</span>
     </label>
     <div id="accNlSaved" style="display:none;font-size:12.5px;color:#00a651;margin-bottom:12px;">✅ Préférence enregistrée !</div>
     <button class="auth-main" id="accLogout" style="background:var(--card);border:1px solid var(--accent-l);color:var(--accent-l);">Se déconnecter</button>

@@ -30,8 +30,8 @@ const db = admin.firestore();
 const REGION = "europe-west1";
 const SITE = "https://youlo182-fanfics.pages.dev";
 const SMTP_USER = "youlo182.fanfics@gmail.com";
-const FROM_ADDR = "youlo182.fanfics+noreply@gmail.com";
-const FROM_NAME = "Youlo182 (ne pas répondre)";
+const FROM_ADDR = "youlo182.fanfics@gmail.com";
+const FROM_NAME = "Youlo182";
 const PROJECT = "youlo182-fanfics";
 const UNSUB_URL = "https://" + REGION + "-" + PROJECT + ".cloudfunctions.net/unsubscribe";
 
@@ -98,8 +98,8 @@ function buildMail(o) {
     ? (en ? "on the About page" : "sur la page À propos")
     : (en ? ("on “" + o.title + "”, chapter " + o.chNum) : ("sur « " + o.title + " », chapitre " + o.chNum));
   const subject = o.fromAdmin
-    ? (en ? "The author replied to you on Youlo182 💛" : "L'autrice t'a répondu sur Youlo182 💛")
-    : (en ? (who + " replied to you on Youlo182 💬") : (who + " t'a répondu sur Youlo182 💬"));
+    ? (en ? "The author replied to you on Youlo182" : "L'autrice t'a répondu sur Youlo182")
+    : (en ? (who + " replied to you on Youlo182") : (who + " t'a répondu sur Youlo182"));
   const hello = en ? ("Hi " + o.toName + ",") : ("Coucou " + o.toName + ",");
   const intro = o.fromAdmin
     ? (en ? ("The author replied in a discussion you're part of " + where + ":") : ("L'autrice a répondu dans une discussion à laquelle tu participes " + where + " :"))
@@ -119,18 +119,16 @@ function buildMail(o) {
     btn + (en ? ": " : " : ") + o.link, "", "--", auto, why, stop + (en ? ": " : " : ") + o.unsub, alt
   ].join("\n");
 
+  // Mise en page volontairement sobre (moins de risque de spam) : texte simple, un seul lien.
   const html =
-    '<div style="background:#f6eef1;padding:24px 12px;font-family:Georgia,\'Times New Roman\',serif;">' +
-    '<div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:14px;padding:28px 24px;border:1px solid #ead3db;">' +
-    '<div style="font-size:22px;color:#b03d5e;margin-bottom:18px;">Youlo182</div>' +
-    '<p style="font-size:16px;color:#2b2226;margin:0 0 12px;">' + esc(hello) + "</p>" +
-    '<p style="font-size:16px;color:#2b2226;margin:0 0 14px;line-height:1.5;">' + esc(intro) + "</p>" +
-    '<blockquote style="margin:0 0 22px;padding:12px 16px;background:#fbf4f6;border-left:4px solid #b03d5e;border-radius:6px;font-style:italic;color:#4a3a40;font-size:15px;line-height:1.5;">' + esc(o.preview) + "</blockquote>" +
-    '<a href="' + esc(o.link) + '" style="display:inline-block;background:#b03d5e;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:15px;font-family:Arial,sans-serif;">' + esc(btn) + "</a>" +
-    '<hr style="border:none;border-top:1px solid #ead3db;margin:28px 0 14px;">' +
-    '<p style="font-size:12px;color:#8a7a80;margin:0 0 6px;font-family:Arial,sans-serif;line-height:1.5;">' + esc(auto) + "<br>" + esc(why) + "</p>" +
-    '<p style="font-size:12px;color:#8a7a80;margin:0;font-family:Arial,sans-serif;"><a href="' + esc(o.unsub) + '" style="color:#8a7a80;">' + esc(stop) + "</a> " + esc(alt) + "</p>" +
-    "</div></div>";
+    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#222;max-width:560px;">' +
+    "<p>" + esc(hello) + "</p>" +
+    "<p>" + esc(intro) + "</p>" +
+    '<p style="margin:0 0 16px;padding-left:12px;border-left:3px solid #ccc;color:#444;"><i>' + esc(o.preview) + "</i></p>" +
+    '<p><a href="' + esc(o.link) + '">' + esc(btn) + "</a></p>" +
+    '<p style="font-size:12px;color:#777;margin-top:28px;">' + esc(auto) + "<br>" + esc(why) + "<br>" +
+    '<a href="' + esc(o.unsub) + '" style="color:#777;">' + esc(stop) + "</a> " + esc(alt) + "</p>" +
+    "</div>";
 
   return { subject, text, html };
 }
@@ -215,7 +213,6 @@ exports.mailOnReply = onDocumentCreated(
     try {
       await transporter.sendMail({
         from: { name: FROM_NAME, address: FROM_ADDR },
-        replyTo: FROM_ADDR,
         to: user.email,
         subject: mail.subject,
         text: mail.text,
