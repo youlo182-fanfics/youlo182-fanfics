@@ -1149,7 +1149,7 @@ window.postAboutReply=async function(cid){
     inp.value='';
     try{ await createReplyNotification('about', cid, replierName, text); }catch(e){ console.warn('notif about',e.message); }
     subscribeAboutComments(true);   // recharge (en direct) pour afficher la nouvelle réponse
-  }catch(e){ alert('Oops: '+e.message); }
+  }catch(e){ niceError(e,'send',text); }
 };
 function initAboutInteract(){
   var lb=document.getElementById('aboutLikeBtn'); if(lb) lb.onclick=doAboutLike;
@@ -1164,7 +1164,7 @@ function initAboutInteract(){
         await addDoc(collection(db,'comments','about','items'), commentPayload({ text: text }));
         ta.value='';
         subscribeAboutComments(true);   // recharge (en direct) pour afficher le nouveau mot
-      }catch(e){ alert('Oops: '+e.message); }
+      }catch(e){ niceError(e,'send',text); }
     };
   }
   subscribeAboutLike();
@@ -1404,6 +1404,36 @@ function needPseudo(){
   return false;
 }
 // Contenu commun d'un commentaire (l'autrice signe "Youlo182" avec le badge protégé)
+// Message clair quand un envoi échoue (au lieu de "Oops: Missing or insufficient permissions").
+// kind : 'send' (commentaire / réponse), 'edit', 'delete', 'pref' (préférence du compte).
+function niceError(e, kind, text, quote){
+  var fr=(lang==='fr'), code=(e&&e.code)||'', msg=((e&&e.message)||'')+'';
+  console.warn('firebase error', code, msg);
+  var what = { send: fr?"Ton message n'a pas pu être envoyé.":"Your message could not be sent.",
+               edit: fr?"La modification n'a pas pu être enregistrée.":"Your edit could not be saved.",
+               del:  fr?"La suppression n'a pas marché.":"The deletion did not work.",
+               pref: fr?"Ton choix n'a pas pu être enregistré.":"Your choice could not be saved." }[kind] || (fr?"Ça n'a pas marché.":"That did not work.");
+  var keep = (kind==='send'||kind==='edit') ? (fr?" Ton texte est toujours là, tu peux réessayer.":" Your text is still there, you can try again.") : "";
+  var why;
+  if((typeof navigator!=='undefined' && navigator.onLine===false) || code==='unavailable' || code==='deadline-exceeded' || /network|offline/i.test(msg)){
+    why = fr?"On dirait que la connexion internet a coupé. Vérifie ton réseau puis réessaie.":"It looks like your internet connection dropped. Check your network and try again.";
+  } else if(text && text.length>5000){
+    why = fr?("Il est trop long : "+text.length+" caractères, le maximum est 5000. Raccourcis-le un peu."):("It is too long: "+text.length+" characters, the limit is 5000. Please shorten it.");
+  } else if(quote && quote.length>3000){
+    why = fr?"Le passage sélectionné est trop long (3000 caractères maximum). Sélectionne un extrait plus court.":"The selected passage is too long (3000 characters max). Select a shorter excerpt.";
+  } else if(code==='unauthenticated' || !currentUser){
+    why = fr?"Ta session a expiré. Reconnecte-toi puis réessaie.":"Your session has expired. Sign in again and try again.";
+  } else if(code==='permission-denied'){
+    why = (kind==='edit'||kind==='del')
+      ? (fr?"Tu ne peux modifier ou supprimer que tes propres messages. Si c'est bien le tien, déconnecte-toi, reconnecte-toi et réessaie.":"You can only edit or delete your own messages. If it is yours, sign out, sign in again and retry.")
+      : (fr?"Le site l'a refusé. Ça arrive si ta session est trop ancienne ou si ton pseudo pose problème : déconnecte-toi, reconnecte-toi et réessaie.":"The site refused it. This happens when your session is too old or your username has an issue: sign out, sign in again and retry.");
+  } else if(code==='resource-exhausted'){
+    why = fr?"Le site est très sollicité en ce moment. Réessaie dans quelques minutes.":"The site is very busy right now. Please try again in a few minutes.";
+  } else {
+    why = fr?"Réessaie dans un instant. Si ça continue, écris-moi sur la page À propos ou sur Twitter.":"Try again in a moment. If it keeps happening, tell me on the About page or on Twitter.";
+  }
+  alert(what+' '+why+keep);
+}
 function commentPayload(extra){
   var base = isAuthor
     ? { name: AUTHOR_NAME, uid: currentUser.uid, admin: true, ts: serverTimestamp() }
@@ -1490,7 +1520,7 @@ document.getElementById('accNewsletter').onchange=async function(){
   try{
     await setDoc(doc(db,'users',currentUser.uid),{ newsletter:val, email:currentUser.email, displayName:(currentUser.displayName||'Anonyme') },{merge:true});
     var s=document.getElementById('accNlSaved'); if(s){ s.style.display='block'; setTimeout(function(){ s.style.display='none'; },2500); }
-  }catch(e){ alert('Oops: '+e.message); }
+  }catch(e){ niceError(e,'pref'); }
 };
 // E-mail quand quelqu'un me répond (envoyé par la Cloud Function mailOnReply)
 document.getElementById('accReplies').onchange=async function(){
@@ -2605,7 +2635,7 @@ async function sendPassageComment(){
     closePassagePopup();
     var s=window.getSelection(); if(s) s.removeAllRanges();
     loadComments();   // recharge la liste pour afficher le nouveau commentaire
-  }catch(e){ alert('Oops: '+e.message); }
+  }catch(e){ niceError(e,'send',text,window.__selectedQuote); }
 }
 
 // Affiche le petit bouton "Commenter ce passage" quand du texte est selectionne dans le chapitre
@@ -2697,7 +2727,7 @@ window.saveComment=async function(cid){
   try{
     await updateDoc(doc(db,'comments',key,'items',cid), { text:newText, edited:true });
     loadComments();   // recharge pour afficher le texte modifié
-  }catch(e){ alert('Oops: '+e.message); }
+  }catch(e){ niceError(e,'edit',newText); }
 };
 // ---- Supprimer un commentaire (proprietaire OU autrice) ----
 window.deleteComment=async function(cid, asAuthor){
@@ -2709,7 +2739,7 @@ window.deleteComment=async function(cid, asAuthor){
   try{
     await deleteDoc(doc(db,'comments',key,'items',cid));
     loadComments();   // recharge pour retirer le commentaire supprimé
-  }catch(e){ alert('Oops: '+e.message); }
+  }catch(e){ niceError(e,'del'); }
 };
 
 window.postReply=async function(cid){
@@ -2728,7 +2758,7 @@ window.postReply=async function(cid){
     // Créer une notification pour l'auteur du commentaire parent
     try{ await createReplyNotification(key, cid, replierName, text); }catch(e){ console.warn('notif',e.message); }
     refreshRepliesOf(cid);   // relit seulement ce fil (la liste et la popup restent ouvertes)
-  }catch(e){ alert('Oops: '+e.message); }
+  }catch(e){ niceError(e,'send',text); }
 };
 
 // Crée une notif pour l'auteur du commentaire parent (sauf si on se répond à soi-même)
@@ -3049,7 +3079,7 @@ document.getElementById('cSend').onclick=async function(){
     window.__pendingQuote=''; var qb=document.getElementById('quoteBadge'); if(qb) qb.style.display='none';
     if(currentBook){ bumpTotals('comments', 1, currentBook.id); }
     loadComments();   // recharge pour afficher le nouveau commentaire
-  }catch(e){ alert('Oops: '+e.message); }
+  }catch(e){ niceError(e,'send',text,window.__pendingQuote); }
 };
 
 // ---- POPUP ----
